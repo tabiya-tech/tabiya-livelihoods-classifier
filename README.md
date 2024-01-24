@@ -1,5 +1,13 @@
 # tabiya-livelihoods-classifier
+## Version 0
 
+```python
+from entity_linker import customPipeline
+text = 'This a a dummy text :)'
+custom_pipeline = customPipeline('path/to/your/CRF/model', 'all-MiniLM-L6-v2', crf=True)
+extracted = custom_pipeline(text)
+print(extracted)
+```
 
 ## Bibiography 
 
