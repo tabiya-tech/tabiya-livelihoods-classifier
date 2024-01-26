@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="client.css">
+<!--script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script-->
+<script src="jquery-3.7.1.min.js"></script>
+<script>
+	$(document).ready(function() {
+		$("#waitgif").hide();
+	});
+	$(document).on("ajaxStart", function() {
+		$("#waitgif").show();
+	}).on("ajaxStop", function() {
+		$("#waitgif").hide();
+	});
+	
+	function occ_list2str(arr) {
+		if (arr.length == 0) {
+			return("");
+		} else {
+			str = arr[0]['code'] + ':' + arr[0]['label'];
+			for (i=1; i<arr.length; i++) {
+				str += "| " + arr[i]['code'] + ':' + arr[i]['label'];
+			}
+			return(str);
+		}
+	}
+	function skill_list2str(arr) {
+		if (arr.length == 0) {
+			return("");
+		} else {
+			str = arr[0];
+			for (i=1; i<arr.length; i++) {
+				str += "| " + arr[i];
+			}
+			return(str);
+		}
+	}
+    function send_req(text) {
+		if (text == "") {
+			alert("Empty text string!")
+		}
+        $.post( "http://195.251.122.103:5000/match",
+            {
+				job_descr: text
+            },
+            function( data, status ) {
+				occup_html = "";
+				qualif_html = "";
+				skills_html = "";
+                //alert( "Status: " + status );
+				var size = data.length;
+				for (var i = 0; i < size ; i++) {
+					var item = data[i];
+					var type = item["type"];
+					var tokens = item["tokens"];
+					try {
+						var retrieved = item["retrieved"];
+					} catch { };
+					if (type == "Occupation") {
+						occup_html += "<p class='par'><span class='tokens'>" + tokens + "</span>"
+							+ ": "
+							+ "<span class='retrieved'>" + occ_list2str(retrieved) + "</span>"
+							+ "</p>";
+					} else if (type == "Skill") {
+						skills_html += "<p class='par'><span class='tokens'>" + tokens + "</span>"
+							+ ": "
+							+ "<span class='retrieved'>" + skill_list2str(retrieved) + "</span>"
+							+ "</p>";
+					} else if (type == "Qualification") {
+						qualif_html += "<p class='par'><span class='tokens'>" + tokens + "</span>"
+							+ "</p>";
+					}
+				}
+				$("#qualifications").html(qualif_html);
+				$("#skills").html(skills_html);
+				$("#occupations").html(occup_html);
+            }
+        );
+    }
+
+</script>
+</head>
+
+<body>
+
+
+<h1>Job matching</h1>
+<textarea id="job_text" placeholder="Paste job description here" cols="80" rows="10"></textarea><br/>
+
+	<div>
+		<button onclick="send_req($('#job_text').val());">Analyze Job</button>
+		<img id="waitgif" src="spinner.gif" class="waiting" style="display:none;"/>
+	</div>
+
+<div style="float:left; width:30%">
+<h2>Occupations:</h2><div id="occupations" class="response"></div><br/>
+</div>
+<div style="float:left; width:30%">
+<h2>Skills:</h2><div id="skills" class="response"></div><br/>
+</div>
+<div style="float:left; width:30%">
+<h2>Qualifications:</h2><div id="qualifications" class="response"></div><br/>
+</div>
+</body>
+</html> 

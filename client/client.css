@@ -1,0 +1,59 @@
+body {
+  font-family: Inter, sans-serif;
+  font-size: 11pt;
+}
+
+h1 {
+	font-size: 18pt;
+}
+h2 {
+	margin-top: 0px;
+	margin-bottom: 8px;
+	font-size: 15pt;
+}
+
+.waiting {
+	position: relative;
+	width: 30px;
+	top: 10px;
+	padding-left: 10px;
+	padding-top: 10px;
+	z-index: 1000;
+}
+
+.tokens {
+	font-style: italic;
+}
+.retrieved {
+	font-weight: bold;
+}
+p.par {
+	margin-bottom: 10px;
+}
+
+
+div.response {
+	background-color: rgb(240, 240, 240);
+	height: 400px;
+	margin-right: 10px;
+	overflow-y: scroll;
+}
+
+button {
+	background-color: rgb(32 32 32);
+	color: rgb(255 255 255);
+	padding-top: 10px;
+	padding-bottom: 10px;
+	padding-left: 20px;
+	padding-right: 20px;
+	margin-top: 8px;
+	margin-bottom: 8px;
+	margin-left: 8px;
+	margin-right: 8px;
+	cursor: pointer;
+	font-size: 13pt;
+}
+
+button:hover {
+	color: rgb(240 255 70);
+}
