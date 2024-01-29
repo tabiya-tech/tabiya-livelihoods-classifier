@@ -2,26 +2,42 @@
 <html>
 <head>
 <link rel="stylesheet" href="client.css">
+<base target="_blank">
 <!--script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script-->
 <script src="jquery-3.7.1.min.js"></script>
+<script src="jquery-ui-1.13.2.min.js"></script>
 <script>
+	var copy_html = "";
 	$(document).ready(function() {
 		$("#waitgif").hide();
+		$("#container").on("contextmenu", function() {
+		   update_html = $(this).html() + "<div style='inline-block'>" + copy_html + "</div>";
+		   $(this).html(update_html);
+		   return false;
+		});
 	});
 	$(document).on("ajaxStart", function() {
 		$("#waitgif").show();
 	}).on("ajaxStop", function() {
 		$("#waitgif").hide();
+		$(".retrieved").on("click", function(){
+			copy_html = $(this).html();
+		});
 	});
 	
-	function occ_list2str(arr) {
+	function occup_list2str(arr) {
 		if (arr.length == 0) {
 			return("");
 		} else {
-			str = arr[0]['code'] + ':' + arr[0]['label'];
+			str = "<div class='retrieved'>";
+			str += "<a href='" + arr[0]['uri'] + "'>" + arr[0]['code'] + '</a>:' + arr[0]['label'];
+			str += "</div>";
 			for (i=1; i<arr.length; i++) {
-				str += "| " + arr[i]['code'] + ':' + arr[i]['label'];
+				str += "| <div class='retrieved'>";
+				str += "<a href='" + arr[i]['uri'] + "'>" + arr[i]['code'] + '</a>:' + arr[i]['label'];
+				str += "</div>";
 			}
+			
 			return(str);
 		}
 	}
@@ -29,9 +45,9 @@
 		if (arr.length == 0) {
 			return("");
 		} else {
-			str = arr[0];
+			str = "<div class='retrieved'>" + arr[0] + "</div>";
 			for (i=1; i<arr.length; i++) {
-				str += "| " + arr[i];
+				str += "| <div class='retrieved'>" + arr[i] + "</div>";
 			}
 			return(str);
 		}
@@ -58,15 +74,11 @@
 						var retrieved = item["retrieved"];
 					} catch { };
 					if (type == "Occupation") {
-						occup_html += "<p class='par'><span class='tokens'>" + tokens + "</span>"
-							+ ": "
-							+ "<span class='retrieved'>" + occ_list2str(retrieved) + "</span>"
-							+ "</p>";
+						occup_html += "<p class='par'><div class='tokens'>" + tokens + "</div>"
+							+ ": " + occup_list2str(retrieved) + "</p>";
 					} else if (type == "Skill") {
-						skills_html += "<p class='par'><span class='tokens'>" + tokens + "</span>"
-							+ ": "
-							+ "<span class='retrieved'>" + skill_list2str(retrieved) + "</span>"
-							+ "</p>";
+						skills_html += "<p class='par'><div class='tokens'>" + tokens + "</div>"
+							+ ": " + skill_list2str(retrieved) + "</p>";
 					} else if (type == "Qualification") {
 						qualif_html += "<p class='par'><span class='tokens'>" + tokens + "</span>"
 							+ "</p>";
@@ -86,21 +98,23 @@
 
 
 <h1>Job matching</h1>
-<textarea id="job_text" placeholder="Paste job description here" cols="80" rows="10"></textarea><br/>
+<textarea id="job_text" placeholder="Paste job description here" cols="80" rows="10" style="float:left;"></textarea>
+<div id="container" data-text="Click on occupations or skills to copy and right click here to paste them" contenteditable=true></div>
+<div style="clear:both; height:0px;">&nbsp;</div>
 
-	<div>
-		<button onclick="send_req($('#job_text').val());">Analyze Job</button>
-		<img id="waitgif" src="spinner.gif" class="waiting" style="display:none;"/>
-	</div>
+<div>
+	<button onclick="send_req($('#job_text').val());">Analyze Job</button>
+	<img id="waitgif" src="spinner.gif" class="waiting" style="display:none;"/>
+</div>
 
-<div style="float:left; width:30%">
-<h2>Occupations:</h2><div id="occupations" class="response"></div><br/>
+<div class="result">
+<h2>Predicted Occupations:</h2><div id="occupations" class="response"></div><br/>
 </div>
-<div style="float:left; width:30%">
-<h2>Skills:</h2><div id="skills" class="response"></div><br/>
+<div class="result">
+<h2>Predicted Skills:</h2><div id="skills" class="response"></div><br/>
 </div>
-<div style="float:left; width:30%">
-<h2>Qualifications:</h2><div id="qualifications" class="response"></div><br/>
+<div class="result">
+<h2>Predicted Qualifications:</h2><div id="qualifications" class="response"></div><br/>
 </div>
 </body>
 </html> 
