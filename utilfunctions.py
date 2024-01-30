@@ -33,7 +33,11 @@ class UtilFunctions():
                 current_entity = None
     if current_entity:
         result.append(current_entity)
-    return result
+    #Post Processing
+    condition_function = lambda x: len(x['tokens']) != 0 and (len(x['tokens']) != 1 and not x['tokens'][0].startswith('##'))
+    filtered_list = [item for item in result if condition_function(item)]
+
+    return filtered_list
 
 
   @staticmethod
