@@ -52,6 +52,20 @@
 			return(str);
 		}
 	}
+	function qualification_list2str(arr) {
+		if (arr.length == 0) {
+			return("");
+		} else {
+			max = 0
+			for (i=0; i<arr.length; i++) {
+				if (arr[i] > max){
+					max = arr[i];
+				}
+			}
+			str = "<div class='retrieved'>" + max + "</div>";
+			return(str);
+		}
+	}
     function send_req(text) {
 		if (text == "") {
 			alert("Empty text string!")
@@ -80,8 +94,8 @@
 						skills_html += "<p class='par'><div class='tokens'>" + tokens + "</div>"
 							+ ": " + skill_list2str(retrieved) + "</p>";
 					} else if (type == "Qualification") {
-						qualif_html += "<p class='par'><span class='tokens'>" + tokens + "</span>"
-							+ "</p>";
+						qualif_html += "<p class='par'><div class='tokens'>" + tokens + "</div>"
+							+ " EQF level: " + qualification_list2str(retrieved) + "</p>";
 					}
 				}
 				$("#qualifications").html(qualif_html);

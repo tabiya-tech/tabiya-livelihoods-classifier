@@ -53,10 +53,11 @@ class customPipeline():
 
     self.occupation_emb = UtilFunctions.create_tensors('files/augmented_occupation_embeddings.pkl', self.device)
     self.skill_emb = UtilFunctions.create_tensors('files/skill_embeddings.pkl', self.device)
-
+    self.qualification_emb = UtilFunctions.create_tensors('files/qualificaton_embeddings.pkl', self.device)
 
     self.df_occ = pd.read_csv('files/occupations_augmented.csv')
     self.df_skill = pd.read_csv('files/skills.csv')
+    self.df_qual = pd.read_csv('files/qualifications.csv')
 
     label_list = [ 'O',
                'B-Skill',
@@ -90,7 +91,7 @@ class customPipeline():
       formatted_entities = self._ner_pipeline(sentence)
 
       for entry in formatted_entities:
-          if entry['type'] == "Occupation" or entry['type'] == "Skill":
+          if entry['type'] == "Occupation" or entry['type'] == "Skill" or entry['type'] == "Qualification":
               emb = self.similarity_model.encode(entry['tokens'])
               emb = torch.from_numpy(emb).to(self.device)
               entry['retrieved'] = self._top_5(emb, entry['type'])
@@ -127,6 +128,9 @@ class customPipeline():
       if entity_type == "Occupation":
           local_df = self.df_occ['esco code']
           local_emb = self.occupation_emb
+      elif entity_type == "Qualification":
+          local_df = self.df_qual['EQF_level']
+          local_emb = self.qualification_emb
       else:
           local_df = self.df_skill['skills']
           local_emb = self.skill_emb
@@ -136,4 +140,4 @@ class customPipeline():
       top_k = torch.topk(cos_scores, k=5)
       top_5_list = top_k.indices.tolist()
       top_5 = list(local_df.iloc[top_5_list])
-      return top_5
+      return list(set(top_5))
