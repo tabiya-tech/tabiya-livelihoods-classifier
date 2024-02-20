@@ -33,4 +33,4 @@ def match():
     return extracted
 
 if __name__ == "__main__":
-    app.run(host="195.251.122.103", port=5000, debug=True)
+    app.run(host="", port=5000, debug=True)
