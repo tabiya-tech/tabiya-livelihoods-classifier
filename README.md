@@ -9,6 +9,30 @@ extracted = custom_pipeline(text)
 print(extracted)
 ```
 
+##Train an Entity Extraction Model
+Configure the necessary hyperparameters in the config.json file. Defaults are:
+'''javascript 
+{
+    "model_name":"bert-base-cased",
+    "crf": false,
+    "dataset_path":"/content/drive/MyDrive/Oxford Martin School - NLP project/Datasets/job_ner_dataset",   
+    "label_list" : [ "O","B-Skill","B-Qualification","I-Domain","I-Experience","I-Qualification","B-Occupation","B-Domain","I-Occupation","I-Skill","B-Experience"],
+    "model_max_length" : 128,
+    "batch_size" : 32,
+    "learning_rate" : 1e-4,
+    "epochs" : 4,
+    "weight_decay": 0.01,
+    "save":false,
+    "output_path":"bert_job_ner"
+}
+'''
+
+Run the script
+
+'''
+python train.py
+'''
+
 ## Bibiography 
 
 A list on interesting and relevant matterial for reading:

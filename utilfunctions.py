@@ -1,8 +1,9 @@
 from typing import List, Optional
 import pickle
 #from google.cloud import translate_v2 as translate
-import torch
+#import torch
 import numpy as np
+import json
 class UtilFunctions():
 
   """
@@ -78,3 +79,17 @@ class UtilFunctions():
   #  result = translate_client.translate(text, target_language='en')
   #  sentence = result['translatedText']
   #  return sentence
+
+class Config(object):
+  def __init__(self, config_file):
+      # Initialization from a json configuration file.
+      self._readConfigFile(config_file)
+  def _readConfigFile(self, file):
+      try:
+          with open(file, 'r') as cfg:
+              data = json.load(cfg)
+          for key, value in data.items():
+              setattr(self, key, value)
+      except:
+          print('Configuration file read error')
+          raise
