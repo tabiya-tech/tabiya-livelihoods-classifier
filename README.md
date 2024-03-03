@@ -9,9 +9,10 @@ extracted = custom_pipeline(text)
 print(extracted)
 ```
 
-##Train an Entity Extraction Model
+## Train an Entity Extraction Model
 Configure the necessary hyperparameters in the config.json file. Defaults are:
-'''javascript 
+
+```javascript 
 {
     "model_name":"bert-base-cased",
     "crf": false,
@@ -25,13 +26,13 @@ Configure the necessary hyperparameters in the config.json file. Defaults are:
     "save":false,
     "output_path":"bert_job_ner"
 }
-'''
+```
 
 Run the script
 
-'''
+```
 python train.py
-'''
+```
 
 ## Bibiography 
 
