@@ -16,7 +16,7 @@ Configure the necessary hyperparameters in the config.json file. Defaults are:
 {
     "model_name":"bert-base-cased",
     "crf": false,
-    "dataset_path":"/content/drive/MyDrive/Oxford Martin School - NLP project/Datasets/job_ner_dataset",   
+    "dataset_path":"job_ner_dataset",   
     "label_list" : [ "O","B-Skill","B-Qualification","I-Domain","I-Experience","I-Qualification","B-Occupation","B-Domain","I-Occupation","I-Skill","B-Experience"],
     "model_max_length" : 128,
     "batch_size" : 32,
