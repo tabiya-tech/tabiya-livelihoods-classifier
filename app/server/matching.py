@@ -4,7 +4,9 @@ print()
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
-from entity_linker import customPipeline
+from inference.linker import EntityLinker
+
+access_token = 'hf_......'
 
 app = Flask(__name__)
 # Cross-origin requests allowed
@@ -18,7 +20,7 @@ dict_occupations = pd.read_csv("occupations_en.csv", sep=",", header=0)
 @app.route("/match", methods=["POST"])
 def match():
     job_descr = request.form["job_descr"]
-    custom_pipeline = customPipeline(entity_model = 'models/bert_job_ner', similarity_model = 'all-MiniLM-L6-v2')
+    custom_pipeline = EntityLinker(entity_model = 'tabiya/bert-base-job-extract', similarity_model = 'all-MiniLM-L6-v2', hf_token = access_token)
     extracted = custom_pipeline(job_descr)
     print(extracted)
     for elem in extracted:

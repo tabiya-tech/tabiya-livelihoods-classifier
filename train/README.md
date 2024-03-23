@@ -47,8 +47,10 @@ Configure the necessary hyperparameters in the config.json file. Defaults are:
 
 In order to use the entity linker you need to have access to the HuggingFace 🤗 entity extraction model. Feel free to contact the administrators via [tabiya@benisis.de].
 From there you need to create a read access token to use the training dataset. 
- 
+
 Find or create your read access token [here](https://huggingface.co/settings/tokens)
+
+
 Run the script
 
 ```

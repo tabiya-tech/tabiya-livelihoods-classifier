@@ -44,6 +44,12 @@ pipeline = EntityLinker(entity_model = 'tabiya/bert-base-job-extract', similarit
 extracted = pipeline(text)
 print(extracted)
 ```
+Output
+
+```
+[{'type': 'Occupation', 'tokens': 'Head Chef', 'retrieved': ['3434.1.1', '3434.1.2.1', '3434.1', '5120.1']}, {'type': 'Skill', 'tokens': 'plan menus', 'retrieved': ['plan menus', 'plan patient menus', 'present menus', 'plan schedule', 'plan engineering activities']}]
+```
+
 Find or create your read access token [here](https://huggingface.co/settings/tokens)
 
 # Minimum Hardware
