@@ -44,7 +44,7 @@ pipeline = EntityLinker(entity_model = 'tabiya/bert-base-job-extract', similarit
 extracted = pipeline(text)
 print(extracted)
 ```
-Find
+Find or create your read access token [here](https://huggingface.co/settings/tokens)
 
 # Minimum Hardware
 

@@ -4,7 +4,7 @@ Using state-of-the-art transformer neural networks this tool can extract 5 entit
 
 Model's architecture:
 
-![](./pics/entitylinker.png)
+![](./pics/entity_linker.png)
 ## Inference
 In order to use our tool please refer to [here](./inference).
 
