@@ -1,13 +1,13 @@
 #Imports
-from transformer_crf_v3 import BertCrfForNer, RoBertaCrfForNer
-from datasets import load_from_disk
-from transformers import AutoTokenizer, DataCollatorForTokenClassification, TrainingArguments, Trainer, AutoModelForTokenClassification, pipeline, DataCollatorWithPadding
+from util.transformersCRF import BertCrfForNer, RoBertaCrfForNer
+from datasets import load_dataset
+from transformers import AutoTokenizer, DataCollatorForTokenClassification, TrainingArguments, Trainer, AutoModelForTokenClassification
 import evaluate
 import numpy as np
 from seqeval.metrics import classification_report
 from nervaluate import Evaluator
 from seqeval.scheme import IOB2
-from utilfunctions import Config
+from util.utilfunctions import Config
 
 
 # Hyperparameters
@@ -15,7 +15,8 @@ config = Config('config.json') # reads all hyperparameters and sets them as attr
 MODEL_NAME = config.model_name #tested on roberta-base, jjzha/esco-xlm-roberta-large and jjzha/jobbert-base-cased
 USE_CRF = config.crf
 dataset_path = config.dataset_path
-custom_dataset = load_from_disk(dataset_path)
+access_token = config.access_token
+custom_dataset = load_dataset(dataset_path, token = access_token)
 label_list = config.label_list
 if USE_CRF:
     label_list.append('X')
@@ -99,8 +100,6 @@ def compute_metrics(p):
     #Print the loose evaluation of NERevaluate
     evaluator = Evaluator(true_labels, true_predictions, tags=['Skill', 'Qualification', 'Domain', 'Experience', 'Occupation'], loader="list")
     results2, results_by_tag = evaluator.evaluate()
-    print(true_predictions)
-    print(true_labels)
     print(classification_report(true_labels, true_predictions, scheme=IOB2))
     print('--------------------------------------')
     print(classification_report(true_labels, true_predictions, mode='strict', scheme=IOB2))

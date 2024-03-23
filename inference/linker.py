@@ -7,10 +7,10 @@ from tqdm import tqdm
 from nltk.tokenize import sent_tokenize
 #from google.cloud import translate_v2 as translate
 #import ftlangdetect
-from utilfunctions import UtilFunctions
-from transformer_crf_v3 import BertCrfForNer
+from util.utilfunctions import UtilFunctions
+from util.transformersCRF import BertCrfForNer
 
-class customPipeline():
+class EntityLinker:
   """
   Creates a pipeline of an entity recognition transformer and a sentence transformer for embedding text
   Initialization arguments:
@@ -21,13 +21,7 @@ class customPipeline():
 
   Calling arguments:
     text: An arbitrary job vacancy-related string. It is preprocessed using the sentence tokenizer of nltk
-
-    Example usage:
-    'python'
-    text = 'This a a dummy text :)'
-    custom_pipeline = customPipeline("models/bert_cased_CRF", 'all-MiniLM-L6-v2', crf=True)
-    extracted = custom_pipeline(text)
-    print(extracted)
+    linking: default True. Specify whether the model peforms the entity linking to the taxonomy
 
   """
   def __init__(
@@ -35,7 +29,8 @@ class customPipeline():
       entity_model : str ,
       similarity_model : str ,
       tokenizer_type : Optional[str] = 'wordpiece',
-      crf : Optional[bool] = False
+      crf : Optional[bool] = False,
+      hf_token : str = None
       ):
     self.entity_model = entity_model
     self.similarity_model = SentenceTransformer(similarity_model)
@@ -45,19 +40,19 @@ class customPipeline():
     if self.crf:
       self.entity_model = BertCrfForNer.from_pretrained(entity_model)
     else:
-      self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model)
+      self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model, token=hf_token)
     self.entity_model.to(self.device)
-    self.tokenizer = AutoTokenizer.from_pretrained(entity_model)
+    self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=hf_token)
     #self.classifier = pipeline('ner', model=entity_model, tokenizer=AutoTokenizer.from_pretrained(entity_model))
 
 
-    self.occupation_emb = UtilFunctions.create_tensors('files/augmented_occupation_embeddings.pkl', self.device)
-    self.skill_emb = UtilFunctions.create_tensors('files/skill_embeddings.pkl', self.device)
-    self.qualification_emb = UtilFunctions.create_tensors('files/qualificaton_embeddings.pkl', self.device)
+    self.occupation_emb = UtilFunctions.create_tensors('inference/files/augmented_occupation_embeddings.pkl', self.device)
+    self.skill_emb = UtilFunctions.create_tensors('inference/files/skill_embeddings.pkl', self.device)
+    self.qualification_emb = UtilFunctions.create_tensors('inference/files/qualificaton_embeddings.pkl', self.device)
 
-    self.df_occ = pd.read_csv('files/occupations_augmented.csv')
-    self.df_skill = pd.read_csv('files/skills.csv')
-    self.df_qual = pd.read_csv('files/qualifications.csv')
+    self.df_occ = pd.read_csv('inference/files/occupations_augmented.csv')
+    self.df_skill = pd.read_csv('inference/files/skills.csv')
+    self.df_qual = pd.read_csv('inference/files/qualifications.csv')
 
     label_list = [ 'O',
                'B-Skill',
@@ -75,7 +70,7 @@ class customPipeline():
 
     self.id2label = {idx:tag for idx, tag in enumerate(label_list)}
 
-  def __call__(self, text : str) -> list:
+  def __call__(self, text : str, linking : bool  = True) -> List[dict]:
       text = text.replace('\n', '')
       #language = UtilFunctions.detect_language(text)
       #if language != 'en':
@@ -83,18 +78,18 @@ class customPipeline():
       text_list = sent_tokenize(text)
       output = []
       for item in tqdm(text_list):
-          output.extend(self._run_model(item)) if self._run_model(item) else None
+          output.extend(self._run_model(item, linking)) if self._run_model(item, linking) else None
       return output
 
-  def _run_model(self, sentence : str) -> List[dict]:
+  def _run_model(self, sentence : str, link : bool) -> List[dict]:
       #extracted_entities = self.classifier(sentence)
       formatted_entities = self._ner_pipeline(sentence)
-
-      for entry in formatted_entities:
-          if entry['type'] == "Occupation" or entry['type'] == "Skill" or entry['type'] == "Qualification":
-              emb = self.similarity_model.encode(entry['tokens'])
-              emb = torch.from_numpy(emb).to(self.device)
-              entry['retrieved'] = self._top_5(emb, entry['type'])
+      if link:
+        for entry in formatted_entities:
+            if entry['type'] == "Occupation" or entry['type'] == "Skill" or entry['type'] == "Qualification":
+                emb = self.similarity_model.encode(entry['tokens'])
+                emb = torch.from_numpy(emb).to(self.device)
+                entry['retrieved'] = self._top_5(emb, entry['type'])
 
       return formatted_entities
 
@@ -126,7 +121,7 @@ class customPipeline():
 
   def _top_5(self, embedding : torch.Tensor, entity_type : str) -> list:
       if entity_type == "Occupation":
-          local_df = self.df_occ['esco code']
+          local_df = self.df_occ['esco_code']
           local_emb = self.occupation_emb
       elif entity_type == "Qualification":
           local_df = self.df_qual['EQF_level']
@@ -140,4 +135,4 @@ class customPipeline():
       top_k = torch.topk(cos_scores, k=5)
       top_5_list = top_k.indices.tolist()
       top_5 = list(local_df.iloc[top_5_list])
-      return list(set(top_5))
+      return UtilFunctions.remove_duplicates_ordered(top_5)

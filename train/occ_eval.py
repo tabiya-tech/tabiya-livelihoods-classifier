@@ -1,6 +1,9 @@
 import numpy as np
-from entity_linker import customPipeline
+from inference.linker import EntityLinker
+from util.utilfunctions import Config
 import pandas as pd
+config = Config('config.json')
+
 
 def apk(actual, predicted, k=10):
     """
@@ -57,7 +60,7 @@ def run_eval(model : str, crf : bool)  -> None:
     sum_2 = 0
     overall_den = 0
     #Define the entity linking pipeline
-    custom_pipeline = customPipeline(entity_model=model, similarity_model='all-MiniLM-L6-v2', crf=crf)
+    custom_pipeline = EntityLinker(entity_model=model, similarity_model='all-MiniLM-L6-v2', crf=crf, hf_token=config.access_token)
     #Iterate through the general classification list to report the MAP on each class. 
     for item in general_classification_list:
       sum_of_ap1 = 0

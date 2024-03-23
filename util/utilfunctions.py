@@ -1,10 +1,12 @@
 from typing import List, Optional
 import pickle
 #from google.cloud import translate_v2 as translate
-#import torch
+import torch
 import numpy as np
 import json
-class UtilFunctions():
+
+
+class UtilFunctions:
 
   """
   A class containing methods for the Custom Pipeline
@@ -18,10 +20,13 @@ class UtilFunctions():
   @staticmethod
   def extract_entities(tokens : list, tags : list) -> List[dict]:
     result = []
+    #Loop through the dictionary of tags, while tracking the current entity 
     current_entity = None
     for token, tag in zip(tokens, tags):
+        #Get label tag and tag type if tag is not O.
         tag_type, tag_label = tag.split('-') if '-' in tag else ('O', tag)
         if tag_type != 'O':
+            #Check if tracking an entity and the type matches the tag label. TODO: Handle the cases where I- tags follows B- tags of the same type. 
             if current_entity and current_entity['type'] == tag_label:
                 current_entity['tokens'].append(token)
             else:
@@ -34,7 +39,7 @@ class UtilFunctions():
                 current_entity = None
     if current_entity:
         result.append(current_entity)
-    #Post Processing
+    #Post Processing. Remove empty entries in results or entries that have only one token that starts with ##
     condition_function = lambda x: len(x['tokens']) != 0 and (len(x['tokens']) != 1 and not x['tokens'][0].startswith('##'))
     filtered_list = [item for item in result if condition_function(item)]
 
@@ -43,6 +48,11 @@ class UtilFunctions():
 
   @staticmethod
   def decode(list_of_tokens : list , tokenizer_type : str) -> str:
+    """
+    These decoding strategies are naive. They will be decapetated.
+    Use cases: wordpiece for BERT
+               bpe for DeBERTa
+    """
     pretok_sent = ""
     if tokenizer_type == "wordpiece":
       for tok in list_of_tokens:
@@ -61,11 +71,19 @@ class UtilFunctions():
 
 
   @staticmethod
-  def create_tensors(file : str, device : str) -> str:
+  def create_tensors(file : str, device : str) -> torch.Tensor:
     with open(file, 'rb') as f:
       embeddings = pickle.load(f)
     embeddings = torch.from_numpy(np.array(embeddings)).to(device)
     return embeddings
+
+  @staticmethod
+  def remove_duplicates_ordered(input_list : list) -> list:
+    unique_list = []
+    for item in input_list:
+        if item not in unique_list:
+            unique_list.append(item)
+    return unique_list
 
   #@staticmethod
   #def detect_language(text : str) -> str:
@@ -81,6 +99,9 @@ class UtilFunctions():
   #  return sentence
 
 class Config(object):
+  """
+  Configuration class for the training hyperparameters
+  """
   def __init__(self, config_file):
       # Initialization from a json configuration file.
       self._readConfigFile(config_file)

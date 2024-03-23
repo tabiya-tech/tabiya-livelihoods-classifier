@@ -1,38 +1,15 @@
 # tabiya-livelihoods-classifier
-## Version 0
+The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the entity-linking paradigm to support job description heuristics.  
+Using state-of-the-art transformer neural networks this tool can extract 5 entity types: Occupation, Skill, Qualification, Experience, and Domain. For the Occupations and Skills,  ESCO-related entries are retrieved.  The procedure consists of two discrete steps, entity extraction and similarity vector search.
 
-```python
-from entity_linker import customPipeline
-text = 'This a a dummy text :)'
-custom_pipeline = customPipeline('path/to/your/CRF/model', 'all-MiniLM-L6-v2', crf=True)
-extracted = custom_pipeline(text)
-print(extracted)
-```
+Model's architecture:
 
-## Train an Entity Extraction Model
-Configure the necessary hyperparameters in the config.json file. Defaults are:
+![](./pics/entitylinker.png)
+## Inference
+In order to use our tool please refer to [here](./inference).
 
-```javascript 
-{
-    "model_name":"bert-base-cased",
-    "crf": false,
-    "dataset_path":"job_ner_dataset",   
-    "label_list" : [ "O","B-Skill","B-Qualification","I-Domain","I-Experience","I-Qualification","B-Occupation","B-Domain","I-Occupation","I-Skill","B-Experience"],
-    "model_max_length" : 128,
-    "batch_size" : 32,
-    "learning_rate" : 1e-4,
-    "epochs" : 4,
-    "weight_decay": 0.01,
-    "save":false,
-    "output_path":"bert_job_ner"
-}
-```
-
-Run the script
-
-```
-python train.py
-```
+## Training
+The training and evaluation code for this project can be found [here](./train).
 
 ## Bibiography 
 
