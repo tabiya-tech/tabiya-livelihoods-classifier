@@ -1,5 +1,5 @@
 
-## Infernece Pipeline
+## Inference Pipeline
 
 python>=3.10
 # Installation
