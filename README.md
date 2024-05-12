@@ -5,11 +5,11 @@ Using state-of-the-art transformer neural networks this tool can extract 5 entit
 Model's architecture:
 
 ![](./pics/entity_linker.png)
-## Inference
+## How to use the model
 In order to use our tool please refer to [here](./inference).
 
 ## Training
-The training and evaluation code for this project can be found [here](./train).
+The training code for this project can be found [here](./train).
 
 ## Bibiography 
 

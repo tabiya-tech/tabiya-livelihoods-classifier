@@ -1,34 +1,13 @@
+# -*- coding: utf-8 -*-
 
 from typing import Any
 import torch
 import torch.nn as nn
 from typing import List, Optional
-from transformers import BertPreTrainedModel, BertModel
+from transformers import BertPreTrainedModel, BertModel, RobertaModel, DebertaModel, AutoModelForTokenClassification, PreTrainedModel, BertConfig, PretrainedConfig, RobertaConfig, DebertaConfig
 
 # Implemented from https://github.com/lonePatient/BERT-NER-Pytorch/tree/master
 class CRF(nn.Module):
-    """Conditional random field.
-    This module implements a conditional random field [LMP01]_. The forward computation
-    of this class computes the log likelihood of the given sequence of tags and
-    emission score tensor. This class also has `~CRF.decode` method which finds
-    the best tag sequence given an emission score tensor using `Viterbi algorithm`_.
-    Args:
-        num_tags: Number of tags.
-        batch_first: Whether the first dimension corresponds to the size of a minibatch.
-    Attributes:
-        start_transitions (`~torch.nn.Parameter`): Start transition score tensor of size
-            ``(num_tags,)``.
-        end_transitions (`~torch.nn.Parameter`): End transition score tensor of size
-            ``(num_tags,)``.
-        transitions (`~torch.nn.Parameter`): Transition score tensor of size
-            ``(num_tags, num_tags)``.
-    .. [LMP01] Lafferty, J., McCallum, A., Pereira, F. (2001).
-       "Conditional random fields: Probabilistic models for segmenting and
-       labeling sequence data". *Proc. 18th International Conf. on Machine
-       Learning*. Morgan Kaufmann. pp. 282–289.
-    .. _Viterbi algorithm: https://en.wikipedia.org/wiki/Viterbi_algorithm
-    """
-
     def __init__(self, num_tags: int, batch_first: bool = False) -> None:
         if num_tags <= 0:
             raise ValueError(f'invalid number of tags: {num_tags}')
@@ -415,32 +394,186 @@ class CRF(nn.Module):
         return torch.where(mask.unsqueeze(-1), best_tags_arr, oor_tag).permute(2, 1, 0)
 
 
-class BertCrfForNer(BertPreTrainedModel):
-    """
-    BERT model with a linear CRF decoder on top. It leverages the special_tokens_mask from HuggingFace to built the mask of the CRF. 
-    This mask takes into consideration the [CLS] and [SEP] tokens. 
-    """
-    def __init__(self, config):
-        super(BertCrfForNer, self).__init__(config)
-        self.bert = BertModel(config)
-        self.dropout = nn.Dropout(0.2)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
-        self.crf = CRF(num_tags=config.num_labels, batch_first=True)
-        self.init_weights()
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None,labels=None, special_tokens_mask=None):
-        outputs =self.bert(input_ids = input_ids,attention_mask=attention_mask,token_type_ids=token_type_ids)
-        sequence_output = outputs[0]
-        sequence_output = self.dropout(sequence_output)
-        logits = self.classifier(sequence_output)
+class AutoModelForCrfPretrainedConfig(PretrainedConfig):
+    model_type = "auto_model_for_crf"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.model_name = "auto_model_for_crf"
+
+class AutoModelCrfForNer(PreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+
+        # Check model type and initialize the appropriate model
+        if config.model_type == "BertCrfForNer":
+            self.model = BertCrfForNer(config)
+        elif config.model_type == "RobertaCrfForNer":
+            self.model = RobertaCrfForNer(config)
+        elif config.model_type == "DebertaCrfForNer":
+            self.model = DebertaCrfForNer(config)
+        else:
+            raise ValueError(f"Unsupported model type: {config.model_type}")
+
+    def forward(self, *args, **kwargs):
+        return self.model(*args, **kwargs)
+
+    @classmethod
+    def from_pretrained(cls, model_path, *args, **kwargs):
+        # Load config to determine model type
+        config = PretrainedConfig.from_pretrained(model_path)
+        model_type = config.model_type
+
+        # Initialize the appropriate AutoForCrf subclass based on model type
+        if model_type == "BertCrfForNer":
+            return BertCrfForNer.from_pretrained(model_path, *args, **kwargs)
+        elif model_type == "RobertaCrfForNer":
+            return RobertaCrfForNer.from_pretrained(model_path, *args, **kwargs)
+        elif model_type == "DebertaCrfForNer":
+            return DebertaCrfForNer.from_pretrained(model_path, *args, **kwargs)
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}")
+
+
+
+
+class BERT_CRF_Config(PretrainedConfig):
+    model_type = "BertCrfForNer"
+
+    def __init__(self, **kwarg):
+        super().__init__(**kwarg)
+        self.model_name = "BertCrfForNer"
+
+
+class BertCrfForNer(PreTrainedModel):
+    config_class = BERT_CRF_Config
+
+    def __init__(self, config):
+        super().__init__(config)
+
+        bert_config = BertConfig.from_pretrained(config.name_or_path)
+
+        bert_config.output_attentions = True
+        bert_config.output_hidden_states = True
+
+        self.bert = BertModel.from_pretrained(config.name_or_path, config=bert_config)
+
+        self.dropout = nn.Dropout(p=0.1)
+
+        self.linear = nn.Linear(
+            self.bert.config.hidden_size, config.num_labels)
+
+        self.crf = CRF(config.num_labels, batch_first=True)
+
+    def forward(self, input_ids, token_type_ids, attention_mask, labels=None, special_tokens_mask=None):
+
+        last_hidden_layer = self.bert(input_ids=input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)[
+            'last_hidden_state']
+
+        last_hidden_layer = self.dropout(last_hidden_layer)
+
+        logits = self.linear(last_hidden_layer)
         outputs = (logits,)
-        if labels is not None:
+        if special_tokens_mask is not None:
             special_tokens_mask = 1 - special_tokens_mask
+        if labels is not None:
             loss = self.crf(emissions = logits, tags=labels, mask=special_tokens_mask)
             outputs =(-1*loss,)+outputs
             return outputs
         else:
-            special_tokens_mask = 1 - special_tokens_mask
-            tags = self.crf.decode(logits, mask=special_tokens_mask)
+            tags = self.crf.decode(logits, mask=attention_mask)
             return (logits, tags)
-         
+
+class ROBERTA_CRF_Config(PretrainedConfig):
+    model_type = "RobertaCrfForNer"
+
+    def __init__(self, **kwarg):
+        super().__init__(**kwarg)
+        self.model_name = "RobertaCrfForNer"
+
+class RobertaCrfForNer(PreTrainedModel):
+    config_class = ROBERTA_CRF_Config
+
+    def __init__(self, config):
+        super().__init__(config)
+
+        roberta_config = RobertaConfig.from_pretrained(config.name_or_path)
+
+        roberta_config.output_attentions = True
+        roberta_config.output_hidden_states = True
+
+        self.roberta = RobertaModel.from_pretrained(config.name_or_path, config=roberta_config, add_pooling_layer = False)
+
+        self.dropout = nn.Dropout(p=0.1)
+
+        self.linear = nn.Linear(
+            self.roberta.config.hidden_size, config.num_labels)
+
+        self.crf = CRF(config.num_labels, batch_first=True)
+
+    def forward(self, input_ids, attention_mask, labels=None, special_tokens_mask=None):
+
+        last_hidden_layer = self.roberta(input_ids=input_ids, attention_mask=attention_mask)[
+            'last_hidden_state']
+
+        last_hidden_layer = self.dropout(last_hidden_layer)
+
+        logits = self.linear(last_hidden_layer)
+        outputs = (logits,)
+        if special_tokens_mask is not None:
+            special_tokens_mask = 1 - special_tokens_mask
+        if labels is not None:
+            loss = self.crf(emissions = logits, tags=labels, mask=special_tokens_mask)
+            outputs =(-1*loss,)+outputs
+            return outputs
+        else:
+            tags = self.crf.decode(logits, mask=attention_mask)
+            return (logits, tags)
+
+class DEBERTA_CRF_Config(PretrainedConfig):
+    model_type = "DebertaCrfForNer"
+
+    def __init__(self, **kwarg):
+        super().__init__(**kwarg)
+        self.model_name = "DebertaCrfForNer"
+
+
+class DebertaCrfForNer(PreTrainedModel):
+    config_class = DEBERTA_CRF_Config
+
+    def __init__(self, config):
+        super().__init__(config)
+
+        deberta_config = DebertaConfig.from_pretrained(config.name_or_path)
+
+        deberta_config.output_attentions = True
+        deberta_config.output_hidden_states = True
+
+        self.deberta = DebertaModel.from_pretrained(config.name_or_path, config=deberta_config)
+
+        self.dropout = nn.Dropout(p=0.1)
+
+        self.linear = nn.Linear(
+            self.deberta.config.hidden_size, config.num_labels)
+
+        self.crf = CRF(config.num_labels, batch_first=True)
+
+    def forward(self, input_ids, token_type_ids, attention_mask, labels=None, special_tokens_mask=None):
+
+        last_hidden_layer = self.deberta(input_ids=input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)[
+            'last_hidden_state']
+
+        last_hidden_layer = self.dropout(last_hidden_layer)
+
+        logits = self.linear(last_hidden_layer)
+        outputs = (logits,)
+        if special_tokens_mask is not None:
+            special_tokens_mask = 1 - special_tokens_mask
+        if labels is not None:
+            loss = self.crf(emissions = logits, tags=labels, mask=special_tokens_mask)
+            outputs =(-1*loss,)+outputs
+            return outputs
+        else:
+            tags = self.crf.decode(logits, mask=attention_mask)
+            return (logits, tags)
