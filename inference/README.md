@@ -1,58 +1,56 @@
 
-## Inference Pipeline
+# Inference Pipeline
 
-python>=3.10
-# Installation
-Clone the tabiya-livelihoods-classifier with git
+## Prerequisites
 
-```
-git clone https://github.com/tabiya-tech/tabiya-livelihoods-classifier.git
-```
+- [Python 3.10 or higher](https://www.python.org/downloads/)
 
-Navigate to folder
+## Installation
 
-```
-cd tabiya-livelihoods-classifier
-```
+#### Install the requirements
 
-Install the requirements
+In the **root directory** of the project (not same directory as this README file), run the following commands:
 
 ```
 pip install -r requirements.txt
 ```
 
-Acticate python and download nltk punctuation package to use the sentence tokenizer
+Acticate python and download nltk punctuation package to use the sentence tokenizer. You only have to download punkt one time.
 
 ```
 python
-```
-
-```
 import nltk
 nltk.download('punkt')
 ```
 
-# Usage
+## Usage
 
 In order to use the entity linker you need to have access to the HuggingFace 🤗 entity extraction model. Feel free to contact the administrators via [tabiya@benisis.de].
-From there you need to create a read access token to use the model.  
+From there you need to create a read access token to use the model.
+Find or create your read access token [here](https://huggingface.co/settings/tokens).
+
+Create the pipeline first.
 ```python
 from inference.linker import EntityLinker
 access_token = "hf_..."
+pipeline = EntityLinker(hf_token = access_token, k = 5)
+```
+You can now make the inference on any text with the following code:
+
+```python
 text = 'We are looking for a Head Chef who can plan menus.'
-pipeline = EntityLinker(hf_token = access_token)
 extracted = pipeline(text)
 print(extracted)
 ```
 Output
 
 ```
-[{'type': 'Occupation', 'tokens': 'Head Chef', 'retrieved': ['3434.1.1', '3434.1.2.1', '3434.1', '5120.1']}, {'type': 'Skill', 'tokens': 'plan menus', 'retrieved': ['plan menus', 'plan patient menus', 'present menus', 'plan schedule', 'plan engineering activities']}]
+[{'type': 'Occupation', 'tokens': 'Head Chef', 'retrieved': ['head chef', 'industrial head chef', 'head pastry chef', 'chef', 'kitchen chef']}, {'type': 'Skill', 'tokens': 'plan menus', 'retrieved': ['plan menus', 'plan patient menus', 'present menus', 'plan schedule', 'plan engineering activities']}]
 ```
 
-Find or create your read access token [here](https://huggingface.co/settings/tokens)
 
-# Evaluation
+
+## Running the evaluation tests
 Load the Evaluator class and print the results.
 ```python
 from inference.evaluator import Evaluator
@@ -61,8 +59,8 @@ results = Evaluator(entity_type='Skill',entity_model = 'tabiya/roberta-base-job-
 print(results.output)
 ```
 
-# Minimum Hardware
+## Minimum Hardware
 
-8 GB CPU/ GPU RAM 
+4 GB CPU/ GPU RAM 
 
 The code runs in GPU, if available. Be sure your machine has cuda installed, if running on GPU.

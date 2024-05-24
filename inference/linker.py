@@ -4,6 +4,7 @@ from transformers import AutoModelForTokenClassification, AutoTokenizer
 import transformers
 from sentence_transformers import SentenceTransformer, util
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 from nltk.tokenize import sent_tokenize
 #from google.cloud import translate_v2 as translate
@@ -33,7 +34,7 @@ class EntityLinker:
   def __init__(
       self,
       entity_model : str = 'tabiya/roberta-base-job-ner',
-      similarity_model : str = 'all-mpnet-base-v2',
+      similarity_model : str = 'all-MiniLM-L6-v2',
       crf : Optional[bool] = False,
       hf_token : str = None,
       evaluation_mode: bool = False,
@@ -241,9 +242,15 @@ class EntityLinker:
         embeddings = CPU_Unpickler(f).load()
       else:
          embeddings = pickle.load(f)
-    embeddings.to(device)
+    # Ensure embeddings is a tensor
+    if isinstance(embeddings, list):
+        arrayEmbeddings = np.array(embeddings)
+        embeddings = torch.tensor(arrayEmbeddings)
+    
+    # Move tensor to the specified device
+    embeddings = embeddings.to(device)
     return embeddings
-  
+
 
   @staticmethod
   def remove_duplicates_ordered(input_list : list) -> list:
