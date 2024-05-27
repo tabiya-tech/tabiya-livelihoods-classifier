@@ -24,7 +24,8 @@ class EntityLinker:
     hf_token: default None. HuggingFace token for using private models
     evaluation_mode: default False. If True the linker will return the cosine scores
     k: default 32. The number of retrieved items from the reference sets
-    from_cache: default True. Choose False when there are no precomputed embeddings
+    from_cache: default True. Choose False when there are no precomputed embeddings. 
+      Be careful, this operation need access to a GPU otherwise it could take some time.
 
   Calling arguments:
     text: An arbitrary job vacancy-related string
