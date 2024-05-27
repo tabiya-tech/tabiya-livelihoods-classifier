@@ -1,12 +1,28 @@
-Here's the corrected and upgraded README:
-
 # Inference Pipeline
 
 ## Prerequisites
 
 - [Python 3.10 or higher](https://www.python.org/downloads/)
+- [Git LFS](https://git-lfs.github.com/)
 
 ## Installation
+
+### Using Git LFS
+
+This repository uses Git LFS for handling large files. Before you can use this repository, you need to install and set up Git LFS on your local machine.
+See https://git-lfs.com/ for installation instructions.
+
+After Git LFS is set up, follow these steps to clone the repository:
+
+```bash
+git clone https://github.com/tabiya-tech/tabiya-livelihoods-classifier.git
+```
+
+If you already cloned the repository without Git LFS, run:
+
+```bash
+git lfs pull
+```
 
 ### Install the requirements
 
@@ -116,4 +132,4 @@ The output of the `EntityLinker` is a list of dictionaries, where each dictionar
 - **`tokens`**: The specific part of the input text that was identified as an entity of the right category.
 - **`retrieved`**: A list of related names or ESCO codes retrieved from the reference sets. These items represent the most similar entities or concepts based on the embeddings and similarity calculations.
 
-This structured output enables the application to not only identify key entities within a job description but also to link these entities to a broader taxonomy, facilitating better understanding and categorization of the information.
+This structured output enables the application to not only identify key entities within a job description but also to link these entities to the ESCO taxonomy, facilitating better understanding and categorization of the information.
