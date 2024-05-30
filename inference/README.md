@@ -116,6 +116,9 @@ If you need more precision on using the entity linker, here is detailed informat
 - **`from_cache`**: `bool`, default: `True`
   - If set to `True`, the precomputed embeddings are loaded from cache to save time. If set to `False`, the embeddings are computed on-the-fly, which requires GPU access for efficiency and can be time-consuming.
 
+- **`output_format`**: `str`, default: `name`
+  - Specifies the format of the output for occupations, either 'name' for occupation names or 'esco_code' for ESCO codes.
+
 ### Calling Arguments
 
 - **`text`**: `str`
