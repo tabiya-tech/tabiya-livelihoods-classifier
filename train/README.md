@@ -14,6 +14,10 @@ Navigate to folder
 cd tabiya-livelihoods-classifier
 ```
 
+```
+cd train
+```
+
 Basic modules
 
 ```
@@ -44,6 +48,24 @@ Configure the necessary hyperparameters in the config.json file. Defaults are:
     "access_token": "yourhftoken"
 }
 ```
+Run the script
+
+```
+python train.py
+```
+
+## Train an Entity Similarity Model
+
+Configure the necessary hyperparameters in the sbert_train function on the sbert_train.py file:
+```python
+ sbert_train(model_id = 'all-MiniLM-L6-v2', dataset_path='your/dataset/path', output_path='your/output/path')
+```
+
+Run the script
+
+```
+python sbert_train.py
+```
 
 In order to use the entity linker you need to have access to the HuggingFace 🤗 entity extraction model. Feel free to contact the administrators via [tabiya@benisis.de].
 From there you need to create a read access token to use the training dataset. 
@@ -51,8 +73,3 @@ From there you need to create a read access token to use the training dataset.
 Find or create your read access token [here](https://huggingface.co/settings/tokens)
 
 
-Run the script
-
-```
-python train.py
-```
