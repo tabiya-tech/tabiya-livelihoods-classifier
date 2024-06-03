@@ -402,11 +402,11 @@ class EntityLinker:
 			if device.type=='cpu':
 				embeddings = CPU_Unpickler(f).load()
 			else:
-				 embeddings = pickle.load(f)
+				embeddings = pickle.load(f)
 		# Ensure embeddings is a tensor
 		if isinstance(embeddings, list):
-				arrayEmbeddings = np.array(embeddings)
-				embeddings = torch.tensor(arrayEmbeddings)
+			arrayEmbeddings = np.array(embeddings)
+			embeddings = torch.tensor(arrayEmbeddings)
 		
 		# Move tensor to the specified device
 		embeddings = embeddings.to(device)

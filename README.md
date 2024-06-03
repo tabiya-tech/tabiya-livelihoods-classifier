@@ -14,6 +14,12 @@ Using state-of-the-art transformer neural networks this tool can extract 5 entit
 
 ![](./pics/entity_linker.png)
 
+## License
+
+The code and model weights are licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+
+The dataset is licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0). See the [DATA_LICENSE](./DATA_LICENSE) file for details.
+
 ## Bibiography 
 
 A list on interesting and relevant matterial for reading:
