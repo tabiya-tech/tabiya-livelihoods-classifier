@@ -1,5 +1,10 @@
 #Imports
-from util.transformersCRF import BertCrfForNer, RoBertaCrfForNer
+import os
+import sys
+
+# Add the parent directory to the system path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from util.transformersCRF import BertCrfForNer
 from datasets import load_dataset
 from transformers import AutoTokenizer, DataCollatorForTokenClassification, TrainingArguments, Trainer, AutoModelForTokenClassification
 import evaluate

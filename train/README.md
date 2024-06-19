@@ -1,36 +1,16 @@
 # Training
 
 Train your entity extraction model using PyTorch.
-## Installation
-Clone the tabiya-livelihoods-classifier with git
 
-```
-git clone https://github.com/tabiya-tech/tabiya-livelihoods-classifier.git
-```
+In order to use the entity linker you need to have access to the HuggingFace 🤗 entity extraction model. Feel free to contact the administrators via [tabiya@benisis.de].
+From there you need to create a read access token to use the training dataset. 
 
-Navigate to folder
+Find or create your read access token [here](https://huggingface.co/settings/tokens).
 
-```
-cd tabiya-livelihoods-classifier
-```
+First, activate the virtual environment as explained [here](../README.md).
 
-```
-cd train
-```
-
-Basic modules
-
-```
-pip install torch transformers datasets evaluate seqeval nervaluate
-```
-
-Access the latest accelerate version
-
-```
-pip install transformers[torch]
-```
 ## Train an Entity Extraction Model
-Configure the necessary hyperparameters in the config.json file. Defaults are:
+Configure the necessary hyperparameters in the [config.json file](config.json). Defaults are:
 
 ```javascript 
 {
@@ -56,7 +36,7 @@ python train.py
 
 ## Train an Entity Similarity Model
 
-Configure the necessary hyperparameters in the sbert_train function on the sbert_train.py file:
+Configure the necessary hyperparameters in the sbert_train function on the [sbert_train.py file](sbert_train.py):
 ```python
  sbert_train(model_id = 'all-MiniLM-L6-v2', dataset_path='your/dataset/path', output_path='your/output/path')
 ```
@@ -66,10 +46,5 @@ Run the script
 ```
 python sbert_train.py
 ```
-
-In order to use the entity linker you need to have access to the HuggingFace 🤗 entity extraction model. Feel free to contact the administrators via [tabiya@benisis.de].
-From there you need to create a read access token to use the training dataset. 
-
-Find or create your read access token [here](https://huggingface.co/settings/tokens)
 
 

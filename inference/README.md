@@ -1,48 +1,10 @@
 # Inference Pipeline
 
-## Prerequisites
-
-- [Python 3.10 or higher](https://www.python.org/downloads/)
-- [Git LFS](https://git-lfs.github.com/)
-
-## Installation
-
-### Using Git LFS
-
-This repository uses Git LFS for handling large files. Before you can use this repository, you need to install and set up Git LFS on your local machine.
-See https://git-lfs.com/ for installation instructions.
-
-After Git LFS is set up, follow these steps to clone the repository:
-
-```bash
-git clone https://github.com/tabiya-tech/tabiya-livelihoods-classifier.git
-```
-
-If you already cloned the repository without Git LFS, run:
-
-```bash
-git lfs pull
-```
-
-### Install the requirements
-
-In the **root directory** of the project (not the same directory as this README file), run the following commands:
-
-```bash
-pip install -r requirements.txt
-```
-
-Activate Python and download the NLTK punctuation package to use the sentence tokenizer. You only need to download `punkt` once.
-
-```bash
-python
-import nltk
-nltk.download('punkt')
-```
-
 ## Usage
 
 To use the entity linker, you need access to the HuggingFace 🤗 entity extraction model. Contact the administrators via [tabiya@benisis.de]. From there, you need to create a read access token to use the model. Find or create your read access token [here](https://huggingface.co/settings/tokens).
+
+In the **root directory** of the project, activate the virtual environment and run the following command in python:
 
 ### Create the pipeline
 
@@ -116,8 +78,8 @@ If you need more precision on using the entity linker, here is detailed informat
 - **`from_cache`**: `bool`, default: `True`
   - If set to `True`, the precomputed embeddings are loaded from cache to save time. If set to `False`, the embeddings are computed on-the-fly, which requires GPU access for efficiency and can be time-consuming.
 
-- **`output_format`**: `str`, default: `name`
-  - Specifies the format of the output for occupations, either 'name' for occupation names or 'esco_code' for ESCO codes.
+- **`output_format`**: `str`, default: `occupation`
+  - Specifies the format of the output for occupations, either `occupation`, `preffered_label` or `esco_code`. 
 
 ### Calling Arguments
 

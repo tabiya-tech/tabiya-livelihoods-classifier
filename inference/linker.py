@@ -1,7 +1,6 @@
 from typing import List, Optional, Tuple
 import torch
 from transformers import AutoModelForTokenClassification, AutoTokenizer
-import transformers
 from sentence_transformers import SentenceTransformer, util
 import pandas as pd
 import numpy as np
@@ -50,7 +49,7 @@ class EntityLinker:
 		If set to `False`, the embeddings are computed on-the-fly, which requires GPU access for efficiency and can be time-consuming.
 
 	output_format : str, default='name'
-		Specifies the format of the output for occupations, either 'name' for occupation names or 'esco_code' for ESCO codes.
+		Specifies the format of the output for occupations, either 'occupation', 'preffered_label' or 'esco_code'.
 
 	Calling Parameters
 	----------
@@ -70,7 +69,7 @@ class EntityLinker:
 			evaluation_mode: bool = False,
 			k: int = 32,
 			from_cache: bool = True,
-			output_format: str = 'name'
+			output_format: str = 'occupation'
 	):
 		# Initialize the model paths and settings
 		self.entity_model = entity_model
@@ -269,7 +268,7 @@ class EntityLinker:
 		"""
 
 		if entity_type == "Occupation":
-			local_df = self.df_occ['occupation'] if self.output_format == 'name' else self.df_occ['esco_code']
+			local_df = self.df_occ[self.output_format]
 			local_emb = self.occupation_emb
 		elif entity_type == "Qualification":
 			local_df = self.df_qual['qualification']

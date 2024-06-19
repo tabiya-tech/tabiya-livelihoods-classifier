@@ -1,19 +1,98 @@
 # Tabiya Livelihoods Classifier
-The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the entity-linking paradigm to support job description heuristics.  
-Using state-of-the-art transformer neural networks this tool can extract 5 entity types: Occupation, Skill, Qualification, Experience, and Domain. For the Occupations and Skills,  ESCO-related entries are retrieved.  The procedure consists of two discrete steps, entity extraction and similarity vector search.
 
-
+The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the entity-linking paradigm to support job description heuristics. Using state-of-the-art transformer neural networks, this tool can extract five entity types: Occupation, Skill, Qualification, Experience, and Domain. For the Occupations and Skills, ESCO-related entries are retrieved. The procedure consists of two discrete steps: entity extraction and similarity vector search.
 
 ## Table of Contents
 
-- **[Use the model](inference)**: In order to use our tool please refer to the inference directory.
+- **[Use the model](inference)**: Instructions on how to use the inference tool.
+- **[Training](train)**: Details on how to train the model.
+- **[Model's Architecture](#models-architecture)**
+- **[Installation](#installation)**
+- **[License](#license)**
+- **[Bibliography](#bibliography)**
 
-- **[Training](train)**: The training code for this project is found here.
+## Model's Architecture
 
-## Model's architecture:
+![Model Architecture](./pics/entity_linker.png)
 
-![](./pics/entity_linker.png)
+## Installation
 
+### Prerequisites
+
+- A recent version of [git](https://git-scm.com/) (e.g. ^2.37 )
+- [Python 3.10 or higher](https://www.python.org/downloads/)
+- [Poerty 1.8 or higher](https://python-poetry.org/)
+  > Note: to install Poetry consult the [Poetry documentation](https://python-poetry.org/docs/#installing-with-the-official-installer) 
+- [Git LFS](https://git-lfs.github.com/)
+
+### Using Git LFS
+
+This repository uses Git LFS for handling large files. Before you can use this repository, you need to install and set up Git LFS on your local machine.
+See https://git-lfs.com/ for installation instructions.
+
+After Git LFS is set up, follow these steps to clone the repository:
+
+```shell
+git clone https://github.com/tabiya-tech/tabiya-livelihoods-classifier.git
+```
+
+If you already cloned the repository without Git LFS, run:
+
+```shell
+git lfs pull
+```
+
+#### Set up virtualenv
+In the **root directory** of the backend project (so, the same directory as this README file), run the following commands:
+
+```shell
+# create a virtual environment
+python3 -m venv venv
+
+# activate the virtual environment
+source venv/bin/activate
+```
+
+### Install the dependencies
+
+```shell
+# Use the version of the dependencies specified in the lock file
+poetry lock --no-update
+# Install missing and remove unreferenced packages
+poetry install --sync
+```
+
+> Note: Install poetry system-wide (not in a virtualenv).
+
+> Note:
+> Install the dependencies for the training using:
+>  ```shell
+> # Use the version of the dependencies specified in the lock file
+> poetry lock --no-update
+> # Install missing and remove unreferenced packages
+> poetry install --sync --with train
+>  ```
+
+> Note:
+> Before running any tasks, activate the virtual
+> environment so that the installed dependencies are available:
+>  ```shell
+>  # activate the virtual environment
+>  source venv/bin/activate
+>  ```
+> To deactivate the virtual environment, run:
+> ```shell
+> # deactivate the virtual environment
+> deactivate
+> ```
+
+Activate Python and download the NLTK punctuation package to use the sentence tokenizer. You only need to download `punkt` once.
+
+```shell
+python
+import nltk
+nltk.download('punkt')
+```
 ## License
 
 The code and model weights are licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.

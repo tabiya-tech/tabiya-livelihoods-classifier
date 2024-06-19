@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "tabiya-livelihoods-classifier"
+version = "0.0.0"
+description = ""
+license = "MIT"
+authors = ["Tabiya <tabiya@tabiya.org>"]
+readme = "README.md"
+packages = [
+    { include = "app" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+nltk = "^3.8.1"
+numpy= "^1.24.3"
+pandas= "^2.0.3"
+sentence_transformers= "^2.2.2"
+torch= "^2.1.2"
+tqdm = "^4.65.0"
+
+[tool.poetry.group.train.dependencies]
+transformers= "^4.32.1"
+datasets= "^2.19.2"
+evaluate= "^0.4.2"
+seqeval= "^1.2.2"
+nervaluate= "^0.2.0"
+accelerate = "^0.31.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
