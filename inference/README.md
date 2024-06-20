@@ -79,7 +79,7 @@ If you need more precision on using the entity linker, here is detailed informat
   - If set to `True`, the precomputed embeddings are loaded from cache to save time. If set to `False`, the embeddings are computed on-the-fly, which requires GPU access for efficiency and can be time-consuming.
 
 - **`output_format`**: `str`, default: `occupation`
-  - Specifies the format of the output for occupations, either `occupation`, `preffered_label` or `esco_code`. 
+  - Specifies the format of the output for occupations, either `occupation`, `preffered_label`, `esco_code` or `uuid`. The `uuid` is also available for the skills.
 
 ### Calling Arguments
 
@@ -95,6 +95,6 @@ The output of the `EntityLinker` is a list of dictionaries, where each dictionar
 
 - **`type`**: The category of the identified entity. The categories of interest are 'Occupation', 'Qualifications', and 'Skill'.
 - **`tokens`**: The specific part of the input text that was identified as an entity of the right category.
-- **`retrieved`**: A list of related names or ESCO codes retrieved from the reference sets. These items represent the most similar entities or concepts based on the embeddings and similarity calculations.
+- **`retrieved`**: A list of related names, UUID or ESCO codes retrieved from the reference sets. These items represent the most similar entities or concepts based on the embeddings and similarity calculations.
 
 This structured output enables the application to not only identify key entities within a job description but also to link these entities to the ESCO taxonomy, facilitating better understanding and categorization of the information.

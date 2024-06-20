@@ -48,8 +48,9 @@ class EntityLinker:
 		If set to `True`, the precomputed embeddings are loaded from cache to save time. 
 		If set to `False`, the embeddings are computed on-the-fly, which requires GPU access for efficiency and can be time-consuming.
 
-	output_format : str, default='name'
-		Specifies the format of the output for occupations, either 'occupation', 'preffered_label' or 'esco_code'.
+	output_format : str, default='occupation'
+		Specifies the format of the output for occupations, either `occupation`, `preffered_label`, `esco_code` or `uuid`. 
+		The `uuid` is also available for the skills.
 
 	Calling Parameters
 	----------
@@ -274,7 +275,7 @@ class EntityLinker:
 			local_df = self.df_qual['qualification']
 			local_emb = self.qualification_emb
 		else:
-			local_df = self.df_skill['skills']
+			local_df = self.df_skill['skills'] if self.output_format != 'uuid' else self.df_skill['uuid']
 			local_emb = self.skill_emb
 
 		# Calculate cosine similarity between the input embedding and the reference embeddings
