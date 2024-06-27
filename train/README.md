@@ -6,7 +6,7 @@ In order to use the entity linker, you need access to the HuggingFace 🤗 entit
 
 Find or create your read access token [here](https://huggingface.co/settings/tokens).
 
-First, activate the virtual environment as explained [here](../README.md).
+First, activate the virtual environment as explained [here](../README.md#install-the-dependencies).
 
 ## Train an Entity Extraction Model
 

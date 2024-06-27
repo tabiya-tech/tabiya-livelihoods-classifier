@@ -43,6 +43,8 @@ If you already cloned the repository without Git LFS, run:
 git lfs pull
 ```
 
+### Install the dependencies
+
 #### Set up virtualenv
 In the **root directory** of the backend project (so, the same directory as this README file), run the following commands:
 
@@ -53,8 +55,6 @@ python3 -m venv venv
 # activate the virtual environment
 source venv/bin/activate
 ```
-
-### Install the dependencies
 
 ```shell
 # Use the version of the dependencies specified in the lock file
