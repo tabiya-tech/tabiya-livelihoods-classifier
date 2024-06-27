@@ -8,6 +8,7 @@ The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the 
 - **[Training](train/README.md)**: Details on how to train the model.
 - **[Model's Architecture](#models-architecture)**
 - **[Installation](#installation)**
+- **[Datasets](#datasets)**
 - **[License](#license)**
 - **[Bibliography](#bibliography)**
 
@@ -98,6 +99,38 @@ nltk.download('punkt')
 The code and model weights are licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
 The dataset is licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0). See the [DATA_LICENSE](./DATA_LICENSE) file for details.
+
+## Datasets
+
+### [Hahu Test](inference/files/eval/redacted_hahu_test_with_id.csv)
+- **Source**: [hahu_test](https://huggingface.co/datasets/tabiya/hahu_test)
+- **Description**: This dataset consists of 542 entries chosen at random from the 11 general classification system of the Ethiopian hahu.jobs platform. 50 entries were selected from each class to create the final dataset.
+- **License**: Creative Commons Attribution 4.0 International
+- **Modifications**: No modifications were made to the selected entries.
+
+### [Qualifications](inference/files/qualifications.csv)
+- **Source**: [Official European Union EQF comparison website](https://europass.europa.eu/en/compare-qualifications)
+- **Description**: This dataset contains EQF (European Qualifications Framework) relevant information extracted from the official EQF comparison website. It includes data strings, country information, and EQF levels. Non-English text was ignored.
+- **License**: Please refer to the original source for [license information](https://europass.europa.eu/en/node/2161).
+- **Modifications**: Non-English text was removed, and the remaining information was formatted into a structured database.
+
+### [house and tech datasets](inference/files/eval/)
+- **Source**: Provided by [Decorte et al.](https://arxiv.org/abs/2209.05987)
+- **Description**: The dataset includes the HOUSE and TECH extensions of the SkillSpan Dataset. In the original work by Decorte et al., the test and development entities of the SkillSpan Dataset were annotated into the ESCO model.
+- **License**: MIT
+- **Modifications**: The datasets were used as provided without further modifications.
+
+### [qualification_mapping.csv](inference/files/eval/qualification_mapping.csv)
+- **Source**: Extended from the [Green Benchmark](https://github.com/acp19tag/skill-extraction-dataset) Qualifications
+- **Description**: This dataset maps the Green Benchmark Qualifications to the appropriate EQF levels. Two annotators tagged the qualifications, resulting in a Cohen's Kappa agreement of 0.45, indicating moderate agreement.
+- **License**: Creative Commons Attribution 4.0 International
+- **Modifications**: Extended the dataset to include EQF level mappings, and the annotations were verified by two annotators.
+
+### Access and Usage
+
+To use these datasets, ensure you comply with the original dataset's license and terms of use. Any modifications made should be documented and attributed appropriately in your project.
+
+For datasets requiring access tokens, such as those from HuggingFace 🤗, please contact the administrators via [tabiya@benisis.de] to obtain a read access token. You can create your read access token [here](https://huggingface.co/settings/tokens).
 
 ## Bibiography 
 
