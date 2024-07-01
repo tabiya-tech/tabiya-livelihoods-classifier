@@ -2,10 +2,6 @@
 
 Train your entity extraction model using PyTorch.
 
-In order to use the entity linker, you need access to the HuggingFace 🤗 entity extraction model. Feel free to contact the administrators via [tabiya@benisis.de]. From there, you need to create a read access token to use the training dataset. 
-
-Find or create your read access token [here](https://huggingface.co/settings/tokens).
-
 First, activate the virtual environment as explained [here](../README.md#install-the-dependencies).
 
 ## Train an Entity Extraction Model
@@ -24,12 +20,11 @@ Configure the necessary hyperparameters in the [config.json file](config.json). 
     "epochs": 4,
     "weight_decay": 0.01,
     "save": false,
-    "output_path": "bert_job_ner",
-    "access_token": "yourhftoken"
+    "output_path": "bert_job_ner"
 }
 ```
 
-To train the model, run the following script:
+To train the model, run the following script in the `train` directory:
 
 ```sh
 python train.py
@@ -43,7 +38,7 @@ Configure the necessary hyperparameters in the `sbert_train` function in the [sb
 sbert_train(model_id='all-MiniLM-L6-v2', dataset_path='your/dataset/path', output_path='your/output/path')
 ```
 
-To train the similarity model, run the following script:
+To train the similarity model, run the following script in the `train` directory:
 
 ```sh
 python sbert_train.py

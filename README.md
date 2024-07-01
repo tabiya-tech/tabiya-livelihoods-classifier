@@ -94,6 +94,23 @@ python
 import nltk
 nltk.download('punkt')
 ```
+
+### Environment Variable & Configuration
+
+The repo uses the following environment variable:
+
+- `HF_TOKEN`: To use the project, you need access to the HuggingFace 🤗 entity extraction model. Contact the administrators via [tabiya@benisis.de]. From there, you need to create a read access token to use the model. Find or create your read access token [here](https://huggingface.co/settings/tokens).
+The backend supports the use of a `.env` file to set the environment variable. Create a `.env` file in the root
+directory of the backend project and set the environment variables as follows:
+
+```dotenv
+# .env file
+HF_TOKEN=<YOUR_HF_TOKEN>
+```
+
+> ATTENTION: The .env file should be kept secure and not shared with others as it contains sensitive information.
+> It should not be committed to the repository.
+
 ## License
 
 The code and model weights are licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.

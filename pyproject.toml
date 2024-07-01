@@ -17,6 +17,9 @@ pandas= "^2.0.3"
 sentence_transformers= "^2.2.2"
 torch= "^2.1.2"
 tqdm = "^4.65.0"
+flask = "^3.0.3"
+flask-cors = "^4.0.1"
+python-dotenv = "^1.0.1"
 
 [tool.poetry.group.train.dependencies]
 transformers= "^4.32.1"

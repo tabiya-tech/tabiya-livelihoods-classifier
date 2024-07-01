@@ -12,6 +12,11 @@ from util.utilfunctions import CPU_Unpickler
 from util.transformersCRF import AutoModelCrfForNer
 import pickle
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from the .env file
+load_dotenv()
+
 
 class EntityLinker:
 	"""
@@ -31,10 +36,6 @@ class EntityLinker:
 	crf : bool, default=False
 		A flag to indicate whether to use an `AutoModelCrfForNer` model instead of a standard `AutoModelForTokenClassification`. 
 		`CRF` (Conditional Random Field) models are used when the task requires sequential predictions with dependencies between the outputs.
-
-	hf_token : str, default=None
-		HuggingFace token used for accessing private models. 
-		This is necessary as the models are not publicly available and require authentication.
 
 	evaluation_mode : bool, default=False
 		If set to `True`, the linker will return the cosine similarity scores between the embeddings. 
@@ -66,7 +67,6 @@ class EntityLinker:
 			entity_model: str = 'tabiya/roberta-base-job-ner',
 			similarity_model: str = 'all-MiniLM-L6-v2',
 			crf: Optional[bool] = False,
-			hf_token: str = None,
 			evaluation_mode: bool = False,
 			k: int = 32,
 			from_cache: bool = True,
@@ -81,6 +81,7 @@ class EntityLinker:
 		self.k = k
 		self.from_cache = from_cache
 		self.output_format = output_format
+		print(f"Access tokem: {os.getenv('HF_TOKEN')}")
 
 		# Set the device to GPU if available, otherwise CPU
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -89,13 +90,13 @@ class EntityLinker:
 		if self.crf:
 			self.entity_model = AutoModelCrfForNer.from_pretrained(entity_model)
 		else:
-			self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model, token=hf_token)
+			self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
 
 		# Move the entity model to the appropriate device
 		self.entity_model.to(self.device)
 
 		# Initialize the tokenizer for the entity model
-		self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=hf_token)
+		self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
 
 		# Load reference sets for occupations, skills, and qualifications
 		self.df_occ = pd.read_csv('inference/files/occupations_augmented.csv')
