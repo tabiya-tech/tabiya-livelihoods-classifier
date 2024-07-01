@@ -1,9 +1,12 @@
-#Imports
-import os
-import sys
+from dotenv import load_dotenv
+import os, sys
+
+# Load environment variables from the .env file
+load_dotenv(verbose=True)
 
 # Add the parent directory to the system path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
+
 from util.transformersCRF import BertCrfForNer
 from datasets import load_dataset
 from transformers import AutoTokenizer, DataCollatorForTokenClassification, TrainingArguments, Trainer, AutoModelForTokenClassification
@@ -20,7 +23,7 @@ config = Config('config.json') # reads all hyperparameters and sets them as attr
 MODEL_NAME = config.model_name #tested on roberta-base, jjzha/esco-xlm-roberta-large and jjzha/jobbert-base-cased
 USE_CRF = config.crf
 dataset_path = config.dataset_path
-access_token = config.access_token
+access_token = os.getenv('HF_TOKEN')
 custom_dataset = load_dataset(dataset_path, token = access_token)
 label_list = config.label_list
 if USE_CRF:
