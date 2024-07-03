@@ -17,6 +17,9 @@ from dotenv import load_dotenv
 # Load environment variables from the .env file
 load_dotenv()
 
+class Entity:
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
 
 class EntityLinker:
 	"""
@@ -50,7 +53,7 @@ class EntityLinker:
 		If set to `False`, the embeddings are computed on-the-fly, which requires GPU access for efficiency and can be time-consuming.
 
 	output_format : str, default='occupation'
-		Specifies the format of the output for occupations, either `occupation`, `preffered_label`, `esco_code` or `uuid`. 
+		Specifies the format of the output for occupations, either `occupation`, `preffered_label`, `esco_code`, `uuid` or `all` to get all the columns. 
 		The `uuid` is also available for the skills.
 
 	Calling Parameters
@@ -81,7 +84,8 @@ class EntityLinker:
 		self.k = k
 		self.from_cache = from_cache
 		self.output_format = output_format
-		print(f"Access tokem: {os.getenv('HF_TOKEN')}")
+		self.path_to_files = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
+		print(f"Path: {self.path_to_files}")
 
 		# Set the device to GPU if available, otherwise CPU
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -99,9 +103,9 @@ class EntityLinker:
 		self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
 
 		# Load reference sets for occupations, skills, and qualifications
-		self.df_occ = pd.read_csv('inference/files/occupations_augmented.csv')
-		self.df_skill = pd.read_csv('inference/files/skills.csv')
-		self.df_qual = pd.read_csv('inference/files/qualifications.csv')
+		self.df_occ = pd.read_csv(os.path.join(self.path_to_files, 'occupations_augmented.csv'))
+		self.df_skill = pd.read_csv(os.path.join(self.path_to_files, 'skills.csv'))
+		self.df_qual = pd.read_csv(os.path.join(self.path_to_files, 'qualifications.csv'))
 
 		# Load precomputed embeddings for the reference sets
 		self.occupation_emb, self.skill_emb, self.qualification_emb = self._load_tensors()
@@ -130,6 +134,8 @@ class EntityLinker:
 			- `retrieved`: A list of related names or ESCO codes retrieved from the reference sets. 
 				These items represent the most similar entities or concepts based on the embeddings and similarity calculations.
 				Appear if linking=True.
+				If `output_format` is set to `all`, the retrieved items will be in the form of a list of Entity objects 
+				with as attributes the columns names of the database.
 			- `scores`: A list of cosine similarity scores between the extracted entity and the retrieved items.
 				Appear if linking=True and evaluation_mode=True.
 		"""
@@ -268,16 +274,26 @@ class EntityLinker:
 		list
 			A list of the top-k most similar entities from the reference set. If `evaluation_mode` is `True`, also returns the cosine similarity scores.
 		"""
-
-		if entity_type == "Occupation":
-			local_df = self.df_occ[self.output_format]
-			local_emb = self.occupation_emb
-		elif entity_type == "Qualification":
-			local_df = self.df_qual['qualification']
-			local_emb = self.qualification_emb
+		if self.output_format == 'all':
+			if entity_type == "Occupation":
+				local_df = self.df_occ
+				local_emb = self.occupation_emb
+			elif entity_type == "Qualification":
+				local_df = self.df_qual
+				local_emb = self.qualification_emb
+			else:
+				local_df = self.df_skill
+				local_emb = self.skill_emb
 		else:
-			local_df = self.df_skill['skills'] if self.output_format != 'uuid' else self.df_skill['uuid']
-			local_emb = self.skill_emb
+			if entity_type == "Occupation":
+				local_df = self.df_occ[self.output_format]
+				local_emb = self.occupation_emb
+			elif entity_type == "Qualification":
+				local_df = self.df_qual['qualification']
+				local_emb = self.qualification_emb
+			else:
+				local_df = self.df_skill['skills'] if self.output_format != 'uuid' else self.df_skill['uuid']
+				local_emb = self.skill_emb
 
 		# Calculate cosine similarity between the input embedding and the reference embeddings
 		cos_scores = util.cos_sim(embedding, local_emb)[0]
@@ -286,15 +302,24 @@ class EntityLinker:
 		top_k_scores = torch.topk(cos_scores, k=self.k)
 		top_k_list = top_k_scores.indices.tolist()
 
-		# Retrieve the top-k most similar entities from the reference DataFrame
-		top_k = list(local_df.iloc[top_k_list])
+		if self.output_format == 'all':
+			top_k_df = local_df.iloc[top_k_list]
+			# Convert each row of the DataFrame to an Entity object
+			top_k_entities = [Entity(**row) for _, row in top_k_df.iterrows()]
+			
+			if self.evaluation_mode:
+				return top_k_entities, top_k_scores.values.tolist()
+			return top_k_entities
+		else:
+			# Retrieve the top-k most similar entities from the reference DataFrame
+			top_k = list(local_df.iloc[top_k_list])
 
-		# If evaluation_mode is enabled, return the top-k entities along with their similarity scores
-		if self.evaluation_mode:
-			return top_k, top_k_scores.values.tolist()
+			# If evaluation_mode is enabled, return the top-k entities along with their similarity scores
+			if self.evaluation_mode:
+				return top_k, top_k_scores.values.tolist()
 
-		# For better formatted outputs in occupations, remove duplicate suggestion codes
-		return self.remove_duplicates_ordered(top_k)
+			# For better formatted outputs in occupations, remove duplicate suggestion codes
+			return self.remove_duplicates_ordered(top_k)
 
 
 	def _load_tensors(self) -> Tuple[List[torch.Tensor]]:
@@ -310,13 +335,13 @@ class EntityLinker:
 		"""
 
 		# Determine the path for storing or loading the embeddings
-		path = 'inference/files/' + str(self.similarity_model_type).split("/")[-1]
+		path = os.path.join(self.path_to_files, self.similarity_model_type)
 
 		if self.from_cache:
 			# Load cached embeddings from precomputed files
-			occupation_emb = self.create_tensors(path + '/occupations.pkl', self.device)
-			skill_emb = self.create_tensors(path + '/skills.pkl', self.device)
-			qualification_emb = self.create_tensors(path + '/qualifications.pkl', self.device)
+			occupation_emb = self.create_tensors(os.path.join(path, 'occupations.pkl'), self.device)
+			skill_emb = self.create_tensors(os.path.join(path, 'skills.pkl'), self.device)
+			qualification_emb = self.create_tensors(os.path.join(path, 'qualifications.pkl'), self.device)
 		else:
 			# Create a new directory to store embeddings
 			os.mkdir(path)
@@ -353,7 +378,7 @@ class EntityLinker:
 		corpus_embeddings = self.similarity_model.encode(corpus, convert_to_tensor=True)
 		
 		# Define the path for storing the embeddings
-		embeddings_path = path + '/' + entity_type.lower() + '.pkl'
+		embeddings_path = os.path.join(path, f'{entity_type.lower()}.pkl')
 		
 		# Store the computed embeddings in a pickle file
 		with open(embeddings_path, 'wb') as f:

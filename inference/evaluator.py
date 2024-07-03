@@ -1,3 +1,8 @@
+import os, sys
+
+# Add the parent directory to the system path
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
 import torch
 from torch import Tensor
 import logging
@@ -8,7 +13,7 @@ import os
 import numpy as np
 from typing import List, Dict, Set, Tuple
 import pandas as pd
-from inference.linker import EntityLinker
+from linker import EntityLinker
 
 
 
@@ -179,7 +184,7 @@ class Evaluator(EntityLinker):
     Args: entity_type. Occupation, Skill or Qualification
     """
     super().__init__(**kwargs)
-    self.dir = os.getcwd() + '/inference/files/'
+    self.dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
     self.entity_type = entity_type
     #Set the entity bounds for the minimum cosine similarity to be returned from the Entity Linker
     self.entity_bounds = {'Occupation' : 0, 'Skill': 0.7, 'Qualification': 0.8}
@@ -208,10 +213,10 @@ class Evaluator(EntityLinker):
     if self.entity_type=="Skill":
 
       #Load necessary files in pandas dataframes
-      dftech_val = pd.read_csv(self.dir + 'eval/tech_validation_annotations.csv')
-      dftech_test = pd.read_csv(self.dir + 'eval/tech_test_annotations.csv')
-      dfhouse_val = pd.read_csv(self.dir + 'eval/house_validation_annotations.csv')
-      dfhouse_test = pd.read_csv(self.dir + 'eval/house_test_annotations.csv')
+      dftech_val = pd.read_csv(os.path.join(self.dir, 'eval', 'tech_validation_annotations.csv'))
+      dftech_test = pd.read_csv(os.path.join(self.dir, 'eval', 'tech_test_annotations.csv'))
+      dfhouse_val = pd.read_csv(os.path.join(self.dir, 'eval', 'house_validation_annotations.csv'))
+      dfhouse_test = pd.read_csv(os.path.join(self.dir, 'eval', 'house_test_annotations.csv'))
       #Prepeocess
       df = pd.concat([dftech_val, dftech_test, dfhouse_val, dfhouse_test], ignore_index=True)
       df = df.drop_duplicates(ignore_index=True)
@@ -238,7 +243,7 @@ class Evaluator(EntityLinker):
 
     elif self.entity_type=="Occupation":
 
-      df = pd.read_csv(self.dir + 'eval/redacted_hahu_test_with_id.csv')
+      df = pd.read_csv(os.path.join(self.dir, 'eval', 'redacted_hahu_test_with_id.csv'))
       for i in range(len(df)):
         dictionary['sentence'].append( df['title'][i]+ ' '+ df['description'][i])
         dictionary['spans'].append([df['title'][i]])
@@ -247,7 +252,7 @@ class Evaluator(EntityLinker):
     elif self.entity_type=="Qualification":
 
       #Load necessary files in pandas dataframes
-      df = pd.read_csv(self.dir + 'eval/qualification_mapping.csv')
+      df = pd.read_csv(os.path.join(self.dir, 'eval', 'qualification_mapping.csv'))
 
       #Convert EQF labels to floats
       float_labels =[]
@@ -283,7 +288,7 @@ class Evaluator(EntityLinker):
     if self.entity_type=="Occupation":
 
       #Build Corpus/ Reference Sets & Inverted Coprus with ascending indexes.
-      esco = pd.read_csv(self.dir + 'occupations_augmented.csv')
+      esco = pd.read_csv(os.path.join(self.dir, 'occupations_augmented.csv'))
       esco = esco.drop_duplicates(subset='occupation', keep='first', ignore_index=True)
       corpus = {str(k):str(v) for k,v in enumerate(esco['occupation'])}
       corpus['UNK'] = 'UNK'
@@ -310,7 +315,7 @@ class Evaluator(EntityLinker):
     elif self.entity_type=="Skill":
 
       #Build Corpus/ Reference Sets & Inverted Coprus with ascending indexes.
-      esco = pd.read_csv(self.dir + 'skills.csv')
+      esco = pd.read_csv(os.path.join(self.dir, 'skills.csv'))
       corpus = {str(k):str(v) for k,v in enumerate(esco['skills'])}
       corpus['UNK'] = 'UNK'
       corpus_inverted = {v:k for k,v in corpus.items()}
@@ -334,7 +339,7 @@ class Evaluator(EntityLinker):
     elif self.entity_type=="Qualification":
 
       #Build Corpus/ Reference Sets & Inverted Coprus with ascending indexes.
-      esco = pd.read_csv(self.dir + 'qualifications.csv')
+      esco = pd.read_csv(os.path.join(self.dir, 'qualifications.csv'))
       esco = esco.sort_values(by='eqf_level', ascending=False)
       esco = esco.drop_duplicates(subset='qualification', keep='first', ignore_index=True)
       corpus = {str(k):str(v) for k,v in enumerate(esco['qualification'])}
