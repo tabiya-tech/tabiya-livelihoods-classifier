@@ -1,24 +1,170 @@
 # Tabiya Livelihoods Classifier
-The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the entity-linking paradigm to support job description heuristics.  
-Using state-of-the-art transformer neural networks this tool can extract 5 entity types: Occupation, Skill, Qualification, Experience, and Domain. For the Occupations and Skills,  ESCO-related entries are retrieved.  The procedure consists of two discrete steps, entity extraction and similarity vector search.
 
-
+The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the entity-linking paradigm to support job description heuristics. Using state-of-the-art transformer neural networks, this tool can extract five entity types: Occupation, Skill, Qualification, Experience, and Domain. For the Occupations and Skills, ESCO-related entries are retrieved. The procedure consists of two discrete steps: entity extraction and similarity vector search.
 
 ## Table of Contents
 
-- **[Use the model](inference)**: In order to use our tool please refer to the inference directory.
+- **[Installation](#installation)**
+- **[Use the model](inference/README.md)**: Instructions on how to use the inference tool.
+- **[Training](train/README.md)**: Details on how to train the model.
+- **[Model's Architecture](#models-architecture)**
+- **[Datasets](#datasets)**
+- **[License](#license)**
+- **[Bibliography](#bibliography)**
 
-- **[Training](train)**: The training code for this project is found here.
+## Installation
 
-## Model's architecture:
+### Prerequisites
 
-![](./pics/entity_linker.png)
+- A recent version of [git](https://git-scm.com/) (e.g. ^2.37 )
+- [Python 3.10 or higher](https://www.python.org/downloads/)
+- [Poerty 1.8 or higher](https://python-poetry.org/)
+  > Note: to install Poetry consult the [Poetry documentation](https://python-poetry.org/docs/#installing-with-the-official-installer) 
+  
+  > Note: Install poetry system-wide (not in a virtualenv).
+- [Git LFS](https://git-lfs.github.com/)
+
+### Using Git LFS
+
+This repository uses Git LFS for handling large files. Before you can use this repository, you need to install and set up Git LFS on your local machine.
+See https://git-lfs.com/ for installation instructions.
+
+After Git LFS is set up, follow these steps to clone the repository:
+
+```shell
+git clone https://github.com/tabiya-tech/tabiya-livelihoods-classifier.git
+```
+
+If you already cloned the repository without Git LFS, run:
+
+```shell
+git lfs pull
+```
+
+### Install the dependencies
+
+#### Set up virtualenv
+In the **root directory** of the backend project (so, the same directory as this README file), run the following commands:
+
+```shell
+# create a virtual environment
+python3 -m venv venv
+
+# activate the virtual environment
+source venv/bin/activate
+```
+
+```shell
+# Use the version of the dependencies specified in the lock file
+poetry lock --no-update
+# Install missing and remove unreferenced packages
+poetry install --sync
+```
+
+> Note:
+> Install the dependencies for the training using:
+>  ```shell
+> # Use the version of the dependencies specified in the lock file
+> poetry lock --no-update
+> # Install missing and remove unreferenced packages
+> poetry install --sync --with train
+>  ```
+
+> Note:
+> Before running any tasks, activate the virtual
+> environment so that the installed dependencies are available:
+>  ```shell
+>  # activate the virtual environment
+>  source venv/bin/activate
+>  ```
+> To deactivate the virtual environment, run:
+> ```shell
+> # deactivate the virtual environment
+> deactivate
+> ```
+
+Activate Python and download the NLTK punctuation package to use the sentence tokenizer. You only need to download `punkt` once.
+
+```shell
+python
+import nltk
+nltk.download('punkt')
+```
+
+### Environment Variable & Configuration
+
+The repo uses the following environment variable:
+
+- `HF_TOKEN`: To use the project, you need access to the HuggingFace 🤗 entity extraction model. Contact the administrators via [tabiya@benisis.de]. From there, you need to create a read access token to use the model. Find or create your read access token [here](https://huggingface.co/settings/tokens).
+The backend supports the use of a `.env` file to set the environment variable. Create a `.env` file in the root
+directory of the backend project and set the environment variables as follows:
+
+```dotenv
+# .env file
+HF_TOKEN=<YOUR_HF_TOKEN>
+```
+
+> ATTENTION: The .env file should be kept secure and not shared with others as it contains sensitive information.
+> It should not be committed to the repository.
+
+- **[Use the model](inference/README.md)**: Instructions on how to use the inference tool.
+- **[Training](train/README.md)**: Details on how to train the model.
+
+## Model's Architecture
+
+![Model Architecture](./pics/entity_linker.png)
 
 ## License
 
 The code and model weights are licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
-The dataset is licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0). See the [DATA_LICENSE](./DATA_LICENSE) file for details.
+The datasets are licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0). See the [DATA_LICENSE](./DATA_LICENSE) file for details.
+
+## Datasets
+
+Here is the corrected version of the text:
+
+### [Occupations](inference/files/occupations_augmented.csv)
+- **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
+- **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences, and Occupations. This dataset includes information relevant to the occupations.
+- **License**: Creative Commons Attribution 4.0 International
+- **Modifications**: The columns retained are `alt_label`, `preferred_label`, `esco_code`, and `uuid`. Each alternative label has been separated into individual rows.
+
+### [Skills](inference/files/skills.csv)
+- **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
+- **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences and Occupations.This dataset include informations relevant to the skills.
+- **License**: Creative Commons Attribution 4.0 International
+- **Modifications**: The columns retained are `preferred_label` and `uuid`.
+
+### [Qualifications](inference/files/qualifications.csv)
+- **Source**: [Official European Union EQF comparison website](https://europass.europa.eu/en/compare-qualifications)
+- **Description**: This dataset contains EQF (European Qualifications Framework) relevant information extracted from the official EQF comparison website. It includes data strings, country information, and EQF levels. Non-English text was ignored.
+- **License**: Please refer to the original source for [license information](https://europass.europa.eu/en/node/2161).
+- **Modifications**: Non-English text was removed, and the remaining information was formatted into a structured database.
+
+### [Hahu Test](inference/files/eval/redacted_hahu_test_with_id.csv)
+- **Source**: [hahu_test](https://huggingface.co/datasets/tabiya/hahu_test)
+- **Description**: This dataset consists of 542 entries chosen at random from the 11 general classification system of the Ethiopian hahu.jobs platform. 50 entries were selected from each class to create the final dataset.
+- **License**: Creative Commons Attribution 4.0 International
+- **Modifications**: No modifications were made to the selected entries.
+
+### [house and tech datasets](inference/files/eval/)
+- **Source**: Provided by [Decorte et al.](https://arxiv.org/abs/2209.05987)
+- **Description**: The dataset includes the HOUSE and TECH extensions of the SkillSpan Dataset. In the original work by Decorte et al., the test and development entities of the SkillSpan Dataset were annotated into the ESCO model.
+- **License**: MIT
+- **Modifications**: The datasets were used as provided without further modifications.
+
+### [qualification_mapping.csv](inference/files/eval/qualification_mapping.csv)
+- **Source**: Extended from the [Green Benchmark](https://github.com/acp19tag/skill-extraction-dataset) Qualifications
+- **Description**: This dataset maps the Green Benchmark Qualifications to the appropriate EQF levels. Two annotators tagged the qualifications, resulting in a Cohen's Kappa agreement of 0.45, indicating moderate agreement.
+- **License**: Creative Commons Attribution 4.0 International
+- **Modifications**: Extended the dataset to include EQF level mappings, and the annotations were verified by two annotators.
+
+### Access and Usage
+
+To use these datasets, ensure you comply with the original dataset's license and terms of use. Any modifications made should be documented and attributed appropriately in your project.
+
+For datasets requiring access tokens, such as those from HuggingFace 🤗, please contact the administrators via [tabiya@benisis.de] to obtain a read access token. You can create your read access token [here](https://huggingface.co/settings/tokens).
 
 ## Bibiography 
 

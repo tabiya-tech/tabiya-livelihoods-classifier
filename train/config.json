@@ -9,6 +9,5 @@
     "epochs" : 4,
     "weight_decay": 0.01,
     "save":false,
-    "output_path":"bert_job_ner",
-    "access_token": "yourhftoken"
+    "output_path":"bert_job_ner"
 }
