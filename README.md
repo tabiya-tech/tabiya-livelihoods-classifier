@@ -4,17 +4,13 @@ The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the 
 
 ## Table of Contents
 
+- **[Installation](#installation)**
 - **[Use the model](inference/README.md)**: Instructions on how to use the inference tool.
 - **[Training](train/README.md)**: Details on how to train the model.
 - **[Model's Architecture](#models-architecture)**
-- **[Installation](#installation)**
 - **[Datasets](#datasets)**
 - **[License](#license)**
 - **[Bibliography](#bibliography)**
-
-## Model's Architecture
-
-![Model Architecture](./pics/entity_linker.png)
 
 ## Installation
 
@@ -24,6 +20,8 @@ The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the 
 - [Python 3.10 or higher](https://www.python.org/downloads/)
 - [Poerty 1.8 or higher](https://python-poetry.org/)
   > Note: to install Poetry consult the [Poetry documentation](https://python-poetry.org/docs/#installing-with-the-official-installer) 
+  
+  > Note: Install poetry system-wide (not in a virtualenv).
 - [Git LFS](https://git-lfs.github.com/)
 
 ### Using Git LFS
@@ -62,8 +60,6 @@ poetry lock --no-update
 # Install missing and remove unreferenced packages
 poetry install --sync
 ```
-
-> Note: Install poetry system-wide (not in a virtualenv).
 
 > Note:
 > Install the dependencies for the training using:
@@ -111,25 +107,46 @@ HF_TOKEN=<YOUR_HF_TOKEN>
 > ATTENTION: The .env file should be kept secure and not shared with others as it contains sensitive information.
 > It should not be committed to the repository.
 
+- **[Use the model](inference/README.md)**: Instructions on how to use the inference tool.
+- **[Training](train/README.md)**: Details on how to train the model.
+
+## Model's Architecture
+
+![Model Architecture](./pics/entity_linker.png)
+
 ## License
 
 The code and model weights are licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
-The dataset is licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0). See the [DATA_LICENSE](./DATA_LICENSE) file for details.
+The datasets are licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0). See the [DATA_LICENSE](./DATA_LICENSE) file for details.
 
 ## Datasets
 
-### [Hahu Test](inference/files/eval/redacted_hahu_test_with_id.csv)
-- **Source**: [hahu_test](https://huggingface.co/datasets/tabiya/hahu_test)
-- **Description**: This dataset consists of 542 entries chosen at random from the 11 general classification system of the Ethiopian hahu.jobs platform. 50 entries were selected from each class to create the final dataset.
+Here is the corrected version of the text:
+
+### [Occupations](inference/files/occupations_augmented.csv)
+- **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
+- **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences, and Occupations. This dataset includes information relevant to the occupations.
 - **License**: Creative Commons Attribution 4.0 International
-- **Modifications**: No modifications were made to the selected entries.
+- **Modifications**: The columns retained are `alt_label`, `preferred_label`, `esco_code`, and `uuid`. Each alternative label has been separated into individual rows.
+
+### [Skills](inference/files/skills.csv)
+- **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
+- **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences and Occupations.This dataset include informations relevant to the skills.
+- **License**: Creative Commons Attribution 4.0 International
+- **Modifications**: The columns retained are `preferred_label` and `uuid`.
 
 ### [Qualifications](inference/files/qualifications.csv)
 - **Source**: [Official European Union EQF comparison website](https://europass.europa.eu/en/compare-qualifications)
 - **Description**: This dataset contains EQF (European Qualifications Framework) relevant information extracted from the official EQF comparison website. It includes data strings, country information, and EQF levels. Non-English text was ignored.
 - **License**: Please refer to the original source for [license information](https://europass.europa.eu/en/node/2161).
 - **Modifications**: Non-English text was removed, and the remaining information was formatted into a structured database.
+
+### [Hahu Test](inference/files/eval/redacted_hahu_test_with_id.csv)
+- **Source**: [hahu_test](https://huggingface.co/datasets/tabiya/hahu_test)
+- **Description**: This dataset consists of 542 entries chosen at random from the 11 general classification system of the Ethiopian hahu.jobs platform. 50 entries were selected from each class to create the final dataset.
+- **License**: Creative Commons Attribution 4.0 International
+- **Modifications**: No modifications were made to the selected entries.
 
 ### [house and tech datasets](inference/files/eval/)
 - **Source**: Provided by [Decorte et al.](https://arxiv.org/abs/2209.05987)

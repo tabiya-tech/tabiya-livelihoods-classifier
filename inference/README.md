@@ -2,7 +2,7 @@
 
 ## Usage
 
-First, activate the virtual environment as explained [here](../README.md#install-the-dependencies). Then, run the following command in python in the `root` directory:
+First, activate the virtual environment as explained [here](../README.md#set-up-virtualenv). Then, run the following command in python in the `root` directory:
 
 ### Create the pipeline
 
