@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="client.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='client.css') }}">
 <base target="_blank">
-<!--script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script-->
-<script src="jquery-3.7.1.min.js"></script>
-<script src="jquery-ui-1.13.2.min.js"></script>
+<script src="{{ url_for('static', filename='jquery-3.7.1.min.js') }}"></script>
+<script src="{{ url_for('static', filename='jquery-ui-1.13.2.min.js') }}"></script>
 <script>
 	var copy_html = "";
 	$(document).ready(function() {
@@ -70,7 +69,7 @@
 		if (text == "") {
 			alert("Empty text string!")
 		}
-        $.post( "host/match",
+        $.post( "/match",
             {
 				job_descr: text
             },
@@ -110,7 +109,6 @@
 
 <body>
 
-
 <h1>Job matching</h1>
 <textarea id="job_text" placeholder="Paste job description here" cols="80" rows="10" style="float:left;"></textarea>
 <div id="container" data-text="Click on occupations or skills to copy and right click here to paste them" contenteditable=true></div>
@@ -118,7 +116,7 @@
 
 <div>
 	<button onclick="send_req($('#job_text').val());">Analyze Job</button>
-	<img id="waitgif" src="spinner.gif" class="waiting" style="display:none;"/>
+	<img id="waitgif" src="{{ url_for('static', filename='spinner.gif') }}" class="waiting" style="display:none;"/>
 </div>
 
 <div class="result">
@@ -131,4 +129,4 @@
 <h2>Predicted Qualifications:</h2><div id="qualifications" class="response"></div><br/>
 </div>
 </body>
-</html> 
+</html>
