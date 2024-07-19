@@ -2,7 +2,7 @@
 
 Train your entity extraction model using PyTorch.
 
-First, activate the virtual environment as explained [here](../README.md#install-the-dependencies).
+First, activate the virtual environment as explained [here](../README.md#set-up-virtualenv).
 
 ## Train an Entity Extraction Model
 
