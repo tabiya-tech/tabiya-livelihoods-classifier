@@ -28,58 +28,60 @@
 		if (arr.length == 0) {
 			return("");
 		} else {
-			str = "<div class='retrieved'>";
+			let str = "<div class='retrieved'>";
 			str += "<a href='" + arr[0]['uri'] + "'>" + arr[0]['code'] + '</a>:' + arr[0]['label'];
 			str += "</div>";
-			for (i=1; i<arr.length; i++) {
-				str += "| <div class='retrieved'>";
-				str += "<a href='" + arr[i]['uri'] + "'>" + arr[i]['code'] + '</a>:' + arr[i]['label'];
+			for (let i = 1; i < arr.length; i++) {
+				str += " -- <div class='retrieved'>";
+				str += "<a href='" + arr[i]['uri'] + "'>" + arr[i]['code'] + '</a>: ' + arr[i]['label'];
 				str += "</div>";
 			}
 			
 			return(str);
 		}
 	}
+
 	function skill_list2str(arr) {
 		if (arr.length == 0) {
 			return("");
 		} else {
-			str = "<div class='retrieved'>" + arr[0] + "</div>";
-			for (i=1; i<arr.length; i++) {
-				str += "| <div class='retrieved'>" + arr[i] + "</div>";
+			let str = "<div class='retrieved'>" + arr[0] + "</div>";
+			for (let i = 1; i < arr.length; i++) {
+				str += " -- <div class='retrieved'>" + arr[i] + "</div>";
 			}
 			return(str);
 		}
 	}
+
 	function qualification_list2str(arr) {
 		if (arr.length == 0) {
 			return("");
 		} else {
-			max = 0
-			for (i=0; i<arr.length; i++) {
-				if (arr[i] > max){
+			let max = 0;
+			for (let i = 0; i < arr.length; i++) {
+				if (arr[i] > max) {
 					max = arr[i];
 				}
 			}
-			str = "<div class='retrieved'>" + max + "</div>";
+			let str = "<div class='retrieved'>" + max + "</div>";
 			return(str);
 		}
 	}
-    function send_req(text) {
+
+	function send_req(text) {
 		if (text == "") {
 			alert("Empty text string!")
 		}
-        $.post( "/match",
-            {
+		$.post( "/match",
+			{
 				job_descr: text
-            },
-            function( data, status ) {
-				occup_html = "";
-				qualif_html = "";
-				skills_html = "";
-                //alert( "Status: " + status );
+			},
+			function( data, status ) {
+				let occup_html = "";
+				let qualif_html = "";
+				let skills_html = "";
 				var size = data.length;
-				for (var i = 0; i < size ; i++) {
+				for (var i = 0; i < size; i++) {
 					var item = data[i];
 					var type = item["type"];
 					var tokens = item["tokens"];
@@ -100,9 +102,9 @@
 				$("#qualifications").html(qualif_html);
 				$("#skills").html(skills_html);
 				$("#occupations").html(occup_html);
-            }
-        );
-    }
+			}
+		);
+	}
 
 </script>
 </head>
