@@ -85,7 +85,6 @@ class EntityLinker:
 		self.from_cache = from_cache
 		self.output_format = output_format
 		self.path_to_files = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
-		print(f"Path: {self.path_to_files}")
 
 		# Set the device to GPU if available, otherwise CPU
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

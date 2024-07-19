@@ -6,6 +6,7 @@ The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the 
 
 - **[Installation](#installation)**
 - **[Use the model](inference/README.md)**: Instructions on how to use the inference tool.
+- **[Use the API](app/README.md)**: Instructions on how to use the API.
 - **[Training](train/README.md)**: Details on how to train the model.
 - **[Model's Architecture](#models-architecture)**
 - **[Datasets](#datasets)**
@@ -108,6 +109,7 @@ HF_TOKEN=<YOUR_HF_TOKEN>
 > It should not be committed to the repository.
 
 - **[Use the model](inference/README.md)**: Instructions on how to use the inference tool.
+- **[Use the API](app/README.md)**: Instructions on how to use the API.
 - **[Training](train/README.md)**: Details on how to train the model.
 
 ## Model's Architecture
