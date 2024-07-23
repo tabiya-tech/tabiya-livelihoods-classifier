@@ -57,13 +57,10 @@
 		if (arr.length == 0) {
 			return("");
 		} else {
-			let max = 0;
-			for (let i = 0; i < arr.length; i++) {
-				if (arr[i] > max) {
-					max = arr[i];
-				}
+			let str = "<div class='retrieved'>" + arr[0] + "</div>";
+			for (let i = 1; i < arr.length; i++) {
+				str += " -- <div class='retrieved'>" + arr[i] + "</div>";
 			}
-			let str = "<div class='retrieved'>" + max + "</div>";
 			return(str);
 		}
 	}
@@ -96,7 +93,7 @@
 							+ ": " + skill_list2str(retrieved) + "</p>";
 					} else if (type == "Qualification") {
 						qualif_html += "<p class='par'><div class='tokens'>" + tokens + "</div>"
-							+ " EQF level: " + qualification_list2str(retrieved) + "</p>";
+							+ ": " + qualification_list2str(retrieved) + "</p>";
 					}
 				}
 				$("#qualifications").html(qualif_html);

@@ -21,21 +21,6 @@ export FLASK_APP=app/server/matching.py
 flask run --host=0.0.0.0 --port=5000
 ```
 
-## Endpoints
-
-### `/`
-
-- **Method**: `GET`
-- **Description**: Serves the main HTML page (`client.html`).
-
-### `/match`
-
-- **Method**: `POST`
-- **Description**: Analyzes the job description and predicts relevant occupations, skills, and qualifications.
-- **Request Body**:
-  - `job_descr`: The job description text.
-- **Response**: JSON object with the extracted entities and their details.
-
 ## Example Usage
 
 1. **Open the browser** and navigate to `http://127.0.0.1:5000/`.
