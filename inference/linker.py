@@ -525,3 +525,196 @@ class EntityLinker:
 						filtered_tags.append(tag)
 
 		return filtered_ids, filtered_tags
+
+class EntityRecognition:
+	"""
+	Performs entity recognition on job-related text using a BERT-based transformer model.
+	
+	Initialization Parameters
+	----------
+	entity_model : str, default='tabiya/roberta-base-job-ner'
+		Path to a pre-trained `AutoModelForTokenClassification` model or an `AutoModelCrfForNer` model.
+		This model is used for entity recognition within the input text.
+		
+	crf : bool, default=False
+		A flag to indicate whether to use an `AutoModelCrfForNer` model instead of a standard `AutoModelForTokenClassification`.
+		`CRF` (Conditional Random Field) models are used when the task requires sequential predictions with dependencies between the outputs.		
+	"""
+	
+	def __init__(
+			self,
+			entity_model: str = 'tabiya/roberta-base-job-ner',
+			crf: Optional[bool] = False
+	):
+		# Initialize the model paths and settings
+		self.entity_model = entity_model
+		self.crf = crf
+
+		# Set the device to GPU if available, otherwise CPU
+		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+		# Load the appropriate entity recognition model based on the crf flag
+		if self.crf:
+			self.entity_model = AutoModelCrfForNer.from_pretrained(entity_model)
+		else:
+			self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
+
+		# Move the entity model to the appropriate device
+		self.entity_model.to(self.device)
+
+		# Initialize the tokenizer for the entity model
+		self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
+
+	def __call__(self, text: str) -> List[dict]:
+		"""
+		Perform job-related entity recognition.
+
+		Parameters
+		----------
+		text : str
+			An arbitrary job vacancy-related string that the model processes to extract and link entities.
+
+		Returns
+		-------
+		List[dict]
+			A list of dictionaries with the extracted entities. 
+			Each dictionary contains the following keys:
+			- `type`: The category of the identified entity (e.g., 'Occupation', 'Qualifications', 'Skill', 'Experience').
+			- `tokens`: The specific part of the input text that was identified as an entity of the right category.
+		"""
+
+		# Replace newlines in the text with spaces
+		text = text.replace('\n', ' ')
+
+		# TODO: Implement the Google Translate features to enable multilingual entity linking.
+		# language = UtilFunctions.detect_language(text)
+		# if language != 'en':
+		#     text = UtilFunctions.translate(text)
+
+		# Sentence tokenize with nltk to handle lengthy inputs.
+		text_list = sent_tokenize(text)
+		output = []
+
+		# Process each sentence in the text
+		for item in text_list:
+			# Run the model on each sentence and extend the output list with the results
+			output.extend(self._ner_pipeline(item)) if self._ner_pipeline(item) else None
+
+		return output
+
+	def _ner_pipeline(self, text: str) -> List[dict]:
+		"""
+		Entity extraction pipeline. Runs the text through the BERT-based encoders, performs post-processing for tagging cleanup,
+		and returns a list of dictionaries with all relevant information.
+
+		Parameters
+		----------
+		text : str
+			The input text to process for entity extraction.
+
+		Returns
+		-------
+		List[dict]
+			A list of dictionaries with the extracted entities. Each dictionary contains the following keys:
+			- `tokens`: The specific part of the input text identified as an entity.
+			- `type`: The category of the identified entity (e.g., 'Occupation', 'Skill', 'Qualification').
+		"""
+
+		# Tokenize inputs
+		inputs = self.tokenizer(text, return_tensors='pt', truncation=True).to(self.device)
+
+		# Check whether a CRF entity extraction model is used and produce the logits and prediction entity numerical categories
+		if self.crf:
+			with torch.no_grad():
+				logits = self.entity_model(**inputs)
+			predictions = logits[1][0]
+		else:
+			with torch.no_grad():
+				logits = self.entity_model(**inputs).logits
+			predictions = torch.argmax(logits, dim=2)
+
+		# Produce the BIO tags
+		predicted_token_class = [self.entity_model.config.id2label[t.item()] for t in predictions[0]]
+
+		# Post-processing: Hand-crafted rules that fix common tagging errors and undesirable outputs
+		predicted_token_class = self.fix_bio_tags(predicted_token_class)
+
+		# Filters out special tags from transformer outputs
+		input_ids, predicted_token_class = self.remove_special_tokens_and_tags(inputs['input_ids'][0], predicted_token_class, self.tokenizer)
+
+		# Format the output
+		result = self.extract_entities(input_ids, predicted_token_class)
+
+		# Decode the extracted entities into word n-grams
+		for entry in result:
+			sentence = self.tokenizer.decode(entry['tokens'])
+			# Fix common decoding error in DeBERTa and RoBERTa that produces a blank space at the start of some tokens
+			if sentence.startswith(' '):
+				sentence = sentence[1:]
+			entry['tokens'] = sentence
+
+		return result
+	
+	@staticmethod
+	def extract_entities(tokens : list, tags : list) -> List[dict]:
+		"""
+		Function that formats the tokens and tags to a JSON-like output.
+		"""
+		result = []
+		#Loop through the dictionary of tags, while tracking the current entity 
+		current_entity = None
+		for token, tag in zip(tokens, tags):
+				#Get label tag and tag type if tag is not O.
+				tag_type, tag_label = tag.split('-') if '-' in tag else ('O', tag)
+				if tag_type != 'O':
+						#Check if tracking an entity and the type matches the tag label. TODO: Handle the cases where I- tags follows B- tags of the same type. 
+						if current_entity and current_entity['type'] == tag_label:
+								current_entity['tokens'].append(token)
+						else:
+								if current_entity:
+										result.append(current_entity)
+								current_entity = {'type': tag_label, 'tokens': [token]}
+				else:
+						if current_entity:
+								result.append(current_entity)
+								current_entity = None
+		if current_entity:
+				result.append(current_entity)
+		#Post Processing. Remove empty entries in results
+		condition_function = lambda x: len(x['tokens']) != 0
+		filtered_list = [item for item in result if condition_function(item)]
+
+		return filtered_list
+
+	@staticmethod
+	def fix_bio_tags(tags:list)-> list:
+		"""
+		Function that is used for post processing and impelmentig hand crafted rules. First, it checks if there is a tagging sequence of B, O, I, and replaces O with I.
+		Then, checks if a sequence ends with O, I and replaces I with O.
+		"""
+		fixed_tags = list(tags)
+		for i in range(len(tags) - 2):
+				if tags[i].startswith('B-') and tags[i + 1] == 'O' and tags[i + 2].startswith('I-'):
+						fixed_tags[i + 1] = tags[i + 2]
+				if tags[i] == 'O' and tags[i + 1].startswith('I-') and tags[i + 2] == 'O':
+						fixed_tags[i + 1] = 'O'
+		if tags[-2] == 'O' and tags[-1].startswith('I-'):
+						fixed_tags[i + 1] = 'O'
+		return fixed_tags
+	
+	@staticmethod
+	def remove_special_tokens_and_tags(input_ids:List[int], bio_tags:List[str], tokenizer) -> Tuple[List[int], List[str]]:
+		"""
+		Function that filters out special tags from transformer outputs. 
+		"""
+		special_tokens_ids = tokenizer.all_special_ids
+
+		# Filter out special token IDs and corresponding tags
+		filtered_ids = []
+		filtered_tags = []
+		for id_, tag in zip(input_ids, bio_tags):
+				if id_ not in special_tokens_ids:
+						filtered_ids.append(id_)
+						filtered_tags.append(tag)
+
+		return filtered_ids, filtered_tags
