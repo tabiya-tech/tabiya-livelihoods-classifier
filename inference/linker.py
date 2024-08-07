@@ -106,6 +106,10 @@ class EntityLinker:
 		self.df_skill = pd.read_csv(os.path.join(self.path_to_files, 'skills.csv'))
 		self.df_qual = pd.read_csv(os.path.join(self.path_to_files, 'qualifications.csv'))
 
+		# Fix the number of rows to check for the top-k most similar entities
+		if self.output_format != 'occupation':
+			self.relative_k = self.df_occ['esco_code'].value_counts().head(k-1).sum() + 1  
+
 		# Load precomputed embeddings for the reference sets
 		self.occupation_emb, self.skill_emb, self.qualification_emb = self._load_tensors()
 
@@ -298,17 +302,25 @@ class EntityLinker:
 		cos_scores = util.cos_sim(embedding, local_emb)[0]
 
 		# Find the top-k highest cosine similarity scores
-		top_k_scores = torch.topk(cos_scores, k=self.k)
-		top_k_list = top_k_scores.indices.tolist()
+		if self.output_format == 'occupation' or entity_type != "Occupation" or self.evaluation_mode:
+			top_k_scores = torch.topk(cos_scores, k=self.k)
+			top_k_list = top_k_scores.indices.tolist()
+		else:
+			top_k_scores = torch.topk(cos_scores, k=self.relative_k)
+			top_k_list = top_k_scores.indices.tolist()
+
 
 		if self.output_format == 'all':
 			top_k_df = local_df.iloc[top_k_list]
 			# Convert each row of the DataFrame to an Entity object
 			top_k_entities = [Entity(**row) for _, row in top_k_df.iterrows()]
-			
+
+			# If evaluation_mode is enabled, return the top-k entities along with their similarity scores
 			if self.evaluation_mode:
 				return top_k_entities, top_k_scores.values.tolist()
-			return top_k_entities
+			
+			# For better formatted outputs in occupations, remove duplicate suggestion codes	
+			return self.remove_duplicates_ordered_entities(top_k_entities, self.k)
 		else:
 			# Retrieve the top-k most similar entities from the reference DataFrame
 			top_k = list(local_df.iloc[top_k_list])
@@ -318,7 +330,7 @@ class EntityLinker:
 				return top_k, top_k_scores.values.tolist()
 
 			# For better formatted outputs in occupations, remove duplicate suggestion codes
-			return self.remove_duplicates_ordered(top_k)
+			return self.remove_duplicates_ordered(top_k, self.k)
 
 
 	def _load_tensors(self) -> Tuple[List[torch.Tensor]]:
@@ -439,15 +451,46 @@ class EntityLinker:
 
 
 	@staticmethod
-	def remove_duplicates_ordered(input_list : list) -> list:
+	def remove_duplicates_ordered(input_list : list, max_length=-1) -> list:
 		"""
 		Function thet removes duplicates from list retaining the order
 		"""
-		unique_list = []
-		for item in input_list:
-				if item not in unique_list:
-						unique_list.append(item)
-		return unique_list
+		seen = set()
+		seen_add = seen.add
+		if max_length == -1:
+			return [x for x in input_list if not (x in seen or seen_add(x))]
+		else:
+			return [x for x in input_list if not (x in seen or seen_add(x))][:max_length]
+		
+	@staticmethod
+	def remove_duplicates_ordered_entities(input_list: list, max_length=-1) -> list:
+		"""
+		Function that removes duplicates from a list of entities based on the 'esco_code' attribute, retaining the order.
+		
+		Parameters
+		----------
+		input_list : list
+			List of entities where each entity has an 'esco_code' attribute.
+		max_length : int, optional
+			Maximum length of the output list. If -1, no limit is applied.
+		
+		Returns
+		-------
+		list
+			List of entities with duplicates removed, retaining the order.
+		"""
+		seen = set()
+		seen_add = seen.add
+		result = []
+		for entity in input_list:
+			if hasattr(entity, 'esco_code'):
+				esco_code = entity.esco_code
+				if esco_code not in seen:
+					seen_add(esco_code)
+					result.append(entity)
+					if 0 <= max_length == len(result):
+						break
+		return result
 	
 
 	@staticmethod
