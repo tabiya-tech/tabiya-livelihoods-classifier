@@ -116,6 +116,7 @@ class EntityLinker:
 		"""
 		self.similarity_search_model.settings(evaluation_mode, k, output_format)
 
+
 	def __call__(self, text: str, linking: bool = True) -> List[dict]:
 		"""
 		Perform job-related entity recognition and optionally link entities to a taxonomy.
@@ -164,7 +165,6 @@ class EntityLinker:
 						filtered_tags.append(tag)
 
 		return filtered_ids, filtered_tags
-
 
 
 class EntityRecognition:
@@ -557,8 +557,12 @@ class SimilarityJobSearch:
 			return {"type": entity_type, "tokens": text, "retrieved": top_k, "scores": top_k_scores.values.tolist()}
 		
 		if self.output_format == 'all':
-			# For better formatted outputs in occupations, remove duplicate suggestion codes	
-			return {"type": entity_type, "tokens": text, "retrieved": self.remove_duplicates_ordered_entities(top_k, self.k)}
+			if entity_type == "Occupation":
+				# For better formatted outputs in occupations, remove duplicate suggestion codes
+				print(len(top_k))	
+				return {"type": entity_type, "tokens": text, "retrieved": self.remove_duplicates_ordered_entities(top_k, self.k)}
+			else:
+				return {"type": entity_type, "tokens": text, "retrieved": top_k}
 		
 		return {"type": entity_type, "tokens": text, "retrieved": self.remove_duplicates_ordered(top_k, self.k)}
 
