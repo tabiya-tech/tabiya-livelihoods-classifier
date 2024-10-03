@@ -5,8 +5,8 @@ The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the 
 ## Table of Contents
 
 - **[Installation](#installation)**
-- **[Use the model](inference/README.md)**: Instructions on how to use the inference tool.
-- **[Use the API](app/README.md)**: Instructions on how to use the API.
+- **[Use the model](inference/README.md)**: Instructions on how to use the inference pipeline.
+- **[Job Analysis Application](app/README.md)**: A web application for analyzing job descriptions and extracting and linking relevant entities.
 - **[Training](train/README.md)**: Details on how to train the model.
 - **[Model's Architecture](#models-architecture)**
 - **[Datasets](#datasets)**
@@ -87,9 +87,10 @@ poetry install --sync
 Activate Python and download the NLTK punctuation package to use the sentence tokenizer. You only need to download `punkt` once.
 
 ```shell
-python
+python <<EOF
 import nltk
 nltk.download('punkt')
+EOF
 ```
 
 ### Environment Variable & Configuration
@@ -120,57 +121,65 @@ HF_TOKEN=<YOUR_HF_TOKEN>
 
 The code and model weights are licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
-The datasets are licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0). See the [DATA_LICENSE](./DATA_LICENSE) file for details.
+The [datasets](#Datasets) are licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0). See the [DATA_LICENSE](./DATA_LICENSE) file for details.
 
 ## Datasets
 
-Here is the corrected version of the text:
-
-### [Occupations](inference/files/occupations_augmented.csv)
+### Occupations
+- **Location**:  [inference/files/occupations_augmented.csv](inference/files/occupations_augmented.csv)
 - **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
 - **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences, and Occupations. This dataset includes information relevant to the occupations.
-- **License**: Creative Commons Attribution 4.0 International
+- **License**: Creative Commons Attribution 4.0 International see [DATA_LICENSE](./DATA_LICENSE) for details.
 - **Modifications**: The columns retained are `alt_label`, `preferred_label`, `esco_code`, and `uuid`. Each alternative label has been separated into individual rows.
 
-### [Skills](inference/files/skills.csv)
+### Skills
+- **Location**: [inference/files/skills.csv](inference/files/skills.csv)
 - **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
-- **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences and Occupations.This dataset include informations relevant to the skills.
-- **License**: Creative Commons Attribution 4.0 International
+- **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences and Occupations. This dataset includes information relevant to the skills.
+- **License**: Creative Commons Attribution 4.0 International see [Data License](./DATA_LICENSE) for details.
 - **Modifications**: The columns retained are `preferred_label` and `uuid`.
 
-### [Qualifications](inference/files/qualifications.csv)
+### Qualifications
+- **Location**: [inference/files/qualifications.csv](inference/files/qualifications.csv)
 - **Source**: [Official European Union EQF comparison website](https://europass.europa.eu/en/compare-qualifications)
 - **Description**: This dataset contains EQF (European Qualifications Framework) relevant information extracted from the official EQF comparison website. It includes data strings, country information, and EQF levels. Non-English text was ignored.
 - **License**: Please refer to the original source for [license information](https://europass.europa.eu/en/node/2161).
 - **Modifications**: Non-English text was removed, and the remaining information was formatted into a structured database.
 
-### [Hahu Test](inference/files/eval/redacted_hahu_test_with_id.csv)
+### Hahu Test
+- **Location**: [inference/files/eval/redacted_hahu_test_with_id.csv](inference/files/eval/redacted_hahu_test_with_id.csv)  
 - **Source**: [hahu_test](https://huggingface.co/datasets/tabiya/hahu_test)
-- **Description**: This dataset consists of 542 entries chosen at random from the 11 general classification system of the Ethiopian hahu.jobs platform. 50 entries were selected from each class to create the final dataset.
-- **License**: Creative Commons Attribution 4.0 International
+- **Description**: This dataset consists of 542 entries chosen at random from the 11 general classification system of the Ethiopian hahu jobs platform. 50 entries were selected from each class to create the final dataset.
+- **License**: Creative Commons Attribution 4.0 International see [Data License](./DATA_LICENSE) for details.
 - **Modifications**: No modifications were made to the selected entries.
 
-### [house and tech datasets](inference/files/eval/)
+### House and Tech
+- **Location**: 
+  - [inference/files/eval/house_test_annotations.csv](inference/files/eval/house_test_annotations.csv)
+  - [inference/files/eval/house_validation_annotations.csv](inference/files/eval/house_validation_annotations.csv)
+  - [inference/files/eval/tech_test_annotations.csv](inference/files/eval/tech_test_annotations.csv)
+  - [inference/files/eval/tech_validation_annotations.csv](inference/files/eval/tech_validation_annotations.csv)
 - **Source**: Provided by [Decorte et al.](https://arxiv.org/abs/2209.05987)
 - **Description**: The dataset includes the HOUSE and TECH extensions of the SkillSpan Dataset. In the original work by Decorte et al., the test and development entities of the SkillSpan Dataset were annotated into the ESCO model.
-- **License**: MIT
+- **License**: MIT, Please refer to the original source.
 - **Modifications**: The datasets were used as provided without further modifications.
 
-### [qualification_mapping.csv](inference/files/eval/qualification_mapping.csv)
+### Qualification Mapping
+- **Location**: [inference/files/eval/qualification_mapping.csv](inference/files/eval/qualification_mapping.csv)
 - **Source**: Extended from the [Green Benchmark](https://github.com/acp19tag/skill-extraction-dataset) Qualifications
 - **Description**: This dataset maps the Green Benchmark Qualifications to the appropriate EQF levels. Two annotators tagged the qualifications, resulting in a Cohen's Kappa agreement of 0.45, indicating moderate agreement.
-- **License**: Creative Commons Attribution 4.0 International
+- **License**: Creative Commons Attribution 4.0 International see [Data License](./DATA_LICENSE) for details.
 - **Modifications**: Extended the dataset to include EQF level mappings, and the annotations were verified by two annotators.
 
 ### Access and Usage
 
 To use these datasets, ensure you comply with the original dataset's license and terms of use. Any modifications made should be documented and attributed appropriately in your project.
 
-For datasets requiring access tokens, such as those from HuggingFace 🤗, please contact the administrators via [tabiya@benisis.de] to obtain a read access token. You can create your read access token [here](https://huggingface.co/settings/tokens).
+For datasets requiring access tokens, such as those from HuggingFace 🤗, please contact the maintainers to obtain a read access token.
 
-## Bibiography 
+## Bibliography
 
-A list on interesting and relevant matterial for reading:
+A list on interesting and relevant material for reading:
 * **GPT NER** [GPT-NER: Named Entity Recognition via Large Language Models](https://arxiv.org/pdf/2304.10428) (Shuhe Wang)
 * **Skill Extraction with LLMs** [Rethinking Skill Extraction in the Job Market Domain using Large Language Models](https://arxiv.org/pdf/2402.03832) (Mike Zhang)
 * **NER annotation with LLM** [LLMs Accelerate Annotation for Medical Information Extraction](https://proceedings.mlr.press/v225/goel23a)

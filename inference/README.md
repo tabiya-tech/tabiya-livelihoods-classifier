@@ -1,27 +1,26 @@
 # Inference Pipeline
+The inference pipeline extracts occupations and skills from a job description and matches them to the most similar entities in the ESCO taxonomy.
 
 ## Usage
 
-First, activate the virtual environment as explained [here](../README.md#set-up-virtualenv). Then, run the following command in python in the `root` directory:
+First, activate the virtual environment as explained [here](../README.md#set-up-virtualenv). 
 
-### Create the pipeline
+Then, `start python interpreter in the root directory` and run the following commands:
+
+Load the `EntityLinker` class and create an instance of the class,
+then perform inference on any text with the following code:
 
 ```python
 from inference.linker import EntityLinker
 pipeline = EntityLinker(k=5)
-```
-
-You can now perform inference on any text with the following code:
-
-```python
 text = 'We are looking for a Head Chef who can plan menus.'
 extracted = pipeline(text)
 print(extracted)
 ```
 
-### Output
+After running the commands above, you should see the following output:
 
-```python
+```js
 [
   {'type': 'Occupation', 'tokens': 'Head Chef', 'retrieved': ['head chef', 'industrial head chef', 'head pastry chef', 'chef', 'kitchen chef']},
   {'type': 'Skill', 'tokens': 'plan menus', 'retrieved': ['plan menus', 'plan patient menus', 'present menus', 'plan schedule', 'plan engineering activities']}
