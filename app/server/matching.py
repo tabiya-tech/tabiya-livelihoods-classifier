@@ -4,7 +4,7 @@ print()
 import sys
 import os
 import pandas as pd
-from flask import Flask, request, send_from_directory, jsonify, render_template
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from inference.linker import EntityLinker
 
