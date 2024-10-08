@@ -75,39 +75,46 @@ class EntityLinker:
 			from_cache: bool = True,
 			output_format: str = 'occupation'
 	):
-		# Initialize the model paths and settings
-		self.entity_model = entity_model
-		self.similarity_model_type = similarity_model
-		self.similarity_model = SentenceTransformer(similarity_model)
-		self.crf = crf
-		self.evaluation_mode = evaluation_mode
-		self.k = k
-		self.from_cache = from_cache
-		self.output_format = output_format
-		self.path_to_files = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
+		# Initialize the EntityRecognition model
+		self.entity_recognition_model = EntityRecognition(
+			entity_model=entity_model,
+			crf=crf
+		)
 
-		# Set the device to GPU if available, otherwise CPU
-		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+		# Initialize the SimilarityJobSearch model
+		self.similarity_search_model = SimilarityJobSearch(
+			similarity_model=similarity_model,
+			evaluation_mode=evaluation_mode,
+			k=k,
+			from_cache=from_cache,
+			output_format=output_format
+		)
 
-		# Load the appropriate entity recognition model based on the crf flag
-		if self.crf:
-			self.entity_model = AutoModelCrfForNer.from_pretrained(entity_model)
-		else:
-			self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
 
-		# Move the entity model to the appropriate device
-		self.entity_model.to(self.device)
+	def settings(
+			self,
+			evaluation_mode: bool = None,
+			k: int = None,
+			output_format: str = None
+	):
+		"""
+		Change the settings of the EntityLinker object.
 
-		# Initialize the tokenizer for the entity model
-		self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
+		Parameters
+		----------
+		evaluation_mode : bool, optional
+			If set to `True`, the linker will return the cosine similarity scores between the embeddings.
+			This mode is useful for evaluating the quality of the linkages.
 
-		# Load reference sets for occupations, skills, and qualifications
-		self.df_occ = pd.read_csv(os.path.join(self.path_to_files, 'occupations_augmented.csv'))
-		self.df_skill = pd.read_csv(os.path.join(self.path_to_files, 'skills.csv'))
-		self.df_qual = pd.read_csv(os.path.join(self.path_to_files, 'qualifications.csv'))
+		k : int, optional
+			Specifies the number of items to retrieve from the reference sets.
+			This parameter limits the number of top matches to consider when linking entities.
 
-		# Load precomputed embeddings for the reference sets
-		self.occupation_emb, self.skill_emb, self.qualification_emb = self._load_tensors()
+		output_format : str, optional
+			Specifies the field in the output for occupations, either `occupation`, `preffered_label`, `esco_code`, `uuid` or `all` to get all the fields.
+			The `uuid` is also available for the skills.
+		"""
+		self.similarity_search_model.settings(evaluation_mode, k, output_format)
 
 
 	def __call__(self, text: str, linking: bool = True) -> List[dict]:
@@ -139,6 +146,81 @@ class EntityLinker:
 				Appear if linking=True and evaluation_mode=True.
 		"""
 
+		formatted_entities = self.entity_recognition_model(text)
+		if linking:
+			linked_entities = self.similarity_search_model(formatted_entities)
+			return linked_entities
+		return formatted_entities
+		"""
+		Function that filters out special tags from transformer outputs. 
+		"""
+		special_tokens_ids = tokenizer.all_special_ids
+
+		# Filter out special token IDs and corresponding tags
+		filtered_ids = []
+		filtered_tags = []
+		for id_, tag in zip(input_ids, bio_tags):
+				if id_ not in special_tokens_ids:
+						filtered_ids.append(id_)
+						filtered_tags.append(tag)
+
+		return filtered_ids, filtered_tags
+
+
+class EntityRecognition:
+	"""
+	Performs entity recognition on job-related text.
+	
+	Initialization Parameters
+	----------
+	entity_model : str, default='tabiya/roberta-base-job-ner'
+		Path to a pre-trained `AutoModelForTokenClassification` model or an `AutoModelCrfForNer` model.
+		This model is used for entity recognition within the input text.
+		
+	crf : bool, default=False
+		A flag to indicate whether to use an `AutoModelCrfForNer` model instead of a standard `AutoModelForTokenClassification`.
+		`CRF` (Conditional Random Field) models are used when the task requires sequential predictions with dependencies between the outputs.
+
+	Calling Parameters
+	----------
+	text : str
+		An arbitrary job vacancy-related string that the model processes to extract entities.
+
+	Returns
+	-------
+	List[dict]
+		A list of dictionaries with the extracted entities. 
+		Each dictionary contains the following keys:
+		- `type`: The category of the identified entity (e.g., 'Occupation', 'Qualifications', 'Skill', 'Experience').
+		- `tokens`: The specific part of the input text that was identified as an entity of the right category		
+	"""
+
+	def __init__(
+			self,
+			entity_model: str = 'tabiya/roberta-base-job-ner',
+			crf: Optional[bool] = False
+	):
+		# Initialize the model paths and settings
+		self.entity_model = entity_model
+		self.crf = crf
+
+		# Set the device to GPU if available, otherwise CPU
+		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+		# Load the appropriate entity recognition model based on the crf flag
+		if self.crf:
+			self.entity_model = AutoModelCrfForNer.from_pretrained(entity_model)
+		else:
+			self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
+
+		# Move the entity model to the appropriate device
+		self.entity_model.to(self.device)
+
+		# Initialize the tokenizer for the entity model
+		self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
+
+
+	def __call__(self, text: str) -> List[dict]:
 		# Replace newlines in the text with spaces
 		text = text.replace('\n', ' ')
 
@@ -154,52 +236,9 @@ class EntityLinker:
 		# Process each sentence in the text
 		for item in text_list:
 			# Run the model on each sentence and extend the output list with the results
-			output.extend(self._run_model(item, linking)) if self._run_model(item, linking) else None
+			output.extend(self._ner_pipeline(item)) if self._ner_pipeline(item) else None
 
 		return output
-
-
-	def _run_model(self, sentence: str, link: bool) -> List[dict]:
-		"""
-		Perform entity extraction and optionally link entities to the ESCO taxonomie.
-
-		Parameters
-		----------
-		sentence : str
-			A sentence from which to extract and possibly link entities.
-			
-		link : bool
-			Specifies whether the model should perform entity linking to the knowledge base. 
-			If `False`, it only extracts entities without linking them.
-
-		Returns
-		-------
-		List[dict]
-			A list of dictionaries with the extracted entities. Each dictionary contains the following keys:
-			- `type`: The category of the identified entity (e.g., 'Occupation', 'Skill', 'Qualification').
-			- `tokens`: The specific part of the input sentence that was identified as an entity of the right category.
-			- `retrieved`: If `link` is `True`, a list of related names or ESCO codes retrieved from the reference sets. 
-				These items represent the most similar entities or concepts based on the embeddings and similarity calculations.
-			- `scores`: (Optional) If `evaluation_mode` is `True`, the cosine similarity scores for the retrieved items.
-		"""
-
-		# Extract entities from the text
-		formatted_entities = self._ner_pipeline(sentence)
-
-		# Check whether or not linking should be performed
-		if link:
-			for entry in formatted_entities:
-				if entry['type'] in {"Occupation", "Skill", "Qualification"}:
-					# Encode the extracted entity tokens into embeddings
-					emb = self.similarity_model.encode(entry['tokens'])
-					emb = torch.from_numpy(emb).to(self.device)
-					# Retrieve the top-k suggestions based on the extracted entity
-					if self.evaluation_mode:
-						entry['retrieved'], entry['scores'] = self._top_k(emb, entry['type'])
-					else:
-						entry['retrieved'] = self._top_k(emb, entry['type'])
-
-		return formatted_entities
 
 
 	def _ner_pipeline(self, text: str) -> List[dict]:
@@ -256,69 +295,276 @@ class EntityLinker:
 		return result
 
 
-	def _top_k(self, embedding: torch.Tensor, entity_type: str) -> list:
+	@staticmethod
+	def extract_entities(tokens : list, tags : list) -> List[dict]:
 		"""
-		Entity similarity pipeline. Retrieves the top-k most similar entities using cosine similarity from the corresponding reference vector database.
+		Function that formats the tokens and tags to a JSON-like output.
+		"""
+		result = []
+		#Loop through the dictionary of tags, while tracking the current entity 
+		current_entity = None
+		for token, tag in zip(tokens, tags):
+				#Get label tag and tag type if tag is not O.
+				tag_type, tag_label = tag.split('-') if '-' in tag else ('O', tag)
+				if tag_type != 'O':
+						#Check if tracking an entity and the type matches the tag label. TODO: Handle the cases where I- tags follows B- tags of the same type. 
+						if current_entity and current_entity['type'] == tag_label:
+								current_entity['tokens'].append(token)
+						else:
+								if current_entity:
+										result.append(current_entity)
+								current_entity = {'type': tag_label, 'tokens': [token]}
+				else:
+						if current_entity:
+								result.append(current_entity)
+								current_entity = None
+		if current_entity:
+				result.append(current_entity)
+		#Post Processing. Remove empty entries in results
+		condition_function = lambda x: len(x['tokens']) != 0
+		filtered_list = [item for item in result if condition_function(item)]
+
+		return filtered_list
+
+
+	@staticmethod
+	def fix_bio_tags(tags:list)-> list:
+		"""
+		Function that is used for post processing and impelmentig hand crafted rules. First, it checks if there is a tagging sequence of B, O, I, and replaces O with I.
+		Then, checks if a sequence ends with O, I and replaces I with O.
+		"""
+		fixed_tags = list(tags)
+		for i in range(len(tags) - 2):
+				if tags[i].startswith('B-') and tags[i + 1] == 'O' and tags[i + 2].startswith('I-'):
+						fixed_tags[i + 1] = tags[i + 2]
+				if tags[i] == 'O' and tags[i + 1].startswith('I-') and tags[i + 2] == 'O':
+						fixed_tags[i + 1] = 'O'
+		if tags[-2] == 'O' and tags[-1].startswith('I-'):
+						fixed_tags[i + 1] = 'O'
+		return fixed_tags
+
+
+	@staticmethod
+	def remove_special_tokens_and_tags(input_ids:List[int], bio_tags:List[str], tokenizer) -> Tuple[List[int], List[str]]:
+		"""
+		Function that filters out special tags from transformer outputs. 
+		"""
+		special_tokens_ids = tokenizer.all_special_ids
+
+		# Filter out special token IDs and corresponding tags
+		filtered_ids = []
+		filtered_tags = []
+		for id_, tag in zip(input_ids, bio_tags):
+				if id_ not in special_tokens_ids:
+						filtered_ids.append(id_)
+						filtered_tags.append(tag)
+
+		return filtered_ids, filtered_tags
+
+
+class SimilarityJobSearch:
+	"""
+	Performs similarity search on a precomputed set of vectors using a sentence transformer model on job related entity.
+
+	Initialization Parameters
+	----------
+	similarity_model : str, default='all-MiniLM-L6-v2'
+		Path or name of a sentence transformer model used for embedding text. 
+		The sentence transformer is used to compute embeddings for the extracted entities and the reference sets.
+		The model 'all-mpnet-base-v2' is available but not in cache, so it should be used with the parameter `from_cache=False` at least the first time.
+
+	evaluation_mode : bool, default=False
+		If set to `True`, the linker will return the cosine similarity scores between the embeddings.
+		This mode is useful for evaluating the quality of the linkages.
+
+	k : int, default=32
+		Specifies the number of items to retrieve from the reference sets.
+		This parameter limits the number of top matches to consider when linking entities.
+
+	from_cache : bool, default=True
+		If set to `True`, the precomputed embeddings are loaded from cache to save time. 
+		If set to `False`, the embeddings are computed on-the-fly, which requires GPU access for efficiency and can be time-consuming.
+
+	output_format : str, default='occupation'
+		Specifies the field in the output for occupations, either `occupation`, `preffered_label`, `esco_code`, `uuid` or `all` to get all the fields.
+		The `uuid` is also available for the skills.
+
+	Calling Parameters
+	----------
+	dict
+		A list of dictionaries with an extracted entities and its type. 
+		Each dictionary contains the following keys:
+		- `type`: The category of the identified entity (e.g., 'Occupation', 'Qualifications', 'Skill', 'Experience').
+		- `tokens`: An input text that was identified as an entity of the right category.
+
+	Returns
+	-------
+	dict
+		A list of dictionaries with the extracted entities and the top-k most similar entities from the reference sets. 
+		Each dictionary contains the following keys:
+		- `type`: The category of the identified entity (e.g., 'Occupation', 'Qualifications', 'Skill', 'Experience').
+		- `tokens`: An input text that was identified as an entity of the right category.
+		- `retrieved`: A list of related names or ESCO codes retrieved from the reference sets. 
+			These items represent the most similar entities or concepts based on the embeddings and similarity calculations.
+			If `output_format` is set to `all`, the retrieved items will be in the form of a list of Entity objects 
+			with as attributes the columns names of the database.
+		- `scores`: A list of cosine similarity scores between the extracted entity and the retrieved items.
+			The scores are only returned if `evaluation_mode` is `True`.
+	"""
+
+	def __init__(
+			self,
+			similarity_model: str = 'all-MiniLM-L6-v2',
+			evaluation_mode: bool = False,
+			k: int = 32,
+			from_cache: bool = True,
+			output_format: str = 'occupation'
+	):
+		# Initialize the model path and settings
+		self.similarity_model_type = similarity_model
+		self.similarity_model = SentenceTransformer(similarity_model)
+		self.from_cache = from_cache
+		self.path_to_files = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
+
+		# Initialize the model paths and settings
+		self.similarity_model_type = similarity_model
+		self.similarity_model = SentenceTransformer(similarity_model)
+		self.evaluation_mode = evaluation_mode
+		self.k = k
+		self.from_cache = from_cache
+		self.output_format = output_format
+		self.path_to_files = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
+
+		# Set the device to GPU if available, otherwise CPU
+		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+		# Load reference sets for occupations, skills, and qualifications
+		self.df_occ = pd.read_csv(os.path.join(self.path_to_files, 'occupations_augmented.csv'))
+		self.df_skill = pd.read_csv(os.path.join(self.path_to_files, 'skills.csv'))
+		self.df_qual = pd.read_csv(os.path.join(self.path_to_files, 'qualifications.csv'))
+
+		# Fix the number of rows to check to get the top-k most similar entities
+		self.relative_k = self.df_occ['esco_code'].value_counts().head(k-1).sum() + 1  
+
+		# Load precomputed embeddings for the reference sets
+		self.occupation_emb, self.skill_emb, self.qualification_emb = self._load_tensors()
+
+
+	def settings(
+			self,
+			evaluation_mode: bool = None,
+			k: int = None,
+			output_format: str = None
+	):
+		"""
+		Change the settings of the SimilarityVectorSearch object.
 
 		Parameters
 		----------
-		embedding : torch.Tensor
-			The embedding of the entity to find similar entities for.
+		evaluation_mode : bool, optional
+			If set to `True`, the linker will return the cosine similarity scores between the embeddings.
+			This mode is useful for evaluating the quality of the linkages.
+
+		k : int, optional
+			Specifies the number of items to retrieve from the reference sets.
+			This parameter limits the number of top matches to consider when linking entities.
+
+		output_format : str, optional
+			Specifies the field in the output for occupations, either `occupation`, `preffered_label`, `esco_code`, `uuid` or `all` to get all the fields.
+			The `uuid` is also available for the skills.
+		"""
+		if evaluation_mode is not None:
+			self.evaluation_mode = evaluation_mode
+		if k is not None:
+			self.k = k
+			self.relative_k = self.df_occ['esco_code'].value_counts().head(k-1).sum() + 1
+		if output_format is not None:
+			self.output_format = output_format
+
+
+	def __call__(self, entity: List[dict]) -> List[dict]:
+		output = []
+		for item in entity:
+			output.append(self.search(item['tokens'], item['type']))
+		return output
+
+
+	def search(self, text: str, entity_type: str) -> dict:
+		"""
+		Search for the most similar entities in the reference set based on the extracted entity.
+
+		Parameters
+		----------
+		text : str
+			The extracted entity to search for similar entities in the reference set.
 
 		entity_type : str
 			The type of entity to compare (e.g., 'Occupation', 'Qualification', 'Skill').
 
 		Returns
 		-------
-		list
-			A list of the top-k most similar entities from the reference set. If `evaluation_mode` is `True`, also returns the cosine similarity scores.
+		dict
+			A dictionary with the extracted entity and the top-k most similar entities from the reference set.
 		"""
-		if self.output_format == 'all':
-			if entity_type == "Occupation":
+		# Encode the extracted entity tokens into embeddings
+		emb = self.similarity_model.encode(text)
+		emb = torch.from_numpy(emb).to(self.device)
+		# Retrieve the top-k suggestions based on the extracted entity
+		match entity_type, self.output_format:
+			case "Occupation", "all":
 				local_df = self.df_occ
 				local_emb = self.occupation_emb
-			elif entity_type == "Qualification":
+			case "Qualification", "all":
 				local_df = self.df_qual
 				local_emb = self.qualification_emb
-			else:
+			case "Skill", "all":
 				local_df = self.df_skill
 				local_emb = self.skill_emb
-		else:
-			if entity_type == "Occupation":
+			case "Occupation", _:
 				local_df = self.df_occ[self.output_format]
 				local_emb = self.occupation_emb
-			elif entity_type == "Qualification":
+			case "Qualification", _:
 				local_df = self.df_qual['qualification']
 				local_emb = self.qualification_emb
-			else:
+			case "Skill", _:
 				local_df = self.df_skill['skills'] if self.output_format != 'uuid' else self.df_skill['uuid']
 				local_emb = self.skill_emb
-
+			case _, _:
+				return {"type": entity_type, "tokens": text}
+			
 		# Calculate cosine similarity between the input embedding and the reference embeddings
-		cos_scores = util.cos_sim(embedding, local_emb)[0]
+		cos_scores = util.cos_sim(emb, local_emb)[0]
 
 		# Find the top-k highest cosine similarity scores
-		top_k_scores = torch.topk(cos_scores, k=self.k)
-		top_k_list = top_k_scores.indices.tolist()
+		# In certain cases, the relative_k is used as there are duplicates in the reference set
+		if self.output_format == 'occupation' or entity_type != "Occupation" or self.evaluation_mode:
+			top_k_scores = torch.topk(cos_scores, k=self.k)
+			top_k_list = top_k_scores.indices.tolist()
+		else:
+			top_k_scores = torch.topk(cos_scores, k=self.relative_k)
+			top_k_list = top_k_scores.indices.tolist()
 
 		if self.output_format == 'all':
 			top_k_df = local_df.iloc[top_k_list]
 			# Convert each row of the DataFrame to an Entity object
-			top_k_entities = [Entity(**row) for _, row in top_k_df.iterrows()]
-			
-			if self.evaluation_mode:
-				return top_k_entities, top_k_scores.values.tolist()
-			return top_k_entities
+			top_k = [Entity(**row) for _, row in top_k_df.iterrows()]
 		else:
 			# Retrieve the top-k most similar entities from the reference DataFrame
 			top_k = list(local_df.iloc[top_k_list])
 
-			# If evaluation_mode is enabled, return the top-k entities along with their similarity scores
-			if self.evaluation_mode:
-				return top_k, top_k_scores.values.tolist()
-
-			# For better formatted outputs in occupations, remove duplicate suggestion codes
-			return self.remove_duplicates_ordered(top_k)
+		# If evaluation_mode is enabled, return the top-k entities along with their similarity scores
+		if self.evaluation_mode:
+			return {"type": entity_type, "tokens": text, "retrieved": top_k, "scores": top_k_scores.values.tolist()}
+		
+		if self.output_format == 'all':
+			if entity_type == "Occupation":
+				# For better formatted outputs in occupations, remove duplicate suggestion codes
+				print(len(top_k))	
+				return {"type": entity_type, "tokens": text, "retrieved": self.remove_duplicates_ordered_entities(top_k, self.k)}
+			else:
+				return {"type": entity_type, "tokens": text, "retrieved": top_k}
+		
+		return {"type": entity_type, "tokens": text, "retrieved": self.remove_duplicates_ordered(top_k, self.k)}
 
 
 	def _load_tensors(self) -> Tuple[List[torch.Tensor]]:
@@ -388,37 +634,6 @@ class EntityLinker:
 
 
 	@staticmethod
-	def extract_entities(tokens : list, tags : list) -> List[dict]:
-		"""
-		Function that formats the tokens and tags to a JSON-like output.
-		"""
-		result = []
-		#Loop through the dictionary of tags, while tracking the current entity 
-		current_entity = None
-		for token, tag in zip(tokens, tags):
-				#Get label tag and tag type if tag is not O.
-				tag_type, tag_label = tag.split('-') if '-' in tag else ('O', tag)
-				if tag_type != 'O':
-						#Check if tracking an entity and the type matches the tag label. TODO: Handle the cases where I- tags follows B- tags of the same type. 
-						if current_entity and current_entity['type'] == tag_label:
-								current_entity['tokens'].append(token)
-						else:
-								if current_entity:
-										result.append(current_entity)
-								current_entity = {'type': tag_label, 'tokens': [token]}
-				else:
-						if current_entity:
-								result.append(current_entity)
-								current_entity = None
-		if current_entity:
-				result.append(current_entity)
-		#Post Processing. Remove empty entries in results
-		condition_function = lambda x: len(x['tokens']) != 0
-		filtered_list = [item for item in result if condition_function(item)]
-
-		return filtered_list
-	
-	@staticmethod
 	def create_tensors(file : str, device : str) -> List[torch.Tensor]:
 		"""
 		Function that checks type of device to load the torch tensors
@@ -439,46 +654,56 @@ class EntityLinker:
 
 
 	@staticmethod
-	def remove_duplicates_ordered(input_list : list) -> list:
+	def remove_duplicates_ordered(input_list : list, max_length=-1) -> list:
 		"""
-		Function thet removes duplicates from list retaining the order
+		Remove duplicates from a list retaining the order.
+
+		Parameters
+		----------
+		input_list : list
+			List of elements where duplicates are removed.
+		max_length : int, optional
+			Maximum length of the output list. If -1, no limit is applied.
+
+		Returns
+		-------
+		list
+			List of elements with duplicates removed, retaining the order.
 		"""
-		unique_list = []
-		for item in input_list:
-				if item not in unique_list:
-						unique_list.append(item)
-		return unique_list
-	
+		seen = set()
+		seen_add = seen.add
+		if max_length == -1:
+			return [x for x in input_list if not (x in seen or seen_add(x))]
+		else:
+			return [x for x in input_list if not (x in seen or seen_add(x))][:max_length]
+
 
 	@staticmethod
-	def fix_bio_tags(tags:list)-> list:
+	def remove_duplicates_ordered_entities(input_list: List[Entity], max_length=-1) -> List[Entity]:
 		"""
-		Function that is used for post processing and impelmentig hand crafted rules. First, it checks if there is a tagging sequence of B, O, I, and replaces O with I.
-		Then, checks if a sequence ends with O, I and replaces I with O.
+		Remove duplicates from a list of entities based on the 'esco_code' attribute, retaining the order.
+		
+		Parameters
+		----------
+		input_list : List[Entity]
+			List of entities where each entity has an 'esco_code' attribute.
+		max_length : int, optional
+			Maximum length of the output list. If -1, no limit is applied.
+		
+		Returns
+		-------
+		list
+			List of entities with duplicates removed, retaining the order.
 		"""
-		fixed_tags = list(tags)
-		for i in range(len(tags) - 2):
-				if tags[i].startswith('B-') and tags[i + 1] == 'O' and tags[i + 2].startswith('I-'):
-						fixed_tags[i + 1] = tags[i + 2]
-				if tags[i] == 'O' and tags[i + 1].startswith('I-') and tags[i + 2] == 'O':
-						fixed_tags[i + 1] = 'O'
-		if tags[-2] == 'O' and tags[-1].startswith('I-'):
-						fixed_tags[i + 1] = 'O'
-		return fixed_tags
-	
-	@staticmethod
-	def remove_special_tokens_and_tags(input_ids:List[int], bio_tags:List[str], tokenizer) -> Tuple[List[int], List[str]]:
-		"""
-		Function that filters out special tags from transformer outputs. 
-		"""
-		special_tokens_ids = tokenizer.all_special_ids
-
-		# Filter out special token IDs and corresponding tags
-		filtered_ids = []
-		filtered_tags = []
-		for id_, tag in zip(input_ids, bio_tags):
-				if id_ not in special_tokens_ids:
-						filtered_ids.append(id_)
-						filtered_tags.append(tag)
-
-		return filtered_ids, filtered_tags
+		seen = set()
+		seen_add = seen.add
+		result = []
+		for entity in input_list:
+			if hasattr(entity, 'esco_code'):
+				esco_code = entity.esco_code
+				if esco_code not in seen:
+					seen_add(esco_code)
+					result.append(entity)
+					if 0 <= max_length == len(result):
+						break
+		return result
