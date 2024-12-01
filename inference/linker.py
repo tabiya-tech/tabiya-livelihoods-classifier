@@ -482,3 +482,16 @@ class EntityLinker:
 						filtered_tags.append(tag)
 
 		return filtered_ids, filtered_tags
+	
+
+class FrenchEntityLinker(EntityLinker):
+  """
+  French version of the entity linker. In order to use, we need to rewrite the reference databases to the French version of ESCO.
+  
+  """
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+    self.df_occ = pd.read_csv('inference/files/occupations_fr.csv')
+    self.df_skill = pd.read_csv('inference/files/skills_fr.csv')
+    self.df_qual = pd.read_csv('inference/files/qualifications_fr.csv')
+    self.k = 5
