@@ -154,7 +154,9 @@ class EntityLinker:
 		# Process each sentence in the text
 		for item in text_list:
 			# Run the model on each sentence and extend the output list with the results
-			output.extend(self._run_model(item, linking)) if self._run_model(item, linking) else None
+			entities = self._run_model(item, linking)
+			if entities:
+				output.extend(entities)
 
 		return output
 
