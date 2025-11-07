@@ -239,3 +239,6 @@ fabric.properties
 
 # Mac Desktop Services Store
 .DS_Store
+
+# poetry
+poetry.lock

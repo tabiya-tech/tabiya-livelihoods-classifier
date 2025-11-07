@@ -107,6 +107,7 @@ class EntityLinker:
 		self.df_qual = pd.read_csv(os.path.join(self.path_to_files, 'qualifications.csv'))
 
 		# Load precomputed embeddings for the reference sets
+		# TODO: Implement vector database support for scalability
 		self.occupation_emb, self.skill_emb, self.qualification_emb = self._load_tensors()
 
 
@@ -154,8 +155,11 @@ class EntityLinker:
 		# Process each sentence in the text
 		for item in text_list:
 			# Run the model on each sentence and extend the output list with the results
-			output.extend(self._run_model(item, linking)) if self._run_model(item, linking) else None
-
+			entities = self._run_model(item, linking)
+			if entities:
+				output.extend(entities)
+		#TODO : Add a post-processing step to aggregate entities across sentences. This should be optional.
+		#TODO : Apply sentence linking to link entities across sentences.
 		return output
 
 

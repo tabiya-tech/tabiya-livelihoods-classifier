@@ -213,10 +213,10 @@ class Evaluator(EntityLinker):
     if self.entity_type=="Skill":
 
       #Load necessary files in pandas dataframes
-      dftech_val = pd.read_csv(os.path.join(self.dir, 'eval', 'tech_validation_annotations.csv'))
-      dftech_test = pd.read_csv(os.path.join(self.dir, 'eval', 'tech_test_annotations.csv'))
-      dfhouse_val = pd.read_csv(os.path.join(self.dir, 'eval', 'house_validation_annotations.csv'))
-      dfhouse_test = pd.read_csv(os.path.join(self.dir, 'eval', 'house_test_annotations.csv'))
+      dftech_val = pd.read_csv(os.path.join(self.dir, 'eval', 'tech_validation_annotations_no_unk.csv'))
+      dftech_test = pd.read_csv(os.path.join(self.dir, 'eval', 'tech_test_annotations_no_unk.csv'))
+      dfhouse_val = pd.read_csv(os.path.join(self.dir, 'eval', 'house_validation_annotations_no_unk.csv'))
+      dfhouse_test = pd.read_csv(os.path.join(self.dir, 'eval', 'house_test_annotations_no_unk.csv'))
       #Prepeocess
       df = pd.concat([dftech_val, dftech_test, dfhouse_val, dfhouse_test], ignore_index=True)
       df = df.drop_duplicates(ignore_index=True)
