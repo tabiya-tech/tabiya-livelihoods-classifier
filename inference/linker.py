@@ -113,7 +113,7 @@ class EntityLinker:
 		self.occupation_emb, self.skill_emb, self.qualification_emb = self._load_tensors()
 
 
-	def __call__(self, text: str, linking: bool = True) -> List[dict]:
+	def __call__(self, text: str, linking: bool = True, el: bool = True) -> List[dict]:
 		"""
 		Perform job-related entity recognition and optionally link entities to a taxonomy.
 
@@ -125,6 +125,9 @@ class EntityLinker:
 		linking : bool, default=True
 			Specifies whether the model should perform the entity linking to the taxonomy. 
 			If `False`, it might only extract entities without linking them to a predefined taxonomy.
+		
+		el : bool, default=True
+			Specifies whether the model should perform entity linking (el=True) or sentence linking (el=False).
 
 		Returns
 		-------
@@ -151,21 +154,24 @@ class EntityLinker:
 		#     text = UtilFunctions.translate(text)
 
 		# Sentence tokenize with nltk to handle lengthy inputs.
-		text_list = sent_tokenize(text)
-		output = []
+		if el:
+			text_list = sent_tokenize(text)
+			output = []
 
-		# Process each sentence in the text
-		for item in text_list:
-			# Run the model on each sentence and extend the output list with the results
-			entities = self._run_model(item, linking)
-			if entities:
-				output.extend(entities)
+			# Process each sentence in the text
+			for item in text_list:
+				# Run the model on each sentence and extend the output list with the results
+				entities = self._run_el_model(item, linking)
+				if entities:
+					output.extend(entities)
+		else:
+			output = self._run_sl_model(text)
 		#TODO : Add a post-processing step to aggregate entities across sentences. This should be optional.
 		#TODO : Apply sentence linking to link entities across sentences.
 		return output
 
 
-	def _run_model(self, sentence: str, link: bool) -> List[dict]:
+	def _run_el_model(self, sentence: str, link: bool) -> List[dict]:
 		"""
 		Perform entity extraction and optionally link entities to the ESCO taxonomie.
 
@@ -206,6 +212,44 @@ class EntityLinker:
 						entry['retrieved'] = self._top_k(emb, entry['type'])
 
 		return formatted_entities
+	
+	def _run_sl_model(self, sentence: str) -> List[dict]:
+		"""
+		Perform entity linking for a given sentence without entity extraction.
+		Parameters
+		----------
+		sentence : str
+			A sentence from which to link entities to the ESCO taxonomy.
+		Returns
+		-------
+		List[dict]
+			A dictionary with the sentence and the top-k most similar entities from the reference sets.
+			The dictionary contains the following
+			keys:
+			- `sentence`: The input sentence.
+			- `occupations`: A dictionary with keys:
+			- `text`: A list of the top-k most similar occupation names or ESCO codes from the reference set.
+			- `scores`: (Optional) If `evaluation_mode` is `True`, a list of cosine similarity scores for the retrieved occupations.
+		"""
+		# Initialize the output dictionary
+		formatted_output = {'sentence': sentence, 
+					  'occupations': {'text':[], 'scores':[]}, 
+					  'skills': {'text':[], 'scores':[]}, 
+					  'qualifications': {'text':[], 'scores':[]}}
+		# Encode the sentence into embeddings
+		emb = self.similarity_model.encode(sentence)
+		emb = torch.from_numpy(emb).to(self.device)
+		# Retrieve top-k suggestions for each entity type
+		for entity_type in ['Occupation', 'Skill', 'Qualification']:
+			# Retrieve the top-k suggestions based on the sentence embedding
+			if self.evaluation_mode:
+				retrieved, scores = self._top_k(emb, entity_type)
+				formatted_output[entity_type.lower() + 's']['text'] += retrieved
+				formatted_output[entity_type.lower() + 's']['scores'] += scores
+			else:
+				retrieved = self._top_k(emb, entity_type)
+				formatted_output[entity_type.lower() + 's']['text'] += retrieved
+		return formatted_output
 
 
 	def _ner_pipeline(self, text: str) -> List[dict]:
