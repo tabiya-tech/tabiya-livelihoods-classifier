@@ -55,6 +55,9 @@ class EntityLinker:
 	output_format : str, default='occupation'
 		Specifies the format of the output for occupations, either `occupation`, `preffered_label`, `esco_code`, `uuid` or `all` to get all the columns. 
 		The `uuid` is also available for the skills.
+	
+	lang : str, default='en'
+		Specifies the language of the reference sets to load. Currently supports 'en' for English and 'fr' for French.
 
 	Calling Parameters
 	----------
@@ -73,7 +76,8 @@ class EntityLinker:
 			evaluation_mode: bool = False,
 			k: int = 32,
 			from_cache: bool = True,
-			output_format: str = 'occupation'
+			output_format: str = 'occupation',
+			lang: str = 'en'
 	):
 		# Initialize the model paths and settings
 		self.entity_model = entity_model
@@ -85,7 +89,7 @@ class EntityLinker:
 		self.from_cache = from_cache
 		self.output_format = output_format
 		self.path_to_files = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
-
+		self.lang = lang
 		# Set the device to GPU if available, otherwise CPU
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -102,9 +106,7 @@ class EntityLinker:
 		self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
 
 		# Load reference sets for occupations, skills, and qualifications
-		self.df_occ = pd.read_csv(os.path.join(self.path_to_files, 'occupations_augmented.csv'))
-		self.df_skill = pd.read_csv(os.path.join(self.path_to_files, 'skills.csv'))
-		self.df_qual = pd.read_csv(os.path.join(self.path_to_files, 'qualifications.csv'))
+		self.df_occ, self.df_skill, self.df_qual = self._load_dfs(lang=self.lang)
 
 		# Load precomputed embeddings for the reference sets
 		# TODO: Implement vector database support for scalability
@@ -487,15 +489,29 @@ class EntityLinker:
 
 		return filtered_ids, filtered_tags
 	
+	def _load_dfs(self, lang: str = 'en') -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+		"""
+		Load the reference DataFrames for occupations, skills, and qualifications based on the specified language.
 
-class FrenchEntityLinker(EntityLinker):
-  """
-  French version of the entity linker. In order to use, we need to rewrite the reference databases to the French version of ESCO.
-  
-  """
-  def __init__(self, **kwargs):
-    super().__init__(**kwargs)
-    self.df_occ = pd.read_csv('inference/files/occupations_fr.csv')
-    self.df_skill = pd.read_csv('inference/files/skills_fr.csv')
-    self.df_qual = pd.read_csv('inference/files/qualifications_fr.csv')
-    self.k = 5
+		Parameters
+		----------
+		lang : str, default='en'
+			The language code for loading the appropriate DataFrames. 
+			Currently supports 'en' for English and 'fr' for French.
+
+		Returns
+		-------
+		Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
+			A tuple containing three DataFrames: occupations, skills, and qualifications.
+		"""
+		path = self.path_to_files
+		if lang == 'fr':
+			df_occ = pd.read_csv(os.path.join(path, 'occupations_fr.csv'))
+			df_skill = pd.read_csv(os.path.join(path, 'skills_fr.csv'))
+			df_qual = pd.read_csv(os.path.join(path, 'qualifications_fr.csv'))
+		else:
+			df_occ = pd.read_csv(os.path.join(path, 'occupations_augmented.csv'))
+			df_skill = pd.read_csv(os.path.join(path, 'skills.csv'))
+			df_qual = pd.read_csv(os.path.join(path, 'qualifications.csv'))
+		
+		return df_occ, df_skill, df_qual
