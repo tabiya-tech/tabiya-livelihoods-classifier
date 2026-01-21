@@ -92,34 +92,60 @@ else:
 seqeval = evaluate.load("seqeval")
 
 def compute_metrics(p):
-    if USE_CRF:
-      number = NUMBER_OF_TAGS
-    else:
-      number = -100
-    predictions, labels = p
+    # Get predictions and labels from EvalPrediction
+    predictions = p.predictions
+    labels = p.label_ids
+
+    if isinstance(predictions, (tuple, list)):
+        predictions = predictions[0]  # some models return (logits, ...)
+
+    # Mask value for ignored tokens
+    ignore_id = NUMBER_OF_TAGS if USE_CRF else -100
+
+    # Convert predictions to label indices
     predictions = np.argmax(predictions, axis=2)
+
+    # Build true predictions and labels
     true_predictions = [
-        [label_list[p] for (p, l) in zip(prediction, label) if l != number] #
-        for prediction, label in zip(predictions, labels)
+        [label_list[pred] for (pred, lab) in zip(pred_seq, lab_seq) if lab != ignore_id]
+        for pred_seq, lab_seq in zip(predictions, labels)
     ]
     true_labels = [
-        [label_list[l] for (p, l) in zip(prediction, label) if l != number] #
-        for prediction, label in zip(predictions, labels)
+        [label_list[lab] for (pred, lab) in zip(pred_seq, lab_seq) if lab != ignore_id]
+        for pred_seq, lab_seq in zip(predictions, labels)
     ]
-    #Print the loose evaluation of NERevaluate
-    evaluator = Evaluator(true_labels, true_predictions, tags=['Skill', 'Qualification', 'Domain', 'Experience', 'Occupation'], loader="list")
-    results2, results_by_tag = evaluator.evaluate()
+
+    # Evaluate with nervaluate
+    evaluator = Evaluator(
+        true_labels,
+        true_predictions,
+        tags=['Skill', 'Qualification', 'Domain', 'Experience', 'Occupation'],
+        loader="list"
+    )
+
+    # Handle both tuple and dict return values
+    eval_result = evaluator.evaluate()
+    if isinstance(eval_result, tuple):
+        results2, results_by_tag = eval_result
+    else:
+        results2 = eval_result.get("overall", eval_result)
+        results_by_tag = eval_result.get("by_tag", None)
+
+    # Print reports
     print(classification_report(true_labels, true_predictions, scheme=IOB2))
     print('--------------------------------------')
     print(classification_report(true_labels, true_predictions, mode='strict', scheme=IOB2))
-    results = seqeval.compute(predictions=true_predictions, references=true_labels, mode='strict', scheme='IOB2')
     print('--------------------------------------')
     print(results2, results_by_tag)
+
+    # Seqeval evaluation
+    results_seqeval = seqeval.compute(predictions=true_predictions, references=true_labels, mode='strict', scheme='IOB2')
+
     return {
-        "precision": results["overall_precision"],
-        "recall": results["overall_recall"],
-        "f1": results["overall_f1"],
-        "accuracy": results["overall_accuracy"],
+        "precision": results_seqeval["overall_precision"],
+        "recall": results_seqeval["overall_recall"],
+        "f1": results_seqeval["overall_f1"],
+        "accuracy": results_seqeval["overall_accuracy"],
     }
 
 if USE_CRF:

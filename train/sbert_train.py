@@ -60,4 +60,4 @@ def sbert_train(model_id: str, dataset_path : str,  output_path: str) -> None:
 
 if __name__=='__main__':
   #TODO: Implement configuration file to train with adjustable hyperparameters.
-  sbert_train(model_id = 'all-MiniLM-L6-v2', dataset_path='your/dataset/path', output_path='your/output/path')
+  sbert_train(model_id = 'all-MiniLM-L6-v2', dataset_path='tabiya/occupation_titles_esco', output_path='sbert_all-MiniLM-L6-v2')
