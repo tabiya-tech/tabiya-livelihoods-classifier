@@ -19,6 +19,9 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
+from dotenv import load_dotenv
+load_dotenv(project_root / ".env")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Fine-tune Gemma for NER with LoRA")
@@ -59,6 +62,11 @@ def main():
     for r in rows:
         r["text"] = r["prompt"] + r["response"]
     dataset = Dataset.from_list(rows)
+    num_samples = len(dataset)
+    eff_batch = args.per_device_train_batch_size * args.gradient_accumulation_steps
+    steps_per_epoch = max(1, (num_samples + eff_batch - 1) // eff_batch)
+    total_steps = steps_per_epoch * args.num_epochs
+    print(f"Dataset: {num_samples} examples, ~{steps_per_epoch} steps/epoch, ~{total_steps} total steps")
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model, token=token)
     model_kw = {"token": token, "trust_remote_code": True}
@@ -99,9 +107,12 @@ def main():
         learning_rate=args.learning_rate,
         bf16=not args.fp16,
         fp16=args.fp16,
-        logging_steps=10,
+        logging_steps=5,
+        logging_first_step=True,
+        report_to="none",
         save_strategy="epoch",
         save_total_limit=2,
+        disable_tqdm=False,
     )
 
     trainer = SFTTrainer(

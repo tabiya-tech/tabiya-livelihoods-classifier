@@ -36,6 +36,7 @@ accelerate = "^0.31.0"
 peft = "^0.10.0"
 trl = "^0.8.0"
 bitsandbytes = "^0.43.0"
+rich = "^13.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
