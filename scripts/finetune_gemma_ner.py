@@ -99,14 +99,24 @@ def main():
     response_template = "Output:\n"
     collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
 
+    use_cpu = not torch.cuda.is_available()
+    if use_cpu:
+        bf16, fp16 = False, False
+        print("CUDA not available, training on CPU (will be slow)")
+    else:
+        bf16 = torch.cuda.is_bf16_supported() and not args.fp16
+        fp16 = not bf16
+        print(f"Training on GPU (bf16={bf16}, fp16={fp16})")
+
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         num_train_epochs=args.num_epochs,
         per_device_train_batch_size=args.per_device_train_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         learning_rate=args.learning_rate,
-        bf16=not args.fp16,
-        fp16=args.fp16,
+        bf16=bf16,
+        fp16=fp16,
+        use_cpu=use_cpu,
         logging_steps=5,
         logging_first_step=True,
         report_to="none",
