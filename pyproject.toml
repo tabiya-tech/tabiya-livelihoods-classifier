@@ -25,18 +25,19 @@ google-genai = "^0.7.0"
 pydantic = "^2.7.0"
 
 [tool.poetry.group.train.dependencies]
-transformers= "^4.32.1"
+transformers= ">=4.46.0"
 datasets= "^2.19.2"
 evaluate= "^0.4.2"
 seqeval= "^1.2.2"
 nervaluate= "^0.2.0"
-accelerate = "^0.31.0"
+accelerate = ">=1.1.0"
 
 [tool.poetry.group.finetune.dependencies]
 peft = "^0.10.0"
 trl = "^0.8.0"
 bitsandbytes = "^0.43.0"
 rich = "^13.0.0"
+accelerate = ">=1.1.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
