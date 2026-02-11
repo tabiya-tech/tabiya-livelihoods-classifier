@@ -1,142 +1,111 @@
 """
-NER via Vertex AI (Gemini). Returns the same format as the RoBERTa NER pipeline:
-List[dict] with keys "type" (Occupation|Skill|Qualification|Domain|Experience) and "tokens" (span text).
+LLM-based NER via Gemini (Vertex-backed) using google-genai and Pydantic schemas.
+Returns the same format as the RoBERTa NER pipeline:
+List[dict] with keys "type" (Occupation|Skill|Qualification) and "tokens" (span text).
 """
-import json
 import os
-import re
-from typing import List
+from typing import List, Literal
+
+from pydantic import BaseModel, Field
+
+from google import genai
+from google.genai.types import HttpOptions
 
 ENTITY_TYPES = ("Occupation", "Skill", "Qualification")
-TYPE_MAP = {t.lower(): t for t in ENTITY_TYPES}
 
-SYSTEM_PROMPT = """You are a named-entity recognition system for job descriptions.
+SYSTEM_PROMPT = """System Message: You are a helpful information extraction system that works on job descriptions.
 
-Given ONE sentence, you must extract job-related entities and return them in STRICT JSON.
+Prompt: Given a single sentence from a job posting, extract all entities and identify their entity types.
 
-Rules:
-- Only look at the given sentence (no external knowledge).
-- Extract spans for these types ONLY (no others):
+You must follow these rules:
+- Only consider entities of the following types (no others):
   - Occupation
   - Skill
   - Qualification
-- Each entity is a contiguous span of the original sentence.
-- Do NOT paraphrase or normalize: the span text must match the original sentence text exactly.
+- Use only spans that appear verbatim in the input sentence (no paraphrasing or normalization).
+- Each entity span is contiguous in the token sequence.
+- Do not invent entities that are not explicitly mentioned.
 
 Output format:
-- Return a JSON array of objects, and NOTHING else (no explanations, no comments).
-- Each object has exactly two keys: "type" and "text".
-- "type" must be exactly one of: "Occupation", "Skill", "Qualification".
-- "text" is the exact span string from the sentence.
-- If there are no entities, return [].
+- Return the result as a JSON object, and nothing else.
+- The JSON object must have a single key \"entities\" whose value is a list of objects.
+- Each entity object must have exactly two keys:
+  - \"text\": the exact entity span string from the sentence
+  - \"type\": the entity type, exactly one of \"Occupation\", \"Skill\", \"Qualification\"
+- If there are no entities, return: {\"entities\": []}
 
 Example:
 Sentence: We are looking for a Head Chef who can plan menus.
 Output:
-[
-  {"type": "Occupation", "text": "Head Chef"},
-  {"type": "Skill", "text": "plan menus"}
-]
+{
+  \"entities\": [
+    {\"text\": \"Head Chef\", \"type\": \"Occupation\"},
+    {\"text\": \"plan menus\", \"type\": \"Skill\"}
+  ]
+}
 
-Now process the next sentence."""
-
-
-def _get_vertex_client():
-    import vertexai
-    from vertexai.generative_models import GenerativeModel
-
-    project = os.getenv("VERTEX_PROJECT")
-    location = os.getenv("VERTEX_API_REGION", "us-west1")
-    if not project:
-        raise ValueError("VERTEX_PROJECT environment variable is required for LLM NER")
-    vertexai.init(project=project, location=location)
-    model_name = os.getenv("LLM_MODEL", "gemini-1.5-pro")
-    return GenerativeModel(model_name)
+Now read the next sentence and output the JSON object as specified."""
 
 
-def _parse_llm_response(raw: str) -> List[dict]:
-    raw = raw.strip()
-    # Strip common markdown fences
-    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
-    raw = re.sub(r"\s*```\s*$", "", raw)
-    # First try direct JSON parse
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        # Try to locate a JSON array substring
-        start = raw.find("[")
-        end = raw.rfind("]")
-        if start == -1 or end == -1 or end <= start:
-            return []
-        snippet = raw[start : end + 1]
-        try:
-            data = json.loads(snippet)
-        except json.JSONDecodeError:
-            return []
-    if not isinstance(data, list):
-        return []
-    out = []
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-        t_raw = item.get("type") or item.get("Type")
-        text = item.get("text") or item.get("text_span") or item.get("span")
-        if not t_raw or not text or not isinstance(text, str):
-            continue
-        t_norm = TYPE_MAP.get(str(t_raw).strip().lower())
-        if t_norm and text:
-            text = text.strip()
-            if text:
-                out.append({"type": t_norm, "tokens": text})
-    return out
+class NerEntity(BaseModel):
+    text: str = Field(description="Exact entity span from the sentence.")
+    type: Literal["Occupation", "Skill", "Qualification"] = Field(
+        description="Entity type."
+    )
 
 
-def extract_entities_llm(sentence: str, model=None) -> List[dict]:
+class NerResponse(BaseModel):
+    entities: List[NerEntity] = Field(
+        description="All entities extracted from the sentence."
+    )
+
+
+def _get_genai_client():
+    """
+    Build a google-genai client configured for Vertex-backed Gemini.
+    Requires env like:
+      - GOOGLE_CLOUD_PROJECT
+      - GOOGLE_CLOUD_LOCATION
+      - GOOGLE_GENAI_USE_VERTEXAI=True
+    """
+    client = genai.Client(http_options=HttpOptions(api_version="v1"))
+    model_name = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+    return client, model_name
+
+
+def extract_entities_llm(sentence: str, client=None, model_name: str = None) -> List[dict]:
     """
     Run LLM-based NER on a single sentence. Returns list of {"type": str, "tokens": str}.
     """
-    if model is None:
-        model = _get_vertex_client()
-    prompt = f"{SYSTEM_PROMPT}\n\nSentence: {sentence}"
+    if client is None:
+        client, default_model = _get_genai_client()
+        model_name = model_name or default_model
+    else:
+        model_name = model_name or os.getenv("LLM_MODEL", "gemini-2.5-flash")
+
+    prompt = f"{SYSTEM_PROMPT}\nSentence: {sentence}"
     try:
-        # Ask Vertex to return pure JSON
-        response = model.generate_content(
-            prompt,
-            generation_config={
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config={
                 "response_mime_type": "application/json",
+                "response_json_schema": NerResponse.model_json_schema(),
             },
         )
-        text = getattr(response, "text", None)
-        if callable(text):
-            text = text()
-        if not text and getattr(response, "candidates", None):
-            try:
-                cand = response.candidates[0]
-                if cand.content and cand.content.parts:
-                    text = cand.content.parts[0].text
-            except Exception:
-                text = None
+        ner = NerResponse.model_validate_json(response.text)
     except Exception:
         return []
-    if not text:
-        return []
-    return _parse_llm_response(text)
+
+    return [{"type": ent.type, "tokens": ent.text} for ent in ner.entities]
 
 
 class VertexNERClient:
-    """Reusable client for Vertex NER (holds model so vertexai is init'd once)."""
+    """Reusable client for Vertex-backed Gemini NER (holds google-genai client)."""
 
-    def __init__(self, model_name: str = None, project: str = None, location: str = None):
-        import vertexai
-        from vertexai.generative_models import GenerativeModel
-
-        self._project = project or os.getenv("VERTEX_PROJECT")
-        self._location = location or os.getenv("VERTEX_API_REGION", "us-west1")
-        self._model_name = model_name or os.getenv("LLM_MODEL", "gemini-1.5-pro")
-        if not self._project:
-            raise ValueError("VERTEX_PROJECT is required for LLM NER")
-        vertexai.init(project=self._project, location=self._location)
-        self._model = GenerativeModel(self._model_name)
+    def __init__(self, model_name: str = None):
+        self._client, default_model = _get_genai_client()
+        self._model_name = model_name or default_model
 
     def extract(self, sentence: str) -> List[dict]:
-        return extract_entities_llm(sentence, model=self._model)
+        return extract_entities_llm(sentence, client=self._client, model_name=self._model_name)
