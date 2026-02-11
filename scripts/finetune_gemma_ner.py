@@ -1,12 +1,12 @@
 """
-Fine-tune Gemma 2 2B (or Gemma 3) for NER using LoRA/QLoRA on prompt+response JSONL
+Fine-tune Gemma 3 1B (or Gemma 2 2B) for NER using LoRA/QLoRA on prompt+response JSONL
 produced by prepare_gemma_ner_dataset.py. Saves the adapter and optionally merges
 to a full model for evaluation with test/run_ner_eval_gemma.py --model <path>.
 
 Usage (GCP GPU VM):
   python scripts/finetune_gemma_ner.py \
     --dataset data/gemma_ner_sft.jsonl \
-    --base-model google/gemma-2-2b-it \
+    --base-model google/gemma-3-1b-it \
     --output-dir output/gemma_ner_lora \
     --merge-output output/gemma_ner_merged
 """
@@ -23,7 +23,7 @@ sys.path.insert(0, str(project_root))
 def main():
     parser = argparse.ArgumentParser(description="Fine-tune Gemma for NER with LoRA")
     parser.add_argument("--dataset", type=str, required=True, help="JSONL with prompt and response")
-    parser.add_argument("--base-model", type=str, default="google/gemma-2-2b-it", help="HF causal LM (e.g. Gemma 2 2B it)")
+    parser.add_argument("--base-model", type=str, default="google/gemma-3-1b-it", help="HF causal LM (Gemma 3 1B it; no 2B in Gemma 3)")
     parser.add_argument("--output-dir", type=str, default="output/gemma_ner_lora", help="Where to save LoRA adapter")
     parser.add_argument("--merge-output", type=str, default=None, help="If set, merge LoRA and save full model here for eval")
     parser.add_argument("--max-seq-length", type=int, default=512, help="Max sequence length")
