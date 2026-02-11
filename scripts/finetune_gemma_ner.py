@@ -79,10 +79,10 @@ def main():
         )
     else:
         model_kw["torch_dtype"] = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-        if torch.cuda.is_available():
-            model_kw["device_map"] = "auto"
 
     model = AutoModelForCausalLM.from_pretrained(args.base_model, **model_kw)
+    if not args.use_qlora and torch.cuda.is_available():
+        model = model.cuda()
     if args.use_qlora:
         model = prepare_model_for_kbit_training(model)
 
