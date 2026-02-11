@@ -1,4 +1,5 @@
 from typing import List, Optional, Tuple
+import json
 import torch
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 from sentence_transformers import SentenceTransformer, util
@@ -14,8 +15,23 @@ import pickle
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from the .env file
 load_dotenv()
+
+INFERENCE_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+
+
+def _load_inference_config() -> dict:
+    out = {}
+    if os.path.isfile(INFERENCE_CONFIG_PATH):
+        with open(INFERENCE_CONFIG_PATH) as f:
+            out = json.load(f)
+    out.setdefault("ner_type", os.getenv("NER_TYPE", "roberta"))
+    out.setdefault("llm_model", os.getenv("LLM_MODEL", "gemini-1.5-pro"))
+    if os.getenv("NER_TYPE"):
+        out["ner_type"] = os.getenv("NER_TYPE")
+    if os.getenv("LLM_MODEL"):
+        out["llm_model"] = os.getenv("LLM_MODEL")
+    return out
 
 class Entity:
     def __init__(self, **entries):
@@ -56,6 +72,12 @@ class EntityLinker:
 		Specifies the format of the output for occupations, either `occupation`, `preffered_label`, `esco_code`, `uuid` or `all` to get all the columns. 
 		The `uuid` is also available for the skills.
 
+	ner_type : str, default from config/env 'roberta'
+		'roberta' = use transformer NER model (entity_model). 'llm' = use Vertex AI LLM for NER (requires VERTEX_PROJECT, optional LLM_MODEL).
+
+	llm_model : str, default from config/env 'gemini-1.5-pro'
+		Vertex AI model name when ner_type='llm' (e.g. gemini-1.5-pro, gemini-1.5-flash). Overridable via config or LLM_MODEL env.
+
 	Calling Parameters
 	----------
 	text : str
@@ -73,10 +95,14 @@ class EntityLinker:
 			evaluation_mode: bool = False,
 			k: int = 32,
 			from_cache: bool = True,
-			output_format: str = 'occupation'
+			output_format: str = 'occupation',
+			ner_type: Optional[str] = None,
+			llm_model: Optional[str] = None,
 	):
-		# Initialize the model paths and settings
-		self.entity_model = entity_model
+		cfg = _load_inference_config()
+		self.ner_type = (ner_type or cfg.get("ner_type") or "roberta").lower()
+		self.llm_model = llm_model or cfg.get("llm_model") or "gemini-1.5-pro"
+		self.entity_model_name = entity_model
 		self.similarity_model_type = similarity_model
 		self.similarity_model = SentenceTransformer(similarity_model)
 		self.crf = crf
@@ -85,28 +111,26 @@ class EntityLinker:
 		self.from_cache = from_cache
 		self.output_format = output_format
 		self.path_to_files = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
-
-		# Set the device to GPU if available, otherwise CPU
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-		# Load the appropriate entity recognition model based on the crf flag
-		if self.crf:
-			self.entity_model = AutoModelCrfForNer.from_pretrained(entity_model)
+		self.entity_model = None
+		self.tokenizer = None
+		self._llm_ner_client = None
+
+		if self.ner_type == "llm":
+			from inference.ner_llm import VertexNERClient
+			self._llm_ner_client = VertexNERClient(model_name=self.llm_model)
 		else:
-			self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
+			if self.crf:
+				self.entity_model = AutoModelCrfForNer.from_pretrained(entity_model)
+			else:
+				self.entity_model = AutoModelForTokenClassification.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
+			self.entity_model.to(self.device)
+			self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
 
-		# Move the entity model to the appropriate device
-		self.entity_model.to(self.device)
-
-		# Initialize the tokenizer for the entity model
-		self.tokenizer = AutoTokenizer.from_pretrained(entity_model, token=os.getenv('HF_TOKEN'))
-
-		# Load reference sets for occupations, skills, and qualifications
 		self.df_occ = pd.read_csv(os.path.join(self.path_to_files, 'occupations_augmented.csv'))
 		self.df_skill = pd.read_csv(os.path.join(self.path_to_files, 'skills.csv'))
 		self.df_qual = pd.read_csv(os.path.join(self.path_to_files, 'qualifications.csv'))
-
-		# Load precomputed embeddings for the reference sets
 		self.occupation_emb, self.skill_emb, self.qualification_emb = self._load_tensors()
 
 
@@ -208,21 +232,11 @@ class EntityLinker:
 		"""
 		Entity extraction pipeline. Runs the text through the BERT-based encoders, performs post-processing for tagging cleanup,
 		and returns a list of dictionaries with all relevant information.
-
-		Parameters
-		----------
-		text : str
-			The input text to process for entity extraction.
-
-		Returns
-		-------
-		List[dict]
-			A list of dictionaries with the extracted entities. Each dictionary contains the following keys:
-			- `tokens`: The specific part of the input text identified as an entity.
-			- `type`: The category of the identified entity (e.g., 'Occupation', 'Skill', 'Qualification').
+		When ner_type is 'llm', uses Vertex AI LLM instead.
 		"""
+		if self.ner_type == "llm":
+			return self._llm_ner_client.extract(text)
 
-		# Tokenize inputs
 		inputs = self.tokenizer(text, return_tensors='pt', truncation=True).to(self.device)
 
 		# Check whether a CRF entity extraction model is used and produce the logits and prediction entity numerical categories

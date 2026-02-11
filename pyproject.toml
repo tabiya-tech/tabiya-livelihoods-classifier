@@ -20,6 +20,7 @@ tqdm = "^4.65.0"
 flask = "^3.0.3"
 flask-cors = "^4.0.1"
 python-dotenv = "^1.0.1"
+google-cloud-aiplatform = "^1.38"
 
 [tool.poetry.group.train.dependencies]
 transformers= "^4.32.1"

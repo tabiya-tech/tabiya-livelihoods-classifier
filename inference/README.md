@@ -38,6 +38,22 @@ results = Evaluator(entity_type='Skill', entity_model='tabiya/roberta-base-job-n
 print(results.output)
 ```
 
+## NER: RoBERTa vs LLM
+
+Entity extraction can use either the default transformer (RoBERTa) or a Vertex AI LLM.
+
+- **Config:** `inference/config.json` supports `ner_type` (`"roberta"` or `"llm"`) and `llm_model` (e.g. `gemini-1.5-pro`). Env vars override: `NER_TYPE`, `LLM_MODEL`, `VERTEX_PROJECT`, `VERTEX_API_REGION`, `GOOGLE_APPLICATION_CREDENTIALS`.
+- **RoBERTa (default):** Set `ner_type` to `roberta` or leave unset. Uses `entity_model` (e.g. `tabiya/roberta-base-job-ner`).
+- **LLM:** Set `ner_type` to `llm`. Requires `VERTEX_PROJECT` and, for local auth, `GOOGLE_APPLICATION_CREDENTIALS`. Optional: `VERTEX_API_REGION` (default `us-west1`), `LLM_MODEL` (default `gemini-1.5-pro`).
+
+Example with LLM NER:
+
+```python
+from inference.linker import EntityLinker
+# Via config: set inference/config.json "ner_type" to "llm", or:
+pipeline = EntityLinker(ner_type="llm", llm_model="gemini-1.5-flash")
+```
+
 ## Minimum Hardware
 
 - 4 GB CPU/GPU RAM
