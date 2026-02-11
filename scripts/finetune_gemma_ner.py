@@ -31,7 +31,7 @@ def main():
     parser.add_argument("--merge-output", type=str, default=None, help="If set, merge LoRA and save full model here for eval")
     parser.add_argument("--max-seq-length", type=int, default=512, help="Max sequence length")
     parser.add_argument("--num-epochs", type=int, default=3)
-    parser.add_argument("--per-device-train-batch-size", type=int, default=2)
+    parser.add_argument("--per-device-train-batch-size", type=int, default=1, help="Reduce if OOM; use --use-qlora for 4-bit (saves VRAM)")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--lora-r", type=int, default=16)
@@ -95,6 +95,7 @@ def main():
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
+    model.enable_input_require_grads()
 
     response_template = "Output:\n"
     collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
@@ -117,6 +118,7 @@ def main():
         bf16=bf16,
         fp16=fp16,
         use_cpu=use_cpu,
+        gradient_checkpointing=True,
         logging_steps=5,
         logging_first_step=True,
         report_to="none",
