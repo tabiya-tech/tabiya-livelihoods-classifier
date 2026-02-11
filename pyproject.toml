@@ -32,6 +32,11 @@ seqeval= "^1.2.2"
 nervaluate= "^0.2.0"
 accelerate = "^0.31.0"
 
+[tool.poetry.group.finetune.dependencies]
+peft = "^0.10.0"
+trl = "^0.8.0"
+bitsandbytes = "^0.43.0"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

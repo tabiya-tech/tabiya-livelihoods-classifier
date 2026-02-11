@@ -60,10 +60,19 @@ class GemmaNERClient:
         max_new_tokens: int = 128,
     ):
         self.model_name = model_name
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.use_cuda = torch.cuda.is_available()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(model_name)
-        self.model.to(self.device)
+        if self.use_cuda:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                device_map="auto",
+                torch_dtype=torch.bfloat16,
+            )
+            self.device = next(self.model.parameters()).device
+        else:
+            self.device = torch.device("cpu")
+            self.model = AutoModelForCausalLM.from_pretrained(model_name)
+            self.model.to(self.device)
         self.max_new_tokens = max_new_tokens
 
     def extract(self, sentence: str) -> List[dict]:
