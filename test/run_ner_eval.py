@@ -26,7 +26,7 @@ sys.path.insert(0, str(project_root))
 import evaluate
 
 ENTITY_MODEL = os.getenv("ENTITY_MODEL", "tabiya/roberta-base-job-ner")
-TEST_FILE = Path(__file__).resolve().parent / "green_test.json"
+TEST_FILE = Path(__file__).resolve().parent / "green_test_en.json"
 OUTPUT_DIR = Path(__file__).resolve().parent
 
 

@@ -35,7 +35,7 @@ import evaluate
 load_dotenv()
 
 project_root = Path(__file__).resolve().parent.parent
-TEST_FILE = Path(__file__).resolve().parent / "green_test.json"
+TEST_FILE = Path(__file__).resolve().parent / "green_test_en.json"
 OUTPUT_DIR = Path(__file__).resolve().parent
 
 

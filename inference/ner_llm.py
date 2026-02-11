@@ -74,15 +74,7 @@ def _get_genai_client():
 
 
 def extract_entities_llm(sentence: str, client=None, model_name: str = None) -> List[dict]:
-    """
-    Run LLM-based NER on a single sentence. Returns list of {"type": str, "tokens": str}.
-    """
-    if client is None:
-        client, default_model = _get_genai_client()
-        model_name = model_name or default_model
-    else:
-        model_name = model_name or os.getenv("LLM_MODEL", "gemini-2.5-flash")
-
+    ...
     prompt = f"{SYSTEM_PROMPT}\nSentence: {sentence}"
     try:
         response = client.models.generate_content(
@@ -90,13 +82,13 @@ def extract_entities_llm(sentence: str, client=None, model_name: str = None) -> 
             contents=prompt,
             config={
                 "response_mime_type": "application/json",
-                "response_json_schema": NerResponse.model_json_schema(),
+                "response_schema": NerResponse,
             },
         )
         ner = NerResponse.model_validate_json(response.text)
-    except Exception:
-        return []
-
+    except Exception as e:
+        print("LLM ERROR:", repr(e))
+        raise   # <-- remove the silent return
     return [{"type": ent.type, "tokens": ent.text} for ent in ner.entities]
 
 
