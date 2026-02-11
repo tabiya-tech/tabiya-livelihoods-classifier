@@ -7,9 +7,38 @@ import os
 import re
 from typing import List
 
-ENTITY_TYPES = ("Occupation", "Skill", "Qualification", "Domain", "Experience")
+ENTITY_TYPES = ("Occupation", "Skill", "Qualification")
+TYPE_MAP = {t.lower(): t for t in ENTITY_TYPES}
 
-SYSTEM_PROMPT = """You are a named-entity recognition system for job descriptions. Extract entities from the given sentence only. Output a JSON array of objects. Each object must have exactly two keys: "type" and "text". "type" must be one of: Occupation, Skill, Qualification, Domain, Experience. "text" is the exact span from the sentence (no paraphrasing). If there are no entities, output []. Output nothing else besides the JSON array."""
+SYSTEM_PROMPT = """You are a named-entity recognition system for job descriptions.
+
+Given ONE sentence, you must extract job-related entities and return them in STRICT JSON.
+
+Rules:
+- Only look at the given sentence (no external knowledge).
+- Extract spans for these types ONLY (no others):
+  - Occupation
+  - Skill
+  - Qualification
+- Each entity is a contiguous span of the original sentence.
+- Do NOT paraphrase or normalize: the span text must match the original sentence text exactly.
+
+Output format:
+- Return a JSON array of objects, and NOTHING else (no explanations, no comments).
+- Each object has exactly two keys: "type" and "text".
+- "type" must be exactly one of: "Occupation", "Skill", "Qualification".
+- "text" is the exact span string from the sentence.
+- If there are no entities, return [].
+
+Example:
+Sentence: We are looking for a Head Chef who can plan menus.
+Output:
+[
+  {"type": "Occupation", "text": "Head Chef"},
+  {"type": "Skill", "text": "plan menus"}
+]
+
+Now process the next sentence."""
 
 
 def _get_vertex_client():
@@ -27,24 +56,38 @@ def _get_vertex_client():
 
 def _parse_llm_response(raw: str) -> List[dict]:
     raw = raw.strip()
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    # Strip common markdown fences
+    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
     raw = re.sub(r"\s*```\s*$", "", raw)
+    # First try direct JSON parse
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        return []
+        # Try to locate a JSON array substring
+        start = raw.find("[")
+        end = raw.rfind("]")
+        if start == -1 or end == -1 or end <= start:
+            return []
+        snippet = raw[start : end + 1]
+        try:
+            data = json.loads(snippet)
+        except json.JSONDecodeError:
+            return []
     if not isinstance(data, list):
         return []
     out = []
     for item in data:
         if not isinstance(item, dict):
             continue
-        t = item.get("type") or item.get("Type")
+        t_raw = item.get("type") or item.get("Type")
         text = item.get("text") or item.get("text_span") or item.get("span")
-        if t in ENTITY_TYPES and text and isinstance(text, str):
+        if not t_raw or not text or not isinstance(text, str):
+            continue
+        t_norm = TYPE_MAP.get(str(t_raw).strip().lower())
+        if t_norm and text:
             text = text.strip()
             if text:
-                out.append({"type": t, "tokens": text})
+                out.append({"type": t_norm, "tokens": text})
     return out
 
 
@@ -56,13 +99,23 @@ def extract_entities_llm(sentence: str, model=None) -> List[dict]:
         model = _get_vertex_client()
     prompt = f"{SYSTEM_PROMPT}\n\nSentence: {sentence}"
     try:
-        response = model.generate_content(prompt)
-        if hasattr(response, "text") and callable(getattr(response, "text")):
-            text = response.text
-        elif response.candidates and response.candidates[0].content.parts:
-            text = response.candidates[0].content.parts[0].text
-        else:
-            text = None
+        # Ask Vertex to return pure JSON
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "response_mime_type": "application/json",
+            },
+        )
+        text = getattr(response, "text", None)
+        if callable(text):
+            text = text()
+        if not text and getattr(response, "candidates", None):
+            try:
+                cand = response.candidates[0]
+                if cand.content and cand.content.parts:
+                    text = cand.content.parts[0].text
+            except Exception:
+                text = None
     except Exception:
         return []
     if not text:

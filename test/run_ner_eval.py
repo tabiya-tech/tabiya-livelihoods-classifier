@@ -12,8 +12,10 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch
 from dotenv import load_dotenv
+from tqdm import tqdm
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
 load_dotenv()
@@ -21,13 +23,11 @@ load_dotenv()
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from seqeval.scheme import IOB2
-
 import evaluate
 
 ENTITY_MODEL = os.getenv("ENTITY_MODEL", "tabiya/roberta-base-job-ner")
 TEST_FILE = Path(__file__).resolve().parent / "green_test.json"
-OUTPUT_FILE = Path(__file__).resolve().parent / "eval_baseline_roberta.json"
+OUTPUT_DIR = Path(__file__).resolve().parent
 
 
 def fix_bio_tags(tags: list) -> list:
@@ -44,15 +44,34 @@ def fix_bio_tags(tags: list) -> list:
 
 def main():
     parser = argparse.ArgumentParser(description="Run NER evaluation on green_test.json")
-    parser.add_argument("--limit", type=int, default=None, help="Max number of samples (default: all)")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Max number of samples (default: all)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="HF model name or local path (overrides ENTITY_MODEL)",
+    )
     args = parser.parse_args()
 
+    # Resolve model path/name (supports local paths, cross-platform)
+    model_name = args.model or ENTITY_MODEL
+    model_path = Path(model_name)
+    if not model_path.is_absolute():
+        model_path = project_root / model_path
+    model_name_str = str(model_path)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using model: {model_name_str}")
     tokenizer = AutoTokenizer.from_pretrained(
-        ENTITY_MODEL, token=os.getenv("HF_TOKEN"), add_prefix_space=True
+        model_name_str, token=os.getenv("HF_TOKEN"), add_prefix_space=True
     )
     model = AutoModelForTokenClassification.from_pretrained(
-        ENTITY_MODEL, token=os.getenv("HF_TOKEN")
+        model_name_str, token=os.getenv("HF_TOKEN")
     )
     model.to(device)
     model.eval()
@@ -60,16 +79,25 @@ def main():
     id2label = model.config.id2label
     seqeval = evaluate.load("seqeval")
 
-    lines = TEST_FILE.read_text().strip().split("\n")
+    # Support both JSONL (one object per line) and a JSON array of objects
+    content = TEST_FILE.read_text().strip()
+    rows = []
+    if content.startswith("["):
+        rows = json.loads(content)
+    else:
+        for line in content.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            rows.append(json.loads(line))
+
     if args.limit:
-        lines = lines[: args.limit]
+        rows = rows[: args.limit]
+
     all_predictions = []
     all_references = []
 
-    for line in lines:
-        if not line.strip():
-            continue
-        row = json.loads(line)
+    for row in tqdm(rows, desc="Evaluating HF NER", unit="sent"):
         tokens = row["tokens"]
         gold = row["tags_skill"]
 
@@ -120,11 +148,11 @@ def main():
         predictions=all_predictions,
         references=all_references,
         mode="strict",
-        scheme=IOB2,
+        scheme="IOB2",
     )
 
     out = {
-        "model": ENTITY_MODEL,
+        "model": model_name_str,
         "test_file": str(TEST_FILE),
         "num_samples": len(all_predictions),
         "limit": args.limit,
@@ -140,9 +168,22 @@ def main():
         },
     }
 
-    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_FILE.write_text(json.dumps(out, indent=2))
-    print(f"Results written to {OUTPUT_FILE}")
+    # Choose output file name based on model name
+    out_name = f"eval_{Path(model_name_str).name}.json"
+    output_file = OUTPUT_DIR / out_name
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    # Convert numpy types to plain Python types for JSON serialization
+    def _to_python(o):
+        if isinstance(o, (np.generic,)):
+            return o.item()
+        if isinstance(o, dict):
+            return {k: _to_python(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [_to_python(v) for v in o]
+        return o
+
+    output_file.write_text(json.dumps(_to_python(out), indent=2))
+    print(f"Results written to {output_file}")
     print(f"F1: {out['metrics']['f1']:.4f}  P: {out['metrics']['precision']:.4f}  R: {out['metrics']['recall']:.4f}")
 
 
