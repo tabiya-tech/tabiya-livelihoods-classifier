@@ -37,6 +37,7 @@ def main():
     parser.add_argument("--lora-r", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
     parser.add_argument("--use-qlora", action="store_true", help="Use 4-bit quantization (saves VRAM)")
+    parser.add_argument("--resume", action="store_true", help="Resume from latest checkpoint in output-dir")
     parser.add_argument("--fp16", action="store_true", help="Use fp16 (set if no bf16 support)")
     args = parser.parse_args()
 
@@ -136,7 +137,7 @@ def main():
         data_collator=collator,
         tokenizer=tokenizer,
     )
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume)
     trainer.save_model(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
 
