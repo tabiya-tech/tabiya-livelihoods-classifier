@@ -239,3 +239,8 @@ fabric.properties
 
 # Mac Desktop Services Store
 .DS_Store
+
+# Data, jobs, and model output
+data/
+jobs-plain.json
+output/

@@ -21,8 +21,9 @@ import evaluate
 load_dotenv()
 
 project_root = Path(__file__).resolve().parent.parent
-TEST_FILE = Path(__file__).resolve().parent / "green_test.json"
-OUTPUT_DIR = Path(__file__).resolve().parent
+TEST_DIR = Path(__file__).resolve().parent
+DEFAULT_TEST_FILE = TEST_DIR / "green_test_en.json"
+OUTPUT_DIR = TEST_DIR
 
 
 def build_suffix_map(labels: List[List[str]]) -> dict:
@@ -108,17 +109,24 @@ def main():
         default="google/gemma-2-2b-it",
         help="HF model name or local path (default: google/gemma-2-2b-it)",
     )
+    parser.add_argument(
+        "--test-file",
+        type=str,
+        default=None,
+        help=f"Test JSON/JSONL (default: {DEFAULT_TEST_FILE.name})",
+    )
+    parser.add_argument("--debug", action="store_true", help="Log raw model output (for diagnosing empty preds)")
     args = parser.parse_args()
 
     from inference.gemma_ner import GemmaNERClient
 
     gemma_model = args.model
-    client = GemmaNERClient(model_name=gemma_model)
+    client = GemmaNERClient(model_name=gemma_model, debug_raw_output=args.debug)
 
     seqeval = evaluate.load("seqeval")
 
-    # Support both JSONL (one object per line) and a JSON array of objects
-    content = TEST_FILE.read_text().strip()
+    test_file = Path(args.test_file) if args.test_file else DEFAULT_TEST_FILE
+    content = test_file.read_text().strip()
     rows = []
     if content.startswith("["):
         rows = json.loads(content)
@@ -181,7 +189,7 @@ def main():
     out = {
         "backend": "gemma",
         "model": gemma_model,
-        "test_file": str(TEST_FILE),
+        "test_file": str(test_file),
         "num_samples": len(all_predictions),
         "limit": args.limit,
         "metrics": {

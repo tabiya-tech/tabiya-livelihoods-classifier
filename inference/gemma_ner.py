@@ -58,8 +58,10 @@ class GemmaNERClient:
         self,
         model_name: str = "google/gemma-2-2b-it",
         max_new_tokens: int = 128,
+        debug_raw_output: bool = False,
     ):
         self.model_name = model_name
+        self.debug_raw_output = debug_raw_output
         self.use_cuda = torch.cuda.is_available()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         if self.use_cuda:
@@ -94,6 +96,9 @@ class GemmaNERClient:
         gen_text = self.tokenizer.decode(
             output_ids[input_len:], skip_special_tokens=True
         ).strip()
+
+        if self.debug_raw_output:
+            print(f"[GemmaNER raw] len={len(gen_text)} repr={repr(gen_text[:200])}")
 
         # Try to parse a JSON object with key "entities"
         try:
