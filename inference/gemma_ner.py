@@ -100,15 +100,23 @@ class GemmaNERClient:
         if self.debug_raw_output:
             print(f"[GemmaNER raw] len={len(gen_text)} repr={repr(gen_text[:200])}")
 
-        # Try to parse a JSON object with key "entities"
         try:
-            # If the model wrapped it in extra text, try to find the first '{'...' }'
-            text = gen_text
-            if not text.strip().startswith("{"):
-                start = text.find("{")
-                end = text.rfind("}")
-                if start != -1 and end != -1 and end > start:
-                    text = text[start : end + 1]
+            text = gen_text.strip()
+            start = text.find("{")
+            if start == -1:
+                return []
+            depth, end = 0, start
+            for i, c in enumerate(text[start:], start=start):
+                if c == "{":
+                    depth += 1
+                elif c == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = i
+                        break
+            else:
+                return []
+            text = text[start : end + 1]
             data = json.loads(text)
         except Exception:
             return []
