@@ -5,11 +5,8 @@ import io
 import pickle
 
 class Config(object):
-  """
-  Configuration class for the training hyperparameters
-  """
+  """Reads a JSON config file and sets each key-value pair as an attribute."""
   def __init__(self, config_file):
-      # Initialization from a json configuration file.
       self._readConfigFile(config_file)
   def _readConfigFile(self, file):
       try:
@@ -22,9 +19,7 @@ class Config(object):
           raise
   
 class CPU_Unpickler(pickle.Unpickler):
-    """
-    Class that loads the tensors in the CPU
-    """
+    """Unpickler that forces tensors onto CPU regardless of where they were saved."""
     def find_class(self, module, name):
         if module == 'torch.storage' and name == '_load_from_bytes':
             return lambda b: torch.load(io.BytesIO(b), map_location='cpu')

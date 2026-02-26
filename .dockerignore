@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+.git
+.env
+*.egg-info
+.venv
+venv
+benchmark_notebooks
+docs
+test_*.py
+*.ipynb
+*.json
+!app/**
+!inference/**
+!data/**
+!requirements.txt

@@ -1,6 +1,5 @@
 import os, sys
 
-# Add the parent directory to the system path
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 import torch
@@ -18,18 +17,13 @@ from linker import EntityLinker
 
 
 class InformationRetrievalEvaluator(SentenceEvaluator):
-    """
-    This class evaluates an Information Retrieval (IR) setting.
-
-    Given a set of queries and a large corpus set. It will retrieve for each query the top-k most similar document. It measures
-    Mean Reciprocal Rank (MRR), Recall@k, and Normalized Discounted Cumulative Gain (NDCG)
-    """
+    """Evaluates IR metrics (MRR, Recall@k, NDCG) for query-to-corpus retrieval."""
 
     def __init__(
         self,
-        queries: Dict[str, str],  # qid => query
-        corpus: Dict[str, str],  # cid => doc
-        relevant_docs: Dict[str, Set[str]],  # qid => Set[cid]
+        queries: Dict[str, str],
+        corpus: Dict[str, str],
+        relevant_docs: Dict[str, Set[str]],
         corpus_chunk_size: int = 50000,
         mrr_at_k: List[int] = [1, 4, 16, 32],
         ndcg_at_k: List[int] = [1, 4, 16, 32],
@@ -63,10 +57,7 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-
-
     def compute_metrics(self, queries_result_list: List[object]):
-        # Init score computation values
         num_hits_at_k = {k: 0 for k in self.accuracy_at_k}
         precisions_at_k = {k: [] for k in self.precision_recall_at_k}
         recall_at_k = {k: [] for k in self.precision_recall_at_k}
@@ -74,23 +65,19 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
         ndcg = {k: [] for k in self.ndcg_at_k}
         AveP_at_k = {k: [] for k in self.map_at_k}
 
-        # Compute scores on results
         for query_itr in range(len(queries_result_list)):
             query_id = self.queries_ids[query_itr]
 
-            # Sort scores
             #top_hits = sorted(queries_result_list[query_itr], key=lambda x: x["score"], reverse=True)
             top_hits = queries_result_list[query_itr]
             query_relevant_docs = self.relevant_docs[query_id]
 
-            # Accuracy@k - We count the result correct, if at least one relevant doc is across the top-k documents
             for k_val in self.accuracy_at_k:
                 for hit in top_hits[0:k_val]:
                     if hit["corpus_id"] in query_relevant_docs:
                         num_hits_at_k[k_val] += 1
                         break
 
-            # Precision and Recall@k
             for k_val in self.precision_recall_at_k:
                 num_correct = 0
                 for hit in top_hits[0:k_val]:
@@ -100,14 +87,12 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
                 precisions_at_k[k_val].append(num_correct / k_val)
                 recall_at_k[k_val].append(num_correct / len(query_relevant_docs))
 
-            # MRR@k
             for k_val in self.mrr_at_k:
                 for rank, hit in enumerate(top_hits[0:k_val]):
                     if hit["corpus_id"] in query_relevant_docs:
                         MRR[k_val] += 1.0 / (rank + 1)
                         break
 
-            # NDCG@k
             for k_val in self.ndcg_at_k:
                 predicted_relevance = [
                     1 if top_hit["corpus_id"] in query_relevant_docs else 0 for top_hit in top_hits[0:k_val]
@@ -119,7 +104,6 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
                 )
                 ndcg[k_val].append(ndcg_value)
 
-            # MAP@k
             for k_val in self.map_at_k:
                 num_correct = 0
                 sum_precisions = 0
@@ -132,7 +116,6 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
                 avg_precision = sum_precisions / min(k_val, len(query_relevant_docs))
                 AveP_at_k[k_val].append(avg_precision)
 
-        # Compute averages
         for k in num_hits_at_k:
             num_hits_at_k[k] /= len(self.queries)
 
@@ -164,29 +147,22 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
     def compute_dcg_at_k(relevances, k):
         dcg = 0
         for i in range(min(len(relevances), k)):
-            dcg += relevances[i] / np.log2(i + 2)  # +2 as we start our idx at 0
+            dcg += relevances[i] / np.log2(i + 2)  # +2 because idx is 0-based
         return dcg
 
 
 
 class NotValidEntity(Exception):
-    """
-    Custom Class for indicating an exception when an Entity Type is not Occupation, Skill or Qualification
-    """
     pass
 
 
 class Evaluator(EntityLinker):
+  """Runs entity linking on evaluation datasets and computes IR metrics."""
+
   def __init__(self, entity_type, **kwargs):
-    """
-    Evaluator class that inherits the Entity Linker. It computes the queries, corpus, inverted corpus and relevant docs for the InformationRetrievalEvaluator, performs 
-    entity linking and computes the Information Retrieval Metrics. 
-    Args: entity_type. Occupation, Skill or Qualification
-    """
     super().__init__(**kwargs)
     self.dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
     self.entity_type = entity_type
-    #Set the entity bounds for the minimum cosine similarity to be returned from the Entity Linker
     self.entity_bounds = {'Occupation' : 0, 'Skill': 0.7, 'Qualification': 0.8}
     
     if not isinstance(self.entity_type, str):
@@ -203,29 +179,27 @@ class Evaluator(EntityLinker):
 
 
   def _load_dataset(self) -> dict:
-    """
-    Function that loads the evaluation dataset depending on the entity type.
-    For skills, evaluation is based on the extention of the Skill Span dataset provided by https://github.com/jensjorisdecorte/Skill-Extraction-benchmark
-    For occupations and qualifications we use custom datasets.
+    """Load evaluation dataset for the configured entity type.
+
+    Skills use the SkillSpan benchmark (https://github.com/jensjorisdecorte/Skill-Extraction-benchmark).
+    Occupations and qualifications use custom datasets.
     """
     dictionary = {"sentence": [], "spans":[], "labels": []}
 
     if self.entity_type=="Skill":
 
-      #Load necessary files in pandas dataframes
       dftech_val = pd.read_csv(os.path.join(self.dir, 'eval', 'tech_validation_annotations.csv'))
       dftech_test = pd.read_csv(os.path.join(self.dir, 'eval', 'tech_test_annotations.csv'))
       dfhouse_val = pd.read_csv(os.path.join(self.dir, 'eval', 'house_validation_annotations.csv'))
       dfhouse_test = pd.read_csv(os.path.join(self.dir, 'eval', 'house_test_annotations.csv'))
-      #Prepeocess
+
       df = pd.concat([dftech_val, dftech_test, dfhouse_val, dfhouse_test], ignore_index=True)
       df = df.drop_duplicates(ignore_index=True)
-      #Replace label not present and underspecified with UNK label
+
       for index, item in enumerate(df['label']):
         if item == 'LABEL NOT PRESENT' or item == 'UNDERSPECIFIED':
           df['label'].iloc[index] = 'UNK'
 
-      #Create the dictionaty with unique sentences, different skill spans and their coresponding labels. The spans may have multiple labels
       for sentence, group in df.groupby('sentence'):
         dictionary["sentence"].append(sentence)
         spans = []
@@ -251,10 +225,8 @@ class Evaluator(EntityLinker):
 
     elif self.entity_type=="Qualification":
 
-      #Load necessary files in pandas dataframes
       df = pd.read_csv(os.path.join(self.dir, 'eval', 'qualification_mapping.csv'))
 
-      #Convert EQF labels to floats
       float_labels =[]
       for i in range(len(df)):
         try:
@@ -263,7 +235,6 @@ class Evaluator(EntityLinker):
           float_labels.append(float(0))
       df['label'] = float_labels
 
-      #Create the dictionaty with unique sentences, different qualification spans and their coresponding labels.
       for sentence, group in df.groupby('text'):
         dictionary["sentence"].append(sentence)
         spans = []
@@ -282,12 +253,9 @@ class Evaluator(EntityLinker):
 
 
   def _build_indexes(self) -> dict:
-    """
-    Function that builds corpus, queries, relevant docs and invertes coprus depending on the entity type/ evaluation set.
-    """
+    """Build corpus, queries, relevant docs and inverted corpus for evaluation."""
     if self.entity_type=="Occupation":
 
-      #Build Corpus/ Reference Sets & Inverted Coprus with ascending indexes.
       esco = pd.read_csv(os.path.join(self.dir, 'occupations_augmented.csv'))
       esco = esco.drop_duplicates(subset='occupation', keep='first', ignore_index=True)
       corpus = {str(k):str(v) for k,v in enumerate(esco['occupation'])}
@@ -297,12 +265,11 @@ class Evaluator(EntityLinker):
       queries = {}
       relevant_docs ={}
       index = 0
-      #Treat as queries each entity span. In this case, the relevant spans are the title of the job description of the Hahu Jobs test set. 
+
       for i in range(len(self.dictionary['sentence'])):
-        #Build queries
         qid= str(i)
         queries[qid] = self.dictionary['sentence'][i]
-        #Build relevant docs
+
         relevant = set()
         for index, item in enumerate(esco['esco_code']):
           if item == self.dictionary['labels'][i][0]:
@@ -310,11 +277,11 @@ class Evaluator(EntityLinker):
         if relevant:
           relevant_docs[qid] = relevant
         else:
-          relevant_docs[qid] = 'UNK' #there exist some codes that were removed from the latest verison of ESCO. Append the UNK label for those.
+          # Some codes were removed from the latest ESCO version
+          relevant_docs[qid] = 'UNK'
 
     elif self.entity_type=="Skill":
 
-      #Build Corpus/ Reference Sets & Inverted Coprus with ascending indexes.
       esco = pd.read_csv(os.path.join(self.dir, 'skills.csv'))
       corpus = {str(k):str(v) for k,v in enumerate(esco['skills'])}
       corpus['UNK'] = 'UNK'
@@ -323,14 +290,13 @@ class Evaluator(EntityLinker):
       queries = {}
       relevant_docs ={}
       index = 0
-      #Treat as queries each entity span. In this case, the relevant spans are the unique skill spans presented in the SkillSpan extention.
+
       for i in range(len(self.dictionary['sentence'])):
         for index2, span in enumerate(self.dictionary['spans'][i]):
-          #Build queries
           qid= str(index)
           queries[qid] = span
           index+=1
-          #Build relevant docs
+
           relevant = set()
           for label in self.dictionary['labels'][i][index2]:
             relevant.add(corpus_inverted[label])
@@ -338,7 +304,6 @@ class Evaluator(EntityLinker):
 
     elif self.entity_type=="Qualification":
 
-      #Build Corpus/ Reference Sets & Inverted Coprus with ascending indexes.
       esco = pd.read_csv(os.path.join(self.dir, 'qualifications.csv'))
       esco = esco.sort_values(by='eqf_level', ascending=False)
       esco = esco.drop_duplicates(subset='qualification', keep='first', ignore_index=True)
@@ -348,14 +313,13 @@ class Evaluator(EntityLinker):
       queries = {}
       relevant_docs ={}
       index = 0
-      #Treat as queries each entity span. In this case, the relevant spans are the unique qualification spans presented in the Green Benchmark extention.
+
       for i in range(len(self.dictionary['sentence'])):
         for index2, span in enumerate(self.dictionary['spans'][i]):
-          #Build queries
           qid= str(index)
           queries[qid] = span
           index+=1
-          #Build relevant docs
+
           relevant = set()
           for label in self.dictionary['labels'][i][index2]:
             for index3, esco_label in enumerate(esco['eqf_level']):
@@ -373,29 +337,22 @@ class Evaluator(EntityLinker):
         }
 
   def _run_inference(self) -> List[List[dict]]:
-    """
-    Functions that runs the Entity Linker, finds the most similar extracted entity on the evaluation set based on the Jaccard similarity and returns 
-    a dictionary of the recommendations and their respective cosine similarity score.
-    """
+    """Run entity linking on the evaluation set, match by Jaccard similarity, and collect results."""
     queries_result_list = []
     for number in range(len(self.dictionary["sentence"])):
       relevant_spans = self.dictionary["spans"][number]
-      #Run Entity Linker
       result = self(self.dictionary["sentence"][number])
       for relevant_span in relevant_spans:
         retrieved, scores = self._most_similar(relevant_span, result, self.entity_bounds[self.entity_type])
         final_retrieved = []
         for index, item in enumerate(retrieved):
-          #Reference the recommended items to the relevent corpus to get the coprus id.
           corpus_id = self.indexes["corpus_inverted"][item]
           final_retrieved.append({"corpus_id": corpus_id, "score": float(scores[index])})
         queries_result_list.append(final_retrieved)
     return queries_result_list
 
   def _most_similar(self, relevant_span : str, entity_list : List[dict], bound : float) -> Tuple[list,list]:
-    """
-    Function that computes the most similar extracted entity in the evaluation sentence.
-    """
+    """Find the extracted entity most similar to the relevant span (by Jaccard), above the similarity bound."""
     max = 0
     index = 0
     for i, entity in enumerate(entity_list):
@@ -411,14 +368,8 @@ class Evaluator(EntityLinker):
 
   @staticmethod
   def Jaccard_Similarity(doc1:str, doc2:str) -> float:
-
       words_doc1 = set(doc1.lower().split())
       words_doc2 = set(doc2.lower().split())
-
       intersection = words_doc1.intersection(words_doc2)
-
       union = words_doc1.union(words_doc2)
-
-      # Calculate Jaccard similarity score
-      # using length of intersection set divided by length of union set
       return float(len(intersection)) / len(union)

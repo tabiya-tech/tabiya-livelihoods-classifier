@@ -1,23 +1,24 @@
-# %%
-print()
-# %%
 import sys
 import os
-import pandas as pd
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
-from inference.linker import EntityLinker
 
-# Add the parent and the current directory to the path
 PATH = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-cors = CORS(app, resources={r"/*": {"origins": "*"}})
+import pandas as pd
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from inference.linker import EntityLinker
+from app.server.common import add_common_middleware
 
-# Load occupations data
+app = FastAPI(title="Job Matching UI")
+
+add_common_middleware(app)
+
+app.mount("/static", StaticFiles(directory=os.path.join(PATH, "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(PATH, "templates"))
+
 try:
     dict_occupations = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname(__file__), "occupations_en.csv")), sep=",", header=0)
 except FileNotFoundError:
@@ -25,24 +26,20 @@ except FileNotFoundError:
     sys.exit(1)
 
 custom_pipeline = EntityLinker(entity_model='tabiya/bert-base-job-extract', similarity_model='all-MiniLM-L6-v2', output_format='all', k=10)
-# preferredLabel
-# code
 
-# %%
 
-@app.route('/', methods=['GET'])
-def index():
-    return render_template('client.html')
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("client.html", {"request": request})
 
-@app.route("/match", methods=["POST"])
-def match():
-    job_descr = request.form.get("job_descr")
+@app.post("/match")
+async def match(job_descr: str = Form(...)):
     if not job_descr:
-        return jsonify({"error": "job_descr is required"}), 400
+        return JSONResponse(content={"error": "job_descr is required"}, status_code=400)
 
     extracted = custom_pipeline(job_descr)
     if not extracted:
-        return jsonify({"error": "No entities extracted"}), 400
+        return JSONResponse(content={"error": "No entities extracted"}, status_code=400)
 
     for elem in extracted:
         if elem['type'] == "Occupation":
@@ -55,19 +52,17 @@ def match():
                     new_list.append({'code': occupation.esco_code, 'uri': conceptUri, 'label': preferredLabel})
             elem['retrieved'] = new_list
         elif elem['type'] == "Skill":
-            # get the list of skills from the list of retrieved objects
             new_list = [retrieved.skills for retrieved in elem['retrieved']]
             elem['retrieved'] = new_list
         elif elem['type'] == "Qualification":
-            # get the list of qualifications from the list of retrieved objects
             new_list = [f"{retrieved.qualification}: EQF level {int(retrieved.eqf_level)}" for retrieved in elem['retrieved']]
-            # remove duplicates
             new_list = list(dict.fromkeys(new_list))
             elem['retrieved'] = new_list
         else:
             elem['retrieved'] = ["Type not recognized"]
-    
-    return jsonify(extracted)
+
+    return extracted
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    import uvicorn
+    uvicorn.run("app.server.matching:app", host="0.0.0.0", port=5001, log_level="info")

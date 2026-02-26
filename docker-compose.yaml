@@ -1,0 +1,88 @@
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------
+  # NER API — entity extraction (port 5002)
+  # GPU-heavy: runs the transformer model
+  # ---------------------------------------------------------------
+  ner-api:
+    build: .
+    command: uvicorn app.server.ner_server:app --host 0.0.0.0 --port 5002
+    ports:
+      - "5002:5002"
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
+    volumes:
+      - model-cache:/root/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
+  # ---------------------------------------------------------------
+  # NEL API — entity linking to ESCO (port 5003)
+  # CPU-light: sentence embeddings + cosine similarity
+  # ---------------------------------------------------------------
+  nel-api:
+    build: .
+    command: uvicorn app.server.nel_server:app --host 0.0.0.0 --port 5003
+    ports:
+      - "5003:5003"
+    volumes:
+      - model-cache:/root/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ---------------------------------------------------------------
+  # Classify API — orchestrator (port 5001)
+  # Calls ner-api then nel-api, serves /v1/classify + batch endpoints
+  # ---------------------------------------------------------------
+  classify-api:
+    build: .
+    command: uvicorn app.server.classify_server:app --host 0.0.0.0 --port 5001
+    ports:
+      - "5001:5001"
+    environment:
+      - NER_API_URL=http://ner-api:5002
+      - NEL_API_URL=http://nel-api:5003
+    depends_on:
+      ner-api:
+        condition: service_healthy
+      nel-api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------
+  # Change Stream Worker — watches MongoDB, feeds classify-api
+  # No exposed port. Only runs if MONGODB_URI is set.
+  # ---------------------------------------------------------------
+  change-stream-worker:
+    build: .
+    command: python app/worker/change_stream_worker.py
+    environment:
+      - CLASSIFY_API_URL=http://classify-api:5001
+      - APPLICATION_MONGODB_URI=${APPLICATION_MONGODB_URI:-}
+      - APPLICATION_DATABASE_NAME=${APPLICATION_DATABASE_NAME:-horizon-scraper-dev}
+    depends_on:
+      classify-api:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - with-mongodb
+
+volumes:
+  model-cache:
