@@ -6,9 +6,7 @@ from torch.utils.data import DataLoader
 
 
 def df_to_dict(df):
-  """
-  Function that converts pandas dataframe to dictionary for HuggingFace Dataset. It also removes blank spaces from the start and end of titles.
-  """
+  """Convert a pandas DataFrame of title→esco_label mappings into a HuggingFace Dataset-compatible dict."""
   sentence_set = []
   for title, group in tqdm(df.groupby('title')):
     lista = group['esco_label'].tolist()
@@ -20,7 +18,6 @@ def df_to_dict(df):
     if lista not in sentence_set:
       sentence_set.append(lista)
 
-  # Create a dictionary with the required format for Hugging Face dataset
   dataset_dict = {
       "set": sentence_set
   }
@@ -28,13 +25,7 @@ def df_to_dict(df):
 
 
 def sbert_train(model_id: str, dataset_path : str,  output_path: str) -> None:
-    """
-    Perform Sentence transfromer training.
-    Args: 
-    model_id: sentence transformer id from HuggingFace
-    dataset_path: the local path that the dataset is stored
-    output_path: the path to store the model
-    """
+    """Fine-tune a sentence transformer on title↔ESCO label pairs."""
     df = pd.read_csv(dataset_path)
     dictionary = df_to_dict(df)
 
@@ -43,7 +34,7 @@ def sbert_train(model_id: str, dataset_path : str,  output_path: str) -> None:
 
     train_examples = []
     train_data = dataset_dict['train']['set']
-    #Create tuples from the hahu title and esco preferred and alternative labels
+
     for i in range(len(train_data)):
       example = train_data[i]
       for j in range(len(example)):

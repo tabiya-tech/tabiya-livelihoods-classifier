@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="{{ url_for('static', filename='client.css') }}">
+<link rel="stylesheet" href="/static/client.css">
 <base target="_blank">
-<script src="{{ url_for('static', filename='jquery-3.7.1.min.js') }}"></script>
-<script src="{{ url_for('static', filename='jquery-ui-1.13.2.min.js') }}"></script>
+<script src="/static/jquery-3.7.1.min.js"></script>
+<script src="/static/jquery-ui-1.13.2.min.js"></script>
 <script>
 	var copy_html = "";
 	$(document).ready(function() {
@@ -115,7 +115,7 @@
 
 <div>
 	<button onclick="send_req($('#job_text').val());">Analyze Job</button>
-	<img id="waitgif" src="{{ url_for('static', filename='spinner.gif') }}" class="waiting" style="display:none;"/>
+	<img id="waitgif" src="/static/spinner.gif" class="waiting" style="display:none;"/>
 </div>
 
 <div class="result">

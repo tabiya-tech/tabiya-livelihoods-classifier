@@ -1,10 +1,8 @@
 from dotenv import load_dotenv
 import os, sys
 
-# Load environment variables from the .env file
 load_dotenv(verbose=True)
 
-# Add the parent directory to the system path
 self_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 sys.path.append(os.path.join(self_path, '../'))
 
@@ -19,9 +17,8 @@ from seqeval.scheme import IOB2
 from util.utilfunctions import Config
 
 
-# Hyperparameters
-config = Config(os.path.join(self_path, 'config.json')) # reads all hyperparameters and sets them as attributes on the config object
-MODEL_NAME = config.model_name #tested on roberta-base, jjzha/esco-xlm-roberta-large and jjzha/jobbert-base-cased
+config = Config(os.path.join(self_path, 'config.json'))
+MODEL_NAME = config.model_name
 USE_CRF = config.crf
 dataset_path = config.dataset_path
 access_token = os.getenv('HF_TOKEN')
@@ -38,28 +35,27 @@ EPOCHS = config.epochs
 WEIGHT_DACAY = config.weight_decay
 NUMBER_OF_TAGS = len(label_list)
 
-#Preprocess
-
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, model_max_length=MODEL_MAX_LENGTH, add_prefix_space=True)
-#tokenize method for fast tokenizers. If CRF decoder is used, we levarage the special mask argument of huggingface to pass it as the mask in the CRF module.
+
+# When CRF decoder is used, the special mask argument is leveraged to pass it as the mask in the CRF module
 def tokenize_and_align_labels(examples):
     tokenized_inputs = tokenizer(examples["tokens"], truncation=True, is_split_into_words=True)
     labels = []
     special_masks = []
     for i, label in enumerate(examples["ner_tags"]):
-        word_ids = tokenized_inputs.word_ids(batch_index=i)  # Map tokens to their respective word.
+        word_ids = tokenized_inputs.word_ids(batch_index=i)
         previous_word_idx = None
         special_mask = []
         label_ids = []
-        for word_idx in word_ids:  # Set the special tokens to -100.
+        for word_idx in word_ids:
             if word_idx is None:
-              if USE_CRF: #Set the [CLS] and [SEP] tokens to the 11th label
+              if USE_CRF:
                 special_mask.append(0)
                 label_ids.append(11)
               else:
                 label_ids.append(-100)
             elif word_idx != previous_word_idx:
-              label_ids.append(label[word_idx])  # Only label the first token of a given word.
+              label_ids.append(label[word_idx])
               if USE_CRF:
                 special_mask.append(0)
             else:
@@ -81,14 +77,12 @@ def tokenize_and_align_labels(examples):
 tokenized_custom_dataset = custom_dataset.map(tokenize_and_align_labels, batched=True)
 
 
-#Create the datacollator. If using the CRF we set the padding mode to 'max_length' and the padding token to the 11th index.
 if USE_CRF:
   data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer,padding='max_length', max_length=MODEL_MAX_LENGTH, label_pad_token_id = 11)
 else:
   data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
 
 
-#Evaluate
 seqeval = evaluate.load("seqeval")
 
 def compute_metrics(p):
@@ -99,14 +93,14 @@ def compute_metrics(p):
     predictions, labels = p
     predictions = np.argmax(predictions, axis=2)
     true_predictions = [
-        [label_list[p] for (p, l) in zip(prediction, label) if l != number] #
+        [label_list[p] for (p, l) in zip(prediction, label) if l != number]
         for prediction, label in zip(predictions, labels)
     ]
     true_labels = [
-        [label_list[l] for (p, l) in zip(prediction, label) if l != number] #
+        [label_list[l] for (p, l) in zip(prediction, label) if l != number]
         for prediction, label in zip(predictions, labels)
     ]
-    #Print the loose evaluation of NERevaluate
+
     evaluator = Evaluator(true_labels, true_predictions, tags=['Skill', 'Qualification', 'Domain', 'Experience', 'Occupation'], loader="list")
     results2, results_by_tag = evaluator.evaluate()
     print(classification_report(true_labels, true_predictions, scheme=IOB2))
@@ -123,7 +117,6 @@ def compute_metrics(p):
     }
 
 if USE_CRF:
-  #bert: BertCrfForNer,  roberta: RoBertaCrfForNer
   model = BertCrfForNer.from_pretrained(MODEL_NAME, num_labels=NUMBER_OF_TAGS)
 else:
   model = AutoModelForTokenClassification.from_pretrained(

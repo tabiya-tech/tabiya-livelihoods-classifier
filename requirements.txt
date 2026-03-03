@@ -1,0 +1,17 @@
+nltk>=3.8.1
+numpy>=1.24.3
+pandas>=2.0.3
+sentence-transformers>=2.2.2
+torch>=2.1.2
+tqdm>=4.65.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+httpx>=0.27.0
+jinja2>=3.1.4
+python-multipart>=0.0.12
+python-dotenv>=1.0.1
+transformers>=4.32.1
+requests>=2.31.0
+motor>=3.3,<3.6
+pymongo>=4.6,<4.10
+dnspython>=2.6.0
