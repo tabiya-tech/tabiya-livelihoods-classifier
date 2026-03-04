@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+.git
+.env
+*.egg-info
+.venv
+venv
+benchmark_notebooks
+docs
+*.ipynb
