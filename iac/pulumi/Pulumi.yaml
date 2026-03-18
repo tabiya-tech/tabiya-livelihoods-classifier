@@ -1,0 +1,25 @@
+name: tabiya-classifier
+runtime: nodejs
+description: Tabiya Livelihoods Classifier — GCP infrastructure (Pulumi TypeScript)
+
+config:
+  tabiya-classifier:project:
+    description: GCP project ID
+  tabiya-classifier:region:
+    default: us-central1
+    description: GCP region for all resources
+  tabiya-classifier:nerImage:
+    description: NER service Docker image (e.g. us-central1-docker.pkg.dev/PROJECT/tabiya-classifier/ner:SHA)
+  tabiya-classifier:nelImage:
+    description: NEL service Docker image
+  tabiya-classifier:classifyImage:
+    description: Classify service Docker image
+  tabiya-classifier:mongodbUri:
+    description: MongoDB Atlas connection URI (secret)
+    secret: true
+  tabiya-classifier:mongodbDbName:
+    default: tabiya-classifier
+    description: MongoDB database name
+  tabiya-classifier:hfToken:
+    description: HuggingFace access token (secret)
+    secret: true

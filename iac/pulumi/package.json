@@ -1,0 +1,17 @@
+{
+  "name": "tabiya-classifier-iac",
+  "version": "0.1.0",
+  "description": "Pulumi IaC for Tabiya Livelihoods Classifier (GCP)",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@pulumi/gcp": "^7.29.0",
+    "@pulumi/pulumi": "^3.114.0"
+  }
+}
