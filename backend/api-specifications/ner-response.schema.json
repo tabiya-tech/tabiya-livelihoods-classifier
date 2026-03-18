@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ner-response",
+  "title": "NER Response",
+  "type": "object",
+  "required": ["entities", "metadata"],
+  "properties": {
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["entity_type", "surface_form", "span"],
+        "properties": {
+          "entity_type": {
+            "type": "string",
+            "enum": ["occupation", "skill", "qualification", "experience", "domain"]
+          },
+          "surface_form": {
+            "type": "string"
+          },
+          "span": {
+            "type": "object",
+            "required": ["start", "end"],
+            "properties": {
+              "start": { "type": "integer", "minimum": 0 },
+              "end": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["model_name", "entity_count", "processing_time_ms"],
+      "properties": {
+        "model_name": { "type": "string" },
+        "entity_count": { "type": "integer", "minimum": 0 },
+        "processing_time_ms": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

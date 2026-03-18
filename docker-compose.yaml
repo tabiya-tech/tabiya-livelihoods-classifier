@@ -1,16 +1,20 @@
+version: "3.9"
+
 services:
 
   # NER API — entity extraction (port 5002)
-
   ner-api:
-    build: .
-    command: python app/server/ner_server.py
+    build:
+      context: .
+      dockerfile: backend/ner/Dockerfile
     ports:
       - "5002:5002"
     environment:
-      - HF_TOKEN=${HF_TOKEN:-}
+      - NER_MODEL=${NER_MODEL:-tabiya/roberta-base-job-ner}
+      - HF_TOKEN=${HF_TOKEN}
+      - MAX_TEXT_LENGTH=${MAX_TEXT_LENGTH:-50000}
     volumes:
-      - model-cache:/root/.cache
+      - model-cache:/root/.cache/huggingface
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/v1/health')"]
@@ -19,18 +23,19 @@ services:
       retries: 10
       start_period: 300s
 
-
   # NEL API — entity linking to ESCO (port 5003)
-
   nel-api:
-    build: .
-    command: python app/server/nel_server.py
+    build:
+      context: .
+      dockerfile: backend/nel/Dockerfile
     ports:
       - "5003:5003"
     environment:
-      - HF_TOKEN=${HF_TOKEN:-}
+      - LINKER_MODEL=${LINKER_MODEL:-all-MiniLM-L6-v2}
+      - NEL_FILES_PATH=/app/nel/nel/files
     volumes:
-      - model-cache:/root/.cache
+      - model-cache:/root/.cache/huggingface
+      - ./inference/files:/app/nel/nel/files:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v1/health')"]
@@ -39,49 +44,45 @@ services:
       retries: 3
       start_period: 60s
 
- 
   # Classify API — orchestrator (port 5001)
   # Calls ner-api then nel-api, serves /v1/classify + batch endpoints
- 
   classify-api:
-    build: .
-    command: python app/server/classify_server.py
+    build:
+      context: .
+      dockerfile: backend/classify/Dockerfile
     ports:
       - "5001:5001"
     environment:
       - NER_API_URL=http://ner-api:5002
       - NEL_API_URL=http://nel-api:5003
+      - CLASSIFIER_VERSION=${CLASSIFIER_VERSION:-1.0.0}
+      - MAX_TEXT_LENGTH=${MAX_TEXT_LENGTH:-50000}
+      - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-500}
+      - REDIS_URL=redis://redis:6379
+      - APPLICATION_MONGODB_URI=${APPLICATION_MONGODB_URI:-}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-tabiya-classifier}
     depends_on:
       ner-api:
         condition: service_healthy
       nel-api:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/v1/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
-  
-  # Change Stream Worker — watches MongoDB, feeds classify-api
-  # Only runs if MONGODB_URI is set. Activate with:
-  #   docker compose --profile with-mongodb up
-
-  change-stream-worker:
-    build: .
-    command: python app/worker/change_stream_worker.py
-    environment:
-      - CLASSIFY_API_URL=http://classify-api:5001
-      - APPLICATION_MONGODB_URI=${APPLICATION_MONGODB_URI:-}
-      - APPLICATION_DATABASE_NAME=${APPLICATION_DATABASE_NAME:-horizon-scraper-dev}
-    depends_on:
-      classify-api:
-        condition: service_healthy
+  # Redis — batch job state store (replaces in-memory dict)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     restart: unless-stopped
-    profiles:
-      - with-mongodb
 
 volumes:
   model-cache:
