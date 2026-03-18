@@ -1,0 +1,76 @@
+name: Deploy Backend (Pulumi)
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: "Pulumi stack to deploy"
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, prod]
+      ner_sha:
+        description: "NER image git SHA (leave blank for latest)"
+        required: false
+      nel_sha:
+        description: "NEL image git SHA (leave blank for latest)"
+        required: false
+      classify_sha:
+        description: "Classify image git SHA (leave blank for latest)"
+        required: false
+
+env:
+  REGISTRY: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/tabiya-classifier
+
+jobs:
+  deploy:
+    name: pulumi up (${{ inputs.stack }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.stack }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: iac/pulumi/package.json
+
+      - name: Install Pulumi deps
+        working-directory: iac/pulumi
+        run: npm ci
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Resolve image SHAs
+        id: images
+        run: |
+          NER_SHA="${{ inputs.ner_sha || github.sha }}"
+          NEL_SHA="${{ inputs.nel_sha || github.sha }}"
+          CLASSIFY_SHA="${{ inputs.classify_sha || github.sha }}"
+          echo "ner=${{ env.REGISTRY }}/ner:${NER_SHA}" >> $GITHUB_OUTPUT
+          echo "nel=${{ env.REGISTRY }}/nel:${NEL_SHA}" >> $GITHUB_OUTPUT
+          echo "classify=${{ env.REGISTRY }}/classify:${CLASSIFY_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Pulumi up
+        uses: pulumi/actions@v5
+        with:
+          command: up
+          stack-name: ${{ inputs.stack }}
+          work-dir: iac/pulumi
+          config-map: |
+            tabiya-classifier:nerImage=${{ steps.images.outputs.ner }}
+            tabiya-classifier:nelImage=${{ steps.images.outputs.nel }}
+            tabiya-classifier:classifyImage=${{ steps.images.outputs.classify }}
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}

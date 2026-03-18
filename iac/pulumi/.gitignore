@@ -1,0 +1,6 @@
+node_modules/
+bin/
+*.js
+*.js.map
+*.d.ts
+.pulumi/
