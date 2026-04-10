@@ -13,7 +13,7 @@ Usage (called by CI before pulumi up):
 What it does:
   1. Fetches "env-vars" from GCP Secret Manager → writes iac/backend/.env.{stack}
      (shared by all stacks that need env vars at pulumi up time)
-  2. Fetches one secret per stack ("stack-config-dns", "stack-config-auth", etc.)
+  2. Fetches one secret per stack ("stack-config-enable-services", "stack-config-dns", etc.)
   3. Validates each against its template in iac/templates/
   4. Merges image URIs into the backend stack config
   5. Writes Pulumi.{stack}.yaml into each stack's directory
@@ -25,6 +25,7 @@ import argparse
 import os
 import re
 import sys
+from io import StringIO
 
 import yaml
 from dotenv import dotenv_values
@@ -37,11 +38,12 @@ TEMPLATES_DIR = os.path.join(IAC_DIR, "templates")
 
 # Logical stack name → (directory, template file, Pulumi project name)
 STACKS = {
-    "dns":     ("iac/dns",     "stack_config.dns.template.yaml",     "tabiya-classifier-dns"),
-    "auth":    ("iac/auth",    "stack_config.auth.template.yaml",    "tabiya-classifier-auth"),
-    "backend": ("iac/backend", "stack_config.backend.template.yaml", "tabiya-classifier-backend"),
-    "common":  ("iac/common",  "stack_config.common.template.yaml",  "tabiya-classifier-common"),
-    "aws-ns":  ("iac/aws-ns",  "stack_config.aws-ns.template.yaml",  "tabiya-classifier-aws-ns"),
+    "enable-services": ("iac/enable-services", "stack_config.enable-services.template.yaml", "tabiya-classifier-enable-services"),
+    "dns":             ("iac/dns",              "stack_config.dns.template.yaml",              "tabiya-classifier-dns"),
+    "auth":            ("iac/auth",             "stack_config.auth.template.yaml",             "tabiya-classifier-auth"),
+    "backend":         ("iac/backend",          "stack_config.backend.template.yaml",          "tabiya-classifier-backend"),
+    "common":          ("iac/common",           "stack_config.common.template.yaml",           "tabiya-classifier-common"),
+    "aws-ns":          ("iac/aws-ns",           "stack_config.aws-ns.template.yaml",           "tabiya-classifier-aws-ns"),
 }
 
 ENV_VARS_SECRET = "env-vars"
@@ -96,7 +98,7 @@ def _validate_against_template(template: dict, actual: dict, parent: str = "root
 def _validate_env_vars(env_content: str) -> dict:
     template_path = os.path.join(TEMPLATES_DIR, "env.template")
     template = {k: v for k, v in dotenv_values(template_path).items() if not k.startswith("#")}
-    actual = dict(dotenv_values(stream=env_content))
+    actual = dict(dotenv_values(stream=StringIO(env_content)))
     if not _validate_against_template(template, actual):
         print("error: env-vars secret does not satisfy the template. Aborting.", file=sys.stderr)
         sys.exit(1)
@@ -163,7 +165,7 @@ def _main():
         "--stacks",
         default="all",
         help="Comma-separated logical stacks to prepare (default: all). "
-             "Options: dns,auth,backend,common,aws-ns",
+             "Options: enable-services,dns,auth,backend,common,aws-ns",
     )
     args = parser.parse_args()
 

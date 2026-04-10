@@ -1,0 +1,7 @@
+# Stack config template for the enable-services stack.
+# Store the actual values in GCP Secret Manager under "stack-config-enable-services".
+# scripts/prepare.py fetches this and writes iac/enable-services/Pulumi.{stack}.yaml.
+
+config:
+  # GCP project ID for this environment
+  tabiya-classifier-enable-services:project: <project-id>

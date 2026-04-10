@@ -134,6 +134,7 @@ jobs:
         with:
           name: pulumi-configs-${{ needs.resolve.outputs.stack }}
           path: |
+            iac/enable-services/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
             iac/dns/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
             iac/auth/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
             iac/backend/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
@@ -142,10 +143,49 @@ jobs:
             iac/aws-ns/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
           retention-days: 1
 
+  # ── Enable APIs (must run before all other stacks) ────────────────────────
+  deploy-enable-services:
+    name: Deploy enable-services
+    needs: [resolve, prepare]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.stack }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download prepared configs
+        uses: actions/download-artifact@v4
+        with:
+          name: pulumi-configs-${{ needs.resolve.outputs.stack }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Install Pulumi deps
+        working-directory: iac/enable-services
+        run: pip install -r requirements.txt
+
+      - name: pulumi up — enable-services
+        working-directory: iac/enable-services
+        run: pulumi up --stack "tabiya-tech/tabiya-classifier-enable-services/${{ needs.resolve.outputs.stack }}" --yes --color always
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
   # ── DNS ───────────────────────────────────────────────────────────────────
   deploy-dns:
     name: Deploy dns
-    needs: [resolve, prepare]
+    needs: [resolve, deploy-enable-services]
     runs-on: ubuntu-latest
     environment: ${{ needs.resolve.outputs.stack }}
     permissions:
@@ -177,7 +217,7 @@ jobs:
 
       - name: pulumi up — dns
         working-directory: iac/dns
-        run: pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
+        run: pulumi up --stack "tabiya-tech/tabiya-classifier-dns/${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -216,7 +256,7 @@ jobs:
 
       - name: pulumi up — auth
         working-directory: iac/auth
-        run: pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
+        run: pulumi up --stack "tabiya-tech/tabiya-classifier-auth/${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -259,7 +299,7 @@ jobs:
           set -a
           source ".env.${{ needs.resolve.outputs.stack }}"
           set +a
-          pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
+          pulumi up --stack "tabiya-tech/tabiya-classifier-backend/${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -298,7 +338,7 @@ jobs:
 
       - name: pulumi up — common
         working-directory: iac/common
-        run: pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
+        run: pulumi up --stack "tabiya-tech/tabiya-classifier-common/${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -338,6 +378,6 @@ jobs:
 
       - name: pulumi up — aws-ns
         working-directory: iac/aws-ns
-        run: pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
+        run: pulumi up --stack "tabiya-tech/tabiya-classifier-aws-ns/${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
