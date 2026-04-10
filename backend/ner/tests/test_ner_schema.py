@@ -35,7 +35,10 @@ def client():
         },
     ]
 
-    with patch("ner.main.ner_model", mock_model):
+    with patch("ner.model.NERModel", return_value=mock_model):
+        import importlib
+        import ner.main
+        importlib.reload(ner.main)
         from ner.main import app
         return TestClient(app)
 
