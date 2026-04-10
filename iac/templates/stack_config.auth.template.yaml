@@ -1,0 +1,14 @@
+# Stack config template for the Auth stack.
+# Store the actual values in GCP Secret Manager under "stack-config-auth".
+# scripts/prepare.py fetches this and writes iac/auth/Pulumi.{stack}.yaml.
+
+config:
+  # GCP project ID for this environment
+  tabiya-classifier-auth:project: <project-id>
+
+  # Stack name — used to identify the environment
+  tabiya-classifier-auth:env: <dev|staging|prod>
+
+  # Frontend domain — added to Firebase authorized domains list
+  # e.g. "dev.classifier.tabiya.tech"
+  tabiya-classifier-auth:frontendDomain: <env>.classifier.tabiya.tech

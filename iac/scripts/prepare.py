@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """prepare.py — fetch environment config from GCP Secret Manager and write
-local files that pulumi up needs.
+local files that pulumi up needs for each stack.
 
 Usage (called by CI before pulumi up):
     python iac/scripts/prepare.py \\
@@ -11,33 +11,40 @@ Usage (called by CI before pulumi up):
         --classify-image us-central1-docker.pkg.dev/.../classify:SHA
 
 What it does:
-  1. Fetches the "env-vars" secret from GCP Secret Manager in the given project.
-  2. Fetches the "stack-config" secret from GCP Secret Manager in the given project.
-  3. Validates both against their templates in iac/templates/.
-  4. Merges the image URIs into the stack config.
-  5. Writes iac/pulumi/.env.{stack}          (git-ignored)
-  6. Writes iac/pulumi/Pulumi.{stack}.yaml   (git-ignored)
+  1. Fetches "env-vars" from GCP Secret Manager → writes iac/backend/.env.{stack}
+     (shared by all stacks that need env vars at pulumi up time)
+  2. Fetches one secret per stack ("stack-config-dns", "stack-config-auth", etc.)
+  3. Validates each against its template in iac/templates/
+  4. Merges image URIs into the backend stack config
+  5. Writes Pulumi.{stack}.yaml into each stack's directory
 
-The GCP project must already be authenticated (via GOOGLE_APPLICATION_CREDENTIALS
-or gcloud auth) before this script runs.
+GCP project must be authenticated before running.
 """
 
 import argparse
 import os
-import sys
 import re
+import sys
 
 import yaml
 from dotenv import dotenv_values
 from google.cloud import secretmanager
 from google.api_core.exceptions import NotFound
 
-IAC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+IAC_DIR = os.path.join(REPO_ROOT, "iac")
 TEMPLATES_DIR = os.path.join(IAC_DIR, "templates")
-PULUMI_DIR = os.path.join(IAC_DIR, "pulumi")
 
-ENV_VARS_SECRET_NAME = "env-vars"
-STACK_CONFIG_SECRET_NAME = "stack-config"
+# Logical stack name → (directory, template file, Pulumi project name)
+STACKS = {
+    "dns":     ("iac/dns",     "stack_config.dns.template.yaml",     "tabiya-classifier-dns"),
+    "auth":    ("iac/auth",    "stack_config.auth.template.yaml",    "tabiya-classifier-auth"),
+    "backend": ("iac/backend", "stack_config.backend.template.yaml", "tabiya-classifier-backend"),
+    "common":  ("iac/common",  "stack_config.common.template.yaml",  "tabiya-classifier-common"),
+    "aws-ns":  ("iac/aws-ns",  "stack_config.aws-ns.template.yaml",  "tabiya-classifier-aws-ns"),
+}
+
+ENV_VARS_SECRET = "env-vars"
 
 
 # ── Secret Manager ─────────────────────────────────────────────────────────
@@ -88,49 +95,53 @@ def _validate_against_template(template: dict, actual: dict, parent: str = "root
 
 def _validate_env_vars(env_content: str) -> dict:
     template_path = os.path.join(TEMPLATES_DIR, "env.template")
-    template = {
-        k: v for k, v in dotenv_values(template_path).items()
-        if not k.startswith("#")
-    }
-    actual = {
-        k: v for k, v in dotenv_values(stream=env_content).items()
-    }
+    template = {k: v for k, v in dotenv_values(template_path).items() if not k.startswith("#")}
+    actual = dict(dotenv_values(stream=env_content))
     if not _validate_against_template(template, actual):
         print("error: env-vars secret does not satisfy the template. Aborting.", file=sys.stderr)
         sys.exit(1)
-    print("info: env-vars validated against template.")
+    print("info: env-vars validated.")
     return actual
 
 
-def _validate_stack_config(config_content: str) -> dict:
-    template_path = os.path.join(TEMPLATES_DIR, "stack_config.template.yaml")
+def _validate_stack_config(logical_stack: str, config_content: str) -> dict:
+    _, template_file, _ = STACKS[logical_stack]
+    template_path = os.path.join(TEMPLATES_DIR, template_file)
     template = yaml.safe_load(open(template_path))
     actual = yaml.safe_load(config_content)
     if not _validate_against_template(template, actual):
-        print("error: stack-config secret does not satisfy the template. Aborting.", file=sys.stderr)
+        print(f"error: stack-config-{logical_stack} does not satisfy the template. Aborting.", file=sys.stderr)
         sys.exit(1)
-    print("info: stack-config validated against template.")
+    print(f"info: stack-config-{logical_stack} validated.")
     return actual
 
 
 # ── File writers ───────────────────────────────────────────────────────────
 
-def _write_env_file(stack: str, env_content: str) -> str:
-    path = os.path.join(PULUMI_DIR, f".env.{stack}")
+def _write_env_file(stack: str, env_content: str):
+    # Written into backend/ — sourced by all stacks that need env vars
+    path = os.path.join(REPO_ROOT, "iac/backend", f".env.{stack}")
     with open(path, "w", encoding="utf-8") as f:
         f.write(env_content)
     print(f"info: wrote {path}")
-    return path
 
 
-def _write_pulumi_yaml(stack: str, config: dict, ner_image: str, nel_image: str, classify_image: str):
-    # Merge image URIs into the config block — these come from CI, not Secret Manager
-    config.setdefault("config", {})
-    config["config"]["tabiya-classifier:nerImage"] = ner_image
-    config["config"]["tabiya-classifier:nelImage"] = nel_image
-    config["config"]["tabiya-classifier:classifyImage"] = classify_image
+def _write_pulumi_yaml(
+    logical_stack: str,
+    stack: str,
+    config: dict,
+    ner_image: str = "",
+    nel_image: str = "",
+    classify_image: str = "",
+):
+    stack_dir, _, _ = STACKS[logical_stack]
+    if logical_stack == "backend":
+        config.setdefault("config", {})
+        config["config"]["tabiya-classifier-backend:nerImage"] = ner_image
+        config["config"]["tabiya-classifier-backend:nelImage"] = nel_image
+        config["config"]["tabiya-classifier-backend:classifyImage"] = classify_image
 
-    path = os.path.join(PULUMI_DIR, f"Pulumi.{stack}.yaml")
+    path = os.path.join(REPO_ROOT, stack_dir, f"Pulumi.{stack}.yaml")
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
     print(f"info: wrote {path}")
@@ -139,29 +150,52 @@ def _write_pulumi_yaml(stack: str, config: dict, ner_image: str, nel_image: str,
 # ── Entry point ────────────────────────────────────────────────────────────
 
 def _main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--stack", required=True, help="Pulumi stack name (e.g. dev, staging, prod)")
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--stack", required=True, help="Pulumi stack name (dev / staging / prod)")
     parser.add_argument("--project", required=True, help="GCP project ID for this environment")
     parser.add_argument("--ner-image", required=True, help="NER Docker image URI")
     parser.add_argument("--nel-image", required=True, help="NEL Docker image URI")
     parser.add_argument("--classify-image", required=True, help="Classify Docker image URI")
+    parser.add_argument(
+        "--stacks",
+        default="all",
+        help="Comma-separated logical stacks to prepare (default: all). "
+             "Options: dns,auth,backend,common,aws-ns",
+    )
     args = parser.parse_args()
 
+    logical_stacks = list(STACKS.keys()) if args.stacks == "all" else args.stacks.split(",")
+    for s in logical_stacks:
+        if s not in STACKS:
+            print(f"error: unknown logical stack '{s}'. Valid options: {list(STACKS)}", file=sys.stderr)
+            sys.exit(1)
+
     print(f"info: preparing stack '{args.stack}' from project '{args.project}'")
+    print(f"info: logical stacks: {logical_stacks}")
 
-    # 1. Fetch secrets
-    env_content = _fetch_secret(args.project, ENV_VARS_SECRET_NAME)
-    stack_config_content = _fetch_secret(args.project, STACK_CONFIG_SECRET_NAME)
-
-    # 2. Validate
+    # 1. Fetch and write env-vars (written once, shared by all stacks)
+    env_content = _fetch_secret(args.project, ENV_VARS_SECRET)
     _validate_env_vars(env_content)
-    stack_config = _validate_stack_config(stack_config_content)
-
-    # 3. Write files
     _write_env_file(args.stack, env_content)
-    _write_pulumi_yaml(args.stack, stack_config, args.ner_image, args.nel_image, args.classify_image)
 
-    print(f"info: preparation complete. Run: cd iac/pulumi && pulumi up --stack {args.stack}")
+    # 2. Fetch, validate, and write each stack's Pulumi config
+    for logical_stack in logical_stacks:
+        secret_id = f"stack-config-{logical_stack}"
+        config_content = _fetch_secret(args.project, secret_id)
+        config = _validate_stack_config(logical_stack, config_content)
+        _write_pulumi_yaml(
+            logical_stack,
+            args.stack,
+            config,
+            ner_image=args.ner_image,
+            nel_image=args.nel_image,
+            classify_image=args.classify_image,
+        )
+
+    print(f"info: preparation complete for stack '{args.stack}'.")
 
 
 if __name__ == "__main__":

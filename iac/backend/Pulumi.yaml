@@ -1,0 +1,3 @@
+name: tabiya-classifier-backend
+runtime: python
+description: Cloud Run services, API Gateway, and supporting infrastructure for Tabiya Livelihoods Classifier

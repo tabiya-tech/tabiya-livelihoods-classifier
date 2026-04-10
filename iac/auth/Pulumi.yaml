@@ -1,0 +1,3 @@
+name: tabiya-classifier-auth
+runtime: python
+description: Firebase Identity Platform setup for Tabiya Livelihoods Classifier

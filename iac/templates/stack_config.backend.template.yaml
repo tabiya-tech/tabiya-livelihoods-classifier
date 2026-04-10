@@ -1,0 +1,29 @@
+# Stack config template for the Backend stack.
+# Store the actual values in GCP Secret Manager under "stack-config-backend".
+# scripts/prepare.py fetches this and writes iac/backend/Pulumi.{stack}.yaml.
+# Image URIs are injected by CI at deploy time (not stored in Secret Manager).
+
+config:
+  # GCP project ID for this environment
+  tabiya-classifier-backend:project: <project-id>
+
+  # GCP region for all resources
+  tabiya-classifier-backend:region: <region>
+
+  # Stack name — used for bucket naming and environment identification
+  tabiya-classifier-backend:env: <dev|staging|prod>
+
+  # MongoDB database name (the URI comes from the env-vars secret)
+  tabiya-classifier-backend:mongodbDbName: <db-name>
+
+  # Firebase project ID for dashboard Bearer token verification at the API Gateway
+  tabiya-classifier-backend:firebaseProjectId: <firebase-project-id>
+
+  # Frontend subdomain — used as the OpenAPI host field in the API Gateway spec
+  # e.g. "dev.classifier.tabiya.tech"
+  tabiya-classifier-backend:envSubdomain: <env>.classifier.tabiya.tech
+
+  # Docker image URIs — injected by CI; set as placeholders here
+  tabiya-classifier-backend:nerImage: <image-uri>
+  tabiya-classifier-backend:nelImage: <image-uri>
+  tabiya-classifier-backend:classifyImage: <image-uri>

@@ -1,0 +1,182 @@
+"""Global HTTPS load balancer with path-based routing.
+
+Routes:
+  /api/*   → API Gateway (via Serverless NEG)
+  /*       → app GCS bucket (React dashboard)
+  /docs/*  → docs GCS bucket
+
+SSL: GCP-managed certificate for the frontend domain.
+HTTP → HTTPS redirect on port 80.
+"""
+
+import pulumi
+import pulumi_gcp as gcp
+
+
+def create_load_balancer(
+    project: str,
+    region: str,
+    frontend_domain: str,
+    api_gateway_id: pulumi.Output,
+    app_bucket_name: pulumi.Output,
+    docs_bucket_name: pulumi.Output,
+):
+    # ── Static IP ──────────────────────────────────────────────────────────
+    ip = gcp.compute.GlobalAddress(
+        "classifier-ip",
+        project=project,
+        name="classifier-lb-ip",
+        address_type="EXTERNAL",
+    )
+
+    # ── Backend buckets (CDN-enabled) ──────────────────────────────────────
+    app_backend = gcp.compute.BackendBucket(
+        "app-backend-bucket",
+        project=project,
+        name="classifier-app-backend",
+        bucket_name=app_bucket_name,
+        enable_cdn=True,
+        cdn_policy=gcp.compute.BackendBucketCdnPolicyArgs(
+            cache_mode="CACHE_ALL_STATIC",
+            default_ttl=3600,
+            max_ttl=86400,
+        ),
+    )
+
+    docs_backend = gcp.compute.BackendBucket(
+        "docs-backend-bucket",
+        project=project,
+        name="classifier-docs-backend",
+        bucket_name=docs_bucket_name,
+        enable_cdn=True,
+        cdn_policy=gcp.compute.BackendBucketCdnPolicyArgs(
+            cache_mode="CACHE_ALL_STATIC",
+            default_ttl=3600,
+            max_ttl=86400,
+        ),
+    )
+
+    # ── API Gateway backend (Serverless NEG) ───────────────────────────────
+    api_neg = gcp.compute.RegionNetworkEndpointGroup(
+        "api-gateway-neg",
+        project=project,
+        region=region,
+        name="classifier-api-gateway-neg",
+        network_endpoint_type="SERVERLESS",
+        app_engine=None,
+        cloud_run=None,
+        serverless_deployment=gcp.compute.RegionNetworkEndpointGroupServerlessDeploymentArgs(
+            platform="apigateway.googleapis.com",
+            resource=api_gateway_id,
+        ),
+    )
+
+    api_backend = gcp.compute.BackendService(
+        "api-gateway-backend",
+        project=project,
+        name="classifier-api-gateway-backend",
+        protocol="HTTP",
+        load_balancing_scheme="EXTERNAL_MANAGED",
+        enable_cdn=False,
+        backends=[gcp.compute.BackendServiceBackendArgs(group=api_neg.self_link)],
+        log_config=gcp.compute.BackendServiceLogConfigArgs(enable=True),
+    )
+
+    # ── URL map (HTTPS) ────────────────────────────────────────────────────
+    url_map = gcp.compute.URLMap(
+        "classifier-url-map",
+        project=project,
+        name="classifier-lb-url-map",
+        default_service=app_backend.self_link,
+        host_rules=[
+            gcp.compute.URLMapHostRuleArgs(
+                hosts=[frontend_domain],
+                path_matcher="all-paths",
+            )
+        ],
+        path_matchers=[
+            gcp.compute.URLMapPathMatcherArgs(
+                name="all-paths",
+                default_service=app_backend.self_link,
+                path_rules=[
+                    gcp.compute.URLMapPathMatcherPathRuleArgs(
+                        paths=["/api/*"],
+                        service=api_backend.self_link,
+                        route_action=gcp.compute.URLMapPathMatcherPathRuleRouteActionArgs(
+                            url_rewrite=gcp.compute.URLMapPathMatcherPathRuleRouteActionUrlRewriteArgs(
+                                path_prefix_rewrite="/",
+                            )
+                        ),
+                    ),
+                    gcp.compute.URLMapPathMatcherPathRuleArgs(
+                        paths=["/docs", "/docs/*"],
+                        service=docs_backend.self_link,
+                        route_action=gcp.compute.URLMapPathMatcherPathRuleRouteActionArgs(
+                            url_rewrite=gcp.compute.URLMapPathMatcherPathRuleRouteActionUrlRewriteArgs(
+                                path_prefix_rewrite="/",
+                            )
+                        ),
+                    ),
+                ],
+            )
+        ],
+    )
+
+    # ── SSL certificate ────────────────────────────────────────────────────
+    ssl_cert = gcp.compute.ManagedSslCertificate(
+        "classifier-ssl-cert",
+        project=project,
+        name="classifier-ssl-cert",
+        managed=gcp.compute.ManagedSslCertificateManagedArgs(
+            domains=[f"{frontend_domain}."],
+        ),
+    )
+
+    # ── HTTPS proxy + forwarding rule ──────────────────────────────────────
+    https_proxy = gcp.compute.TargetHttpsProxy(
+        "classifier-https-proxy",
+        project=project,
+        name="classifier-https-proxy",
+        url_map=url_map.self_link,
+        ssl_certificates=[ssl_cert.self_link],
+    )
+
+    gcp.compute.GlobalForwardingRule(
+        "classifier-https-rule",
+        project=project,
+        name="classifier-https-fw",
+        target=https_proxy.self_link,
+        ip_address=ip.address,
+        port_range="443",
+        load_balancing_scheme="EXTERNAL_MANAGED",
+    )
+
+    # ── HTTP → HTTPS redirect ──────────────────────────────────────────────
+    redirect_map = gcp.compute.URLMap(
+        "classifier-redirect-map",
+        project=project,
+        name="classifier-http-redirect",
+        default_url_redirect=gcp.compute.URLMapDefaultUrlRedirectArgs(
+            https_redirect=True,
+            strip_query=False,
+        ),
+    )
+
+    http_proxy = gcp.compute.TargetHttpProxy(
+        "classifier-http-proxy",
+        project=project,
+        name="classifier-http-proxy",
+        url_map=redirect_map.self_link,
+    )
+
+    gcp.compute.GlobalForwardingRule(
+        "classifier-http-rule",
+        project=project,
+        name="classifier-http-fw",
+        target=http_proxy.self_link,
+        ip_address=ip.address,
+        port_range="80",
+        load_balancing_scheme="EXTERNAL_MANAGED",
+    )
+
+    return ip

@@ -1,7 +1,17 @@
 # Generated at deploy time by scripts/prepare.py — never committed
+dns/Pulumi.*.yaml
+auth/Pulumi.*.yaml
+backend/Pulumi.*.yaml
+backend/.env.*
+common/Pulumi.*.yaml
+aws-ns/Pulumi.*.yaml
+
+# Old monolithic stack (kept temporarily during migration)
 pulumi/.env.*
 pulumi/Pulumi.*.yaml
 
 # Python
 __pycache__/
 *.pyc
+
+config
