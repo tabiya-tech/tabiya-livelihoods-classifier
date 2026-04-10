@@ -1,12 +1,16 @@
-"""GCP API Gateway with API key authentication.
+"""GCP API Gateway with API key and Firebase authentication.
 
 Routes:
-  /v1/classify/** → classify-service (Cloud Run)
+  /v1/health              → unauthenticated
+  /v1/classify/**         → API key required (x-api-key header)
+  /v1/batch/**            → API key required
+  /v1/user/**             → Firebase Bearer token required
 
-Auth: x-api-key header required on all paths except GET /v1/health.
+The API Gateway verifies both the API key and the Firebase JWT.
+For Firebase routes it decodes the token claims and forwards them to the
+backend as the x-apigateway-api-userinfo header (base64 JSON).
 
 Note: GCP API Gateway requires an OpenAPI 2.0 spec (Swagger) as its config.
-We generate it inline from the Cloud Run URLs.
 """
 
 import base64
@@ -16,7 +20,7 @@ import pulumi
 import pulumi_gcp as gcp
 
 
-def _build_spec(project: str, classify_url: str) -> str:
+def _build_spec(project: str, classify_url: str, firebase_project_id: str) -> str:
     spec = {
         "swagger": "2.0",
         "info": {
@@ -55,7 +59,16 @@ def _build_spec(project: str, classify_url: str) -> str:
                         ]
                     },
                 },
-            }
+            },
+            "firebase": {
+                # https://cloud.google.com/endpoints/docs/openapi/authenticating-users-firebase
+                "authorizationUrl": "",
+                "flow": "implicit",
+                "type": "oauth2",
+                "x-google-issuer": f"https://securetoken.google.com/{firebase_project_id}",
+                "x-google-jwks_uri": "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com",
+                "x-google-audiences": firebase_project_id,
+            },
         },
         "paths": {
             "/v1/health": {
@@ -116,6 +129,64 @@ def _build_spec(project: str, classify_url: str) -> str:
                     "responses": {"200": {"description": "Batch results"}},
                 }
             },
+            "/v1/user/config": {
+                "get": {
+                    "summary": "Get user model configuration",
+                    "operationId": "getUserConfig",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_url}/v1/user/config"},
+                    "responses": {"200": {"description": "User config"}},
+                },
+                "put": {
+                    "summary": "Update user model configuration",
+                    "operationId": "updateUserConfig",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_url}/v1/user/config"},
+                    "responses": {"204": {"description": "Updated"}},
+                },
+            },
+            "/v1/user/api-keys": {
+                "get": {
+                    "summary": "List API keys",
+                    "operationId": "listApiKeys",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_url}/v1/user/api-keys"},
+                    "responses": {"200": {"description": "API key list"}},
+                },
+                "post": {
+                    "summary": "Create an API key",
+                    "operationId": "createApiKey",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_url}/v1/user/api-keys"},
+                    "responses": {"201": {"description": "Created"}},
+                },
+            },
+            "/v1/user/api-keys/{key_id}": {
+                "delete": {
+                    "summary": "Revoke an API key",
+                    "operationId": "deleteApiKey",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "key_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_url}/v1/user/api-keys/{{key_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "Revoked"}},
+                }
+            },
+            "/v1/user/usage": {
+                "get": {
+                    "summary": "Get 30-day usage stats",
+                    "operationId": "getUsage",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_url}/v1/user/usage"},
+                    "responses": {"200": {"description": "Usage data"}},
+                }
+            },
         },
     }
     return json.dumps(spec)
@@ -125,6 +196,7 @@ def create_api_gateway(
     project: str,
     region: str,
     classify_url: pulumi.Output,
+    firebase_project_id: str,
 ):
     # GCP API Gateway is a global resource; region is used for the API config
     api = gcp.apigateway.Api(
@@ -144,7 +216,7 @@ def create_api_gateway(
                     path="openapi.json",
                     contents=classify_url.apply(
                         lambda url: base64.b64encode(
-                            _build_spec(project, url or "http://localhost:5001").encode()
+                            _build_spec(project, url or "http://localhost:5001", firebase_project_id).encode()
                         ).decode()
                     ),
                 )

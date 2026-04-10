@@ -18,6 +18,9 @@ config:
   # MongoDB database name (non-secret; the URI comes from env-vars)
   tabiya-classifier:mongodbDbName: <db-name>
 
+  # Firebase project ID for dashboard Bearer token verification
+  tabiya-classifier:firebaseProjectId: <firebase-project-id>
+
   # Docker image URIs — injected by CI at deploy time; set as placeholders here
   # so prepare.py merges them in alongside the fetched config.
   tabiya-classifier:nerImage: <image-uri>

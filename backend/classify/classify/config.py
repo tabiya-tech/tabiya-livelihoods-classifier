@@ -18,3 +18,11 @@ MONGODB_URI = os.getenv("APPLICATION_MONGODB_URI", "")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "tabiya-classifier")
 
 API_KEY_CACHE_TTL = int(os.getenv("API_KEY_CACHE_TTL", "300"))  # 5 min
+
+# Firebase project ID — used in the API Gateway spec for token verification.
+# The gateway verifies the token and forwards decoded user info to the backend.
+FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID", "")
+
+# Set to "local" in local development so Bearer tokens are decoded without
+# signature verification (mirrors the Compass pattern).
+TARGET_ENVIRONMENT_TYPE = os.getenv("TARGET_ENVIRONMENT_TYPE", "")

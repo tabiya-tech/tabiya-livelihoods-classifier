@@ -20,6 +20,7 @@ def create_cloud_run_services(
     mongodb_db_name: str,
     redis_host: pulumi.Output,
     vpc_connector: gcp.vpcaccess.Connector,
+    firebase_project_id: str,
 ):
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
@@ -189,6 +190,9 @@ def create_cloud_run_services(
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="MAX_BATCH_SIZE", value="500"
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="FIREBASE_PROJECT_ID", value=firebase_project_id
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(name="PORT", value="5001"),
                     ],

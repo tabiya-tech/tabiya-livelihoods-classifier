@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -26,7 +26,17 @@ from classify.config import (
     NEL_API_URL,
     NER_API_URL,
 )
-from classify.user_config import get_user_config
+from classify.user_config import (
+    create_api_key_for_uid,
+    delete_api_key_for_uid,
+    get_api_key_user,
+    get_firebase_uid,
+    get_usage_for_uid,
+    get_user_config_for_uid,
+    list_api_keys_for_uid,
+    record_usage_event,
+    set_user_config_for_uid,
+)
 from shared.job_text import build_input_text, compute_hash
 
 load_dotenv()
@@ -52,7 +62,9 @@ app.add_middleware(
 )
 
 
-# --- Request / Response models ---
+
+
+# ── Request / Response models ──────────────────────────────────────────────
 
 class ClassifyOptions(BaseModel):
     extract_entities: Optional[List[str]] = None
@@ -79,7 +91,19 @@ class BatchRequest(BaseModel):
     options: Optional[ClassifyOptions] = None
 
 
-# --- Core classify logic ---
+class UserConfigUpdate(BaseModel):
+    ner_type: Optional[str] = None
+    nel_type: Optional[str] = None
+    ner_model_name: Optional[str] = None
+    nel_model_name: Optional[str] = None
+    taxonomy_model_id: Optional[str] = None
+
+
+class CreateApiKeyRequest(BaseModel):
+    label: str = Field(..., min_length=1, max_length=100)
+
+
+# ── Core classify logic ────────────────────────────────────────────────────
 
 async def _classify_text(
     input_text: str,
@@ -171,22 +195,23 @@ async def _classify_text(
     }
 
 
-# --- Endpoints ---
+# ── Classify endpoints ─────────────────────────────────────────────────────
 
 @app.post("/v1/classify")
-async def classify(req: ClassifyRequest, x_api_key: Optional[str] = Header(None)):
+async def classify(req: ClassifyRequest, user_config: dict = Depends(get_api_key_user)):
+
     input_text = build_input_text(req.model_dump(), allow_text_field=True)
     if not input_text:
         raise HTTPException(status_code=400, detail="Provide 'text' or 'title'+'description'")
-
     if len(input_text) > MAX_TEXT_LENGTH:
         raise HTTPException(
             status_code=413,
             detail=f"Text exceeds maximum length ({MAX_TEXT_LENGTH} chars)",
         )
 
-    log.info("Classify request: %d chars", len(input_text))
+    log.info("Classify request: %d chars (user: %s)", len(input_text), user_config["user_id"])
     result = await _classify_text(input_text, req.options)
+    record_usage_event(user_config["user_id"])
     entity_count = sum(result["classification"]["entity_counts"].values())
     log.info(
         "Classify done: %d entities in %.1fms",
@@ -197,7 +222,8 @@ async def classify(req: ClassifyRequest, x_api_key: Optional[str] = Header(None)
 
 
 @app.post("/v1/classify/batch", status_code=202)
-async def submit_batch(req: BatchRequest, x_api_key: Optional[str] = Header(None)):
+async def submit_batch(req: BatchRequest, user_config: dict = Depends(get_api_key_user)):
+
     if len(req.jobs) > MAX_BATCH_SIZE:
         raise HTTPException(
             status_code=413,
@@ -206,15 +232,14 @@ async def submit_batch(req: BatchRequest, x_api_key: Optional[str] = Header(None
 
     batch_id = str(uuid.uuid4())[:8]
     await create_batch(batch_id, len(req.jobs))
+    asyncio.create_task(_process_batch(batch_id, req.jobs, req.options, user_config["user_id"]))
 
-    asyncio.create_task(_process_batch(batch_id, req.jobs, req.options))
-
-    log.info("Batch %s submitted: %d jobs", batch_id, len(req.jobs))
+    log.info("Batch %s submitted: %d jobs (user: %s)", batch_id, len(req.jobs), user_config["user_id"])
     return {"batch_id": batch_id, "total": len(req.jobs), "status": "processing"}
 
 
 async def _process_batch(
-    batch_id: str, jobs: List[BatchJob], options: Optional[ClassifyOptions]
+    batch_id: str, jobs: List[BatchJob], options: Optional[ClassifyOptions], user_id: str
 ) -> None:
     async with httpx.AsyncClient(timeout=60.0) as client:
         for i, job in enumerate(jobs):
@@ -222,17 +247,9 @@ async def _process_batch(
             input_text = build_input_text(job.model_dump(), allow_text_field=True)
 
             if not input_text:
-                result = {
-                    "job_id": job_id,
-                    "status": "error",
-                    "error": "No classifiable text found",
-                }
+                result = {"job_id": job_id, "status": "error", "error": "No classifiable text found"}
             elif len(input_text) > MAX_TEXT_LENGTH:
-                result = {
-                    "job_id": job_id,
-                    "status": "error",
-                    "error": f"Text exceeds {MAX_TEXT_LENGTH} char limit",
-                }
+                result = {"job_id": job_id, "status": "error", "error": f"Text exceeds {MAX_TEXT_LENGTH} char limit"}
             else:
                 try:
                     classify_result = await _classify_text(input_text, options, client)
@@ -244,10 +261,11 @@ async def _process_batch(
             await update_batch(batch_id, i + 1, result)
 
     await complete_batch(batch_id)
+    record_usage_event(user_id)
 
 
 @app.get("/v1/batch/{batch_id}/status")
-async def batch_status(batch_id: str):
+async def batch_status(batch_id: str, user_config: dict = Depends(get_api_key_user)):
     batch = await get_batch(batch_id)
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
@@ -260,7 +278,7 @@ async def batch_status(batch_id: str):
 
 
 @app.get("/v1/batch/{batch_id}/results")
-async def batch_results(batch_id: str):
+async def batch_results(batch_id: str, user_config: dict = Depends(get_api_key_user)):
     batch = await get_batch(batch_id)
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
@@ -272,6 +290,44 @@ async def batch_results(batch_id: str):
         "results": batch["results"],
     }
 
+
+# ── Dashboard endpoints (/v1/user/*) ──────────────────────────────────────
+# These use Firebase Bearer token auth (sent by the React dashboard).
+
+@app.get("/v1/user/config")
+async def get_config(uid: str = Depends(get_firebase_uid)):
+    config = get_user_config_for_uid(uid)
+    return {k: v for k, v in config.items() if k != "user_id"}
+
+
+@app.put("/v1/user/config", status_code=204)
+async def update_config(body: UserConfigUpdate, uid: str = Depends(get_firebase_uid)):
+    set_user_config_for_uid(uid, body.model_dump(exclude_none=True))
+
+
+@app.get("/v1/user/api-keys")
+async def list_keys(uid: str = Depends(get_firebase_uid)):
+    return list_api_keys_for_uid(uid)
+
+
+@app.post("/v1/user/api-keys", status_code=201)
+async def create_key(body: CreateApiKeyRequest, uid: str = Depends(get_firebase_uid)):
+    return create_api_key_for_uid(uid, body.label)
+
+
+@app.delete("/v1/user/api-keys/{key_id}", status_code=204)
+async def delete_key(key_id: str, uid: str = Depends(get_firebase_uid)):
+    found = delete_api_key_for_uid(uid, key_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+
+@app.get("/v1/user/usage")
+async def get_usage(uid: str = Depends(get_firebase_uid)):
+    return get_usage_for_uid(uid)
+
+
+# ── Health / version ───────────────────────────────────────────────────────
 
 @app.get("/v1/health")
 async def health():
