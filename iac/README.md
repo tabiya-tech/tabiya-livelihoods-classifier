@@ -1,13 +1,13 @@
 # Infrastructure as Code
 
-Pulumi TypeScript — GCP.
+Pulumi Python — GCP.
 
 **Never run `pulumi up` from this repo directly. Deployments are triggered by GitHub Actions (deploy.yml).**
 
 ## Prerequisites
 
 - [Pulumi CLI](https://www.pulumi.com/docs/install/)
-- [Node.js](https://nodejs.org/) ≥ 20
+- Python ≥ 3.11
 - [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) (`gcloud`)
 - A Pulumi account and access token
 
@@ -15,24 +15,28 @@ Pulumi TypeScript — GCP.
 
 ```
 iac/pulumi/
-├── index.ts              — entry point (wires all modules)
-├── registry-and-iam.ts   — Artifact Registry + service accounts
-├── secrets.ts            — Secret Manager secrets
-├── memorystore.ts        — Redis + VPC connector
-├── cloud-run.ts          — NER, NEL, Classify Cloud Run services
-├── api-gateway.ts        — GCP API Gateway with API key auth
-├── storage.ts            — GCS buckets + CDN for app and docs
-├── Pulumi.yaml           — project config and schema
-├── Pulumi.dev.yaml       — dev stack config
-├── Pulumi.staging.yaml   — staging stack config
-└── Pulumi.prod.yaml      — prod stack config
+├── __main__.py         — entry point (wires all modules)
+├── registry_and_iam.py — Artifact Registry + service accounts
+├── secrets.py          — Secret Manager secrets
+├── memorystore.py      — Redis + VPC connector
+├── cloud_run.py        — NER, NEL, Classify Cloud Run services
+├── api_gateway.py      — GCP API Gateway with API key auth
+├── storage.py          — GCS buckets + CDN for app and docs
+├── requirements.txt    — Python dependencies
+├── Pulumi.yaml         — project config and schema
+├── Pulumi.dev.yaml     — dev stack config
+├── Pulumi.staging.yaml — staging stack config
+└── Pulumi.prod.yaml    — prod stack config
 ```
 
 ## One-time setup (per stack)
 
 ```bash
 cd iac/pulumi
-npm install
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
 pulumi login            # authenticate with Pulumi Cloud
 pulumi stack select dev # or staging / prod
 

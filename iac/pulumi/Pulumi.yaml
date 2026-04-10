@@ -1,6 +1,6 @@
 name: tabiya-classifier
-runtime: nodejs
-description: Tabiya Livelihoods Classifier — GCP infrastructure (Pulumi TypeScript)
+runtime: python
+description: Tabiya Livelihoods Classifier — GCP infrastructure (Pulumi Python)
 
 config:
   tabiya-classifier:project:
