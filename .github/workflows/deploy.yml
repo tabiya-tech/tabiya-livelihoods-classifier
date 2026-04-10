@@ -3,9 +3,6 @@ name: Deploy Infrastructure (Pulumi)
 on:
   push:
     branches-ignore: [main]
-    paths:
-      - "backend/**"
-      - "iac/**"
   workflow_dispatch:
     inputs:
       stack:
@@ -143,6 +140,9 @@ jobs:
             iac/aws-ns/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
           retention-days: 1
 
+  # ── Shared deploy step template ───────────────────────────────────────────
+  # Each deploy job: checkout → download configs → Python + GCP auth → up.py
+
   # ── Enable APIs (must run before all other stacks) ────────────────────────
   deploy-enable-services:
     name: Deploy enable-services
@@ -160,6 +160,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pulumi-configs-${{ needs.resolve.outputs.stack }}
+          path: iac
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -172,13 +173,11 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Install Pulumi deps
-        working-directory: iac/enable-services
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r iac/scripts/requirements.txt && pip install -r iac/enable-services/requirements.txt
 
-      - name: pulumi up — enable-services
-        working-directory: iac/enable-services
-        run: pulumi up --stack "tabiya-tech/tabiya-classifier-enable-services/${{ needs.resolve.outputs.stack }}" --yes --color always
+      - name: Deploy
+        run: python iac/scripts/up.py --stack "${{ needs.resolve.outputs.stack }}" --module enable-services
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -199,6 +198,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pulumi-configs-${{ needs.resolve.outputs.stack }}
+          path: iac
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -211,13 +211,11 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Install Pulumi deps
-        working-directory: iac/dns
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r iac/scripts/requirements.txt && pip install -r iac/dns/requirements.txt
 
-      - name: pulumi up — dns
-        working-directory: iac/dns
-        run: pulumi up --stack "tabiya-tech/tabiya-classifier-dns/${{ needs.resolve.outputs.stack }}" --yes --color always
+      - name: Deploy
+        run: python iac/scripts/up.py --stack "${{ needs.resolve.outputs.stack }}" --module dns
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -238,6 +236,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pulumi-configs-${{ needs.resolve.outputs.stack }}
+          path: iac
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -250,13 +249,11 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Install Pulumi deps
-        working-directory: iac/auth
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r iac/scripts/requirements.txt && pip install -r iac/auth/requirements.txt
 
-      - name: pulumi up — auth
-        working-directory: iac/auth
-        run: pulumi up --stack "tabiya-tech/tabiya-classifier-auth/${{ needs.resolve.outputs.stack }}" --yes --color always
+      - name: Deploy
+        run: python iac/scripts/up.py --stack "${{ needs.resolve.outputs.stack }}" --module auth
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -277,6 +274,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pulumi-configs-${{ needs.resolve.outputs.stack }}
+          path: iac
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -289,17 +287,11 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Install Pulumi deps
-        working-directory: iac/backend
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r iac/scripts/requirements.txt && pip install -r iac/backend/requirements.txt
 
-      - name: pulumi up — backend
-        working-directory: iac/backend
-        run: |
-          set -a
-          source ".env.${{ needs.resolve.outputs.stack }}"
-          set +a
-          pulumi up --stack "tabiya-tech/tabiya-classifier-backend/${{ needs.resolve.outputs.stack }}" --yes --color always
+      - name: Deploy
+        run: python iac/scripts/up.py --stack "${{ needs.resolve.outputs.stack }}" --module backend --env-file "iac/backend/.env.${{ needs.resolve.outputs.stack }}"
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -320,6 +312,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pulumi-configs-${{ needs.resolve.outputs.stack }}
+          path: iac
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -332,13 +325,11 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Install Pulumi deps
-        working-directory: iac/common
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r iac/scripts/requirements.txt && pip install -r iac/common/requirements.txt
 
-      - name: pulumi up — common
-        working-directory: iac/common
-        run: pulumi up --stack "tabiya-tech/tabiya-classifier-common/${{ needs.resolve.outputs.stack }}" --yes --color always
+      - name: Deploy
+        run: python iac/scripts/up.py --stack "${{ needs.resolve.outputs.stack }}" --module common
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -359,6 +350,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pulumi-configs-${{ needs.resolve.outputs.stack }}
+          path: iac
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -372,12 +364,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Install Pulumi deps
-        working-directory: iac/aws-ns
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r iac/scripts/requirements.txt && pip install -r iac/aws-ns/requirements.txt
 
-      - name: pulumi up — aws-ns
-        working-directory: iac/aws-ns
-        run: pulumi up --stack "tabiya-tech/tabiya-classifier-aws-ns/${{ needs.resolve.outputs.stack }}" --yes --color always
+      - name: Deploy
+        run: python iac/scripts/up.py --stack "${{ needs.resolve.outputs.stack }}" --module aws-ns
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
