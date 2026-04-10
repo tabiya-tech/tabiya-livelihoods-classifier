@@ -1,10 +1,10 @@
-name: Deploy Backend (Pulumi)
+name: Deploy Infrastructure (Pulumi)
 
 on:
   workflow_dispatch:
     inputs:
       stack:
-        description: "Pulumi stack to deploy"
+        description: "Pulumi stack to deploy (dev / staging / prod)"
         required: true
         default: dev
         type: choice
@@ -19,9 +19,14 @@ on:
         description: "Classify image git SHA (leave blank for current commit)"
         required: false
 
+# ── Shared steps ─────────────────────────────────────────────────────────────
+# Each job authenticates to GCP independently (OIDC tokens are short-lived).
+# The prepare job uploads generated configs as an artifact; all deploy jobs
+# download that artifact before running pulumi up.
+
 jobs:
-  deploy:
-    name: pulumi up (${{ inputs.stack }})
+  prepare:
+    name: Prepare configs
     runs-on: ubuntu-latest
     environment: ${{ inputs.stack }}
     permissions:
@@ -57,7 +62,7 @@ jobs:
       - name: Install script dependencies
         run: pip install -r iac/scripts/requirements.txt
 
-      - name: Prepare — fetch config and secrets from GCP Secret Manager
+      - name: Fetch configs and secrets from GCP Secret Manager
         run: |
           python iac/scripts/prepare.py \
             --stack "${{ inputs.stack }}" \
@@ -66,17 +71,215 @@ jobs:
             --nel-image "${{ steps.images.outputs.nel }}" \
             --classify-image "${{ steps.images.outputs.classify }}"
 
+      - name: Upload prepared configs
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulumi-configs-${{ inputs.stack }}
+          path: |
+            iac/dns/Pulumi.${{ inputs.stack }}.yaml
+            iac/auth/Pulumi.${{ inputs.stack }}.yaml
+            iac/backend/Pulumi.${{ inputs.stack }}.yaml
+            iac/backend/.env.${{ inputs.stack }}
+            iac/common/Pulumi.${{ inputs.stack }}.yaml
+            iac/aws-ns/Pulumi.${{ inputs.stack }}.yaml
+          retention-days: 1
+
+  # ── DNS ───────────────────────────────────────────────────────────────────
+  deploy-dns:
+    name: Deploy dns
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.stack }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download prepared configs
+        uses: actions/download-artifact@v4
+        with:
+          name: pulumi-configs-${{ inputs.stack }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
       - name: Install Pulumi deps
-        working-directory: iac/pulumi
+        working-directory: iac/dns
         run: pip install -r requirements.txt
 
-      - name: Load env vars and run pulumi up
-        working-directory: iac/pulumi
+      - name: pulumi up — dns
+        working-directory: iac/dns
+        run: pulumi up --stack "${{ inputs.stack }}" --yes --color always
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── Auth (runs after dns) ─────────────────────────────────────────────────
+  deploy-auth:
+    name: Deploy auth
+    needs: deploy-dns
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.stack }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download prepared configs
+        uses: actions/download-artifact@v4
+        with:
+          name: pulumi-configs-${{ inputs.stack }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Install Pulumi deps
+        working-directory: iac/auth
+        run: pip install -r requirements.txt
+
+      - name: pulumi up — auth
+        working-directory: iac/auth
+        run: pulumi up --stack "${{ inputs.stack }}" --yes --color always
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── Backend (runs after dns, parallel with auth) ──────────────────────────
+  deploy-backend:
+    name: Deploy backend
+    needs: deploy-dns
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.stack }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download prepared configs
+        uses: actions/download-artifact@v4
+        with:
+          name: pulumi-configs-${{ inputs.stack }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Install Pulumi deps
+        working-directory: iac/backend
+        run: pip install -r requirements.txt
+
+      - name: pulumi up — backend
+        working-directory: iac/backend
         run: |
-          # Load the .env.{stack} file into the environment for this step
           set -a
           source ".env.${{ inputs.stack }}"
           set +a
           pulumi up --stack "${{ inputs.stack }}" --yes --color always
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── Common (needs dns + backend outputs) ──────────────────────────────────
+  deploy-common:
+    name: Deploy common
+    needs: [deploy-dns, deploy-backend]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.stack }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download prepared configs
+        uses: actions/download-artifact@v4
+        with:
+          name: pulumi-configs-${{ inputs.stack }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Install Pulumi deps
+        working-directory: iac/common
+        run: pip install -r requirements.txt
+
+      - name: pulumi up — common
+        working-directory: iac/common
+        run: pulumi up --stack "${{ inputs.stack }}" --yes --color always
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── AWS NS (needs dns for nameservers, parallel with auth/backend/common) ─
+  # AWS credentials are repository secrets (not environment) because Route 53
+  # manages tabiya.tech which is shared across all environments.
+  deploy-aws-ns:
+    name: Deploy aws-ns
+    needs: deploy-dns
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download prepared configs
+        uses: actions/download-artifact@v4
+        with:
+          name: pulumi-configs-${{ inputs.stack }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Install Pulumi deps
+        working-directory: iac/aws-ns
+        run: pip install -r requirements.txt
+
+      - name: pulumi up — aws-ns
+        working-directory: iac/aws-ns
+        run: pulumi up --stack "${{ inputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

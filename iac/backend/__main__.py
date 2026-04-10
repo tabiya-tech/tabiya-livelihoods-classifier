@@ -1,21 +1,23 @@
-"""Tabiya Livelihoods Classifier — GCP Infrastructure
+"""Tabiya Livelihoods Classifier — Backend Stack
 
-Stacks: dev, staging, prod
+Deploys:
+  - Artifact Registry + service accounts
+  - Secret Manager secrets (mongodb_uri, hf_token)
+  - Memorystore Redis + VPC connector
+  - Cloud Run services (NER, NEL, Classify)
+  - API Gateway
+  - GCS buckets for frontend (app + docs)
 
-Stack config is fetched from GCP Secret Manager at deploy time by scripts/prepare.py,
-which writes a Pulumi.{stack}.yaml file. That file is never committed to git.
-
-Secret values (mongodbUri, hfToken) are loaded from the .env.{stack} file written
-by prepare.py and injected into os.environ before pulumi up runs.
-
-Required Pulumi config keys (in the generated Pulumi.{stack}.yaml):
-  tabiya-classifier:project          — GCP project ID
-  tabiya-classifier:region           — GCP region (default: us-central1)
-  tabiya-classifier:nerImage         — NER Docker image URI
-  tabiya-classifier:nelImage         — NEL Docker image URI
-  tabiya-classifier:classifyImage    — Classify Docker image URI
-  tabiya-classifier:mongodbDbName    — MongoDB database name
-  tabiya-classifier:firebaseProjectId — Firebase project ID for dashboard auth
+Required Pulumi config:
+  tabiya-classifier-backend:project          — GCP project ID
+  tabiya-classifier-backend:region           — GCP region (default: us-central1)
+  tabiya-classifier-backend:env              — Stack name (dev / staging / prod)
+  tabiya-classifier-backend:mongodbDbName    — MongoDB database name
+  tabiya-classifier-backend:firebaseProjectId — Firebase project ID for dashboard auth
+  tabiya-classifier-backend:envSubdomain     — e.g. "dev.classifier.tabiya.tech"
+  tabiya-classifier-backend:nerImage         — NER Docker image URI (injected by CI)
+  tabiya-classifier-backend:nelImage         — NEL Docker image URI (injected by CI)
+  tabiya-classifier-backend:classifyImage    — Classify Docker image URI (injected by CI)
 
 Required environment variables (from .env.{stack}, sourced from Secret Manager):
   MONGODB_URI   — MongoDB Atlas connection URI
@@ -36,20 +38,24 @@ from secrets import create_secrets
 config = pulumi.Config()
 project = config.require("project")
 region = config.get("region") or "us-central1"
+env = config.require("env")
 mongodb_db_name = config.get("mongodbDbName") or "tabiya-classifier"
 firebase_project_id = config.require("firebaseProjectId")
+env_subdomain = config.require("envSubdomain")
 ner_image = config.require("nerImage")
 nel_image = config.require("nelImage")
 classify_image = config.require("classifyImage")
 
-# Secret values come from the .env.{stack} file loaded into the environment
-# by prepare.py before pulumi up runs. They are never stored in Pulumi config.
+
 def _require_env(name: str) -> str:
     value = os.environ.get(name)
     if not value:
-        raise ValueError(f"Required environment variable {name} is not set. "
-                         "Run scripts/prepare.py before pulumi up.")
+        raise ValueError(
+            f"Required environment variable {name} is not set. "
+            "Run iac/scripts/prepare.py before pulumi up."
+        )
     return value
+
 
 mongodb_uri = _require_env("MONGODB_URI")
 hf_token = _require_env("HF_TOKEN")
@@ -62,8 +68,6 @@ pulumi.export(
 )
 
 # ── Secret Manager ─────────────────────────────────────────────────────────
-# Creates the Secret resources and pins their initial values. Subsequent rotations
-# are managed outside Pulumi (via gcloud or CI) to avoid storing secrets in state.
 secrets = create_secrets(project=project, mongodb_uri=mongodb_uri, hf_token=hf_token)
 
 # ── Memorystore Redis ──────────────────────────────────────────────────────
@@ -94,10 +98,12 @@ _api, _api_config, gateway = create_api_gateway(
     region=region,
     classify_url=classify.uri,
     firebase_project_id=firebase_project_id,
+    env_subdomain=env_subdomain,
 )
 pulumi.export("apiGatewayUrl", gateway.default_hostname)
+pulumi.export("apiGatewayId", gateway.gateway_id)
 
 # ── Frontend Buckets (app + docs) ──────────────────────────────────────────
-app_bucket, docs_bucket = create_frontend_buckets(project=project, region=region)
-pulumi.export("appBucketUrl", app_bucket.url)
-pulumi.export("docsBucketUrl", docs_bucket.url)
+app_bucket, docs_bucket = create_frontend_buckets(project=project, env=env)
+pulumi.export("appBucketName", app_bucket.name)
+pulumi.export("docsBucketName", docs_bucket.name)

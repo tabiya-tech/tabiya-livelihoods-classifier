@@ -1,0 +1,17 @@
+# Stack config template for the Common stack.
+# Store the actual values in GCP Secret Manager under "stack-config-common".
+# scripts/prepare.py fetches this and writes iac/common/Pulumi.{stack}.yaml.
+
+config:
+  # GCP project ID for this environment
+  tabiya-classifier-common:project: <project-id>
+
+  # GCP region (used for the Serverless NEG for the API Gateway backend)
+  tabiya-classifier-common:region: <region>
+
+  # Stack name
+  tabiya-classifier-common:env: <dev|staging|prod>
+
+  # Frontend domain — SSL cert is issued for this domain, A record points here
+  # e.g. "dev.classifier.tabiya.tech"
+  tabiya-classifier-common:frontendDomain: <env>.classifier.tabiya.tech

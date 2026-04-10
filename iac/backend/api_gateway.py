@@ -20,14 +20,14 @@ import pulumi
 import pulumi_gcp as gcp
 
 
-def _build_spec(project: str, classify_url: str, firebase_project_id: str) -> str:
+def _build_spec(project: str, classify_url: str, firebase_project_id: str, env_subdomain: str) -> str:
     spec = {
         "swagger": "2.0",
         "info": {
             "title": "Tabiya Livelihoods Classifier API",
             "version": "1.0.0",
         },
-        "host": "api.classifier.tabiya.tech",
+        "host": env_subdomain,
         "schemes": ["https"],
         "produces": ["application/json"],
         "x-google-backend": {
@@ -197,8 +197,8 @@ def create_api_gateway(
     region: str,
     classify_url: pulumi.Output,
     firebase_project_id: str,
+    env_subdomain: str,
 ):
-    # GCP API Gateway is a global resource; region is used for the API config
     api = gcp.apigateway.Api(
         "classifier-api",
         project=project,
@@ -216,7 +216,12 @@ def create_api_gateway(
                     path="openapi.json",
                     contents=classify_url.apply(
                         lambda url: base64.b64encode(
-                            _build_spec(project, url or "http://localhost:5001", firebase_project_id).encode()
+                            _build_spec(
+                                project,
+                                url or "http://localhost:5001",
+                                firebase_project_id,
+                                env_subdomain,
+                            ).encode()
                         ).decode()
                     ),
                 )

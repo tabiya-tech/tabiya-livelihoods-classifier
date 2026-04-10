@@ -1,0 +1,17 @@
+# Stack config template for the AWS NS stack.
+# Store the actual values in GCP Secret Manager under "stack-config-aws-ns".
+# scripts/prepare.py fetches this and writes iac/aws-ns/Pulumi.{stack}.yaml.
+#
+# AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) are injected by
+# CI from GitHub Actions secrets — they are NOT stored in GCP Secret Manager.
+
+config:
+  # Stack name
+  tabiya-classifier-aws-ns:env: <dev|staging|prod>
+
+  # Subdomain prefix before .tabiya.tech — e.g. "dev.classifier"
+  # The tabiya.tech Route 53 zone is looked up by name at deploy time.
+  tabiya-classifier-aws-ns:subdomain: <env>.classifier
+
+  # AWS region for the Route 53 client
+  aws:region: us-east-1

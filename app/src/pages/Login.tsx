@@ -3,8 +3,6 @@ import { useNavigate, Navigate } from "react-router-dom";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
@@ -56,17 +54,6 @@ const S = {
     cursor: "pointer",
     marginBottom: "0.75rem",
   } as React.CSSProperties,
-  googleBtn: {
-    width: "100%",
-    padding: "0.75rem",
-    backgroundColor: "#fff",
-    color: "#002147",
-    border: "1px solid #ccc",
-    borderRadius: 6,
-    fontSize: "0.9rem",
-    cursor: "pointer",
-    marginBottom: "1.5rem",
-  } as React.CSSProperties,
   toggle: { fontSize: "0.85rem", color: "#26887D", cursor: "pointer", background: "none", border: "none", padding: 0 } as React.CSSProperties,
   error: { color: "#c0392b", fontSize: "0.85rem", marginBottom: "1rem" } as React.CSSProperties,
 };
@@ -93,16 +80,6 @@ export default function Login() {
       navigate("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Authentication failed");
-    }
-  }
-
-  async function handleGoogle() {
-    setError("");
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      navigate("/dashboard");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
     }
   }
 
@@ -139,10 +116,6 @@ export default function Login() {
             {isSignUp ? "Create account" : "Sign in"}
           </button>
         </form>
-
-        <button style={S.googleBtn} onClick={handleGoogle}>
-          Continue with Google
-        </button>
 
         <button style={S.toggle} onClick={() => setIsSignUp((s) => !s)}>
           {isSignUp ? "Already have an account? Sign in" : "No account? Create one"}

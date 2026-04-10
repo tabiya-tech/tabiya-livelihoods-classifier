@@ -1,0 +1,3 @@
+name: tabiya-classifier-aws-ns
+runtime: python
+description: AWS Route 53 NS record delegation for Tabiya Livelihoods Classifier

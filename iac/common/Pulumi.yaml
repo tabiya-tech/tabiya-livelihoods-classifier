@@ -1,0 +1,3 @@
+name: tabiya-classifier-common
+runtime: python
+description: Global load balancer, SSL, and DNS A record for Tabiya Livelihoods Classifier

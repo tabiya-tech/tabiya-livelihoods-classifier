@@ -1,0 +1,3 @@
+name: tabiya-classifier-dns
+runtime: python
+description: GCP Cloud DNS managed zone for Tabiya Livelihoods Classifier

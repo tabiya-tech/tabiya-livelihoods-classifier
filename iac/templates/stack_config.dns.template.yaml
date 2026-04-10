@@ -1,0 +1,11 @@
+# Stack config template for the DNS stack.
+# Store the actual values in GCP Secret Manager under "stack-config-dns".
+# scripts/prepare.py fetches this and writes iac/dns/Pulumi.{stack}.yaml.
+
+config:
+  # GCP project ID for this environment
+  tabiya-classifier-dns:project: <project-id>
+
+  # Fully-qualified DNS zone name (trailing dot required by Cloud DNS)
+  # e.g. "dev.classifier.tabiya.tech."
+  tabiya-classifier-dns:dnsName: <env>.classifier.tabiya.tech.
