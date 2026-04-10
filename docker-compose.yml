@@ -1,88 +1,88 @@
-version: "3.9"
-
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  # NER API — entity extraction (port 5002)
-  ner-api:
+  ner:
     build:
       context: .
       dockerfile: backend/ner/Dockerfile
     ports:
       - "5002:5002"
+    env_file: .env
     environment:
       - NER_MODEL=${NER_MODEL:-tabiya/roberta-base-job-ner}
       - HF_TOKEN=${HF_TOKEN}
       - MAX_TEXT_LENGTH=${MAX_TEXT_LENGTH:-50000}
     volumes:
       - model-cache:/root/.cache/huggingface
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/v1/health')"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 300s
+      retries: 5
+      start_period: 120s
 
-  # NEL API — entity linking to ESCO (port 5003)
-  nel-api:
+  nel:
     build:
       context: .
       dockerfile: backend/nel/Dockerfile
     ports:
       - "5003:5003"
+    env_file: .env
     environment:
       - LINKER_MODEL=${LINKER_MODEL:-all-MiniLM-L6-v2}
-      - NEL_FILES_PATH=/app/nel/nel/files
+      - MAX_ENTITIES_PER_REQUEST=${MAX_ENTITIES_PER_REQUEST:-200}
+      - MAX_TOP_K=${MAX_TOP_K:-50}
+      - NEL_FILES_PATH=/app/files
     volumes:
       - model-cache:/root/.cache/huggingface
-      - ./inference/files:/app/nel/nel/files:ro
-    restart: unless-stopped
+      - ./data:/app/files
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v1/health')"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 60s
 
-  # Classify API — orchestrator (port 5001)
-  # Calls ner-api then nel-api, serves /v1/classify + batch endpoints
-  classify-api:
+  classify:
     build:
       context: .
       dockerfile: backend/classify/Dockerfile
     ports:
       - "5001:5001"
+    env_file: .env
     environment:
-      - NER_API_URL=http://ner-api:5002
-      - NEL_API_URL=http://nel-api:5003
+      - NER_API_URL=http://ner:5002
+      - NEL_API_URL=http://nel:5003
+      - REDIS_URL=redis://redis:6379
       - CLASSIFIER_VERSION=${CLASSIFIER_VERSION:-1.0.0}
       - MAX_TEXT_LENGTH=${MAX_TEXT_LENGTH:-50000}
       - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-500}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_BATCH_TTL=${REDIS_BATCH_TTL:-3600}
       - APPLICATION_MONGODB_URI=${APPLICATION_MONGODB_URI:-}
       - MONGODB_DB_NAME=${MONGODB_DB_NAME:-tabiya-classifier}
+      - API_KEY_CACHE_TTL=${API_KEY_CACHE_TTL:-300}
+      - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
     depends_on:
-      ner-api:
-        condition: service_healthy
-      nel-api:
-        condition: service_healthy
       redis:
+        condition: service_healthy
+      ner:
         condition: service_started
-    restart: unless-stopped
+      nel:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/v1/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 15s
+      timeout: 5s
+      retries: 5
       start_period: 30s
-
-  # Redis — batch job state store (replaces in-memory dict)
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-    restart: unless-stopped
 
 volumes:
   model-cache:

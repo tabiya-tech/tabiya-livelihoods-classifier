@@ -9,12 +9,13 @@ Secret values (mongodbUri, hfToken) are loaded from the .env.{stack} file writte
 by prepare.py and injected into os.environ before pulumi up runs.
 
 Required Pulumi config keys (in the generated Pulumi.{stack}.yaml):
-  tabiya-classifier:project       — GCP project ID
-  tabiya-classifier:region        — GCP region (default: us-central1)
-  tabiya-classifier:nerImage      — NER Docker image URI
-  tabiya-classifier:nelImage      — NEL Docker image URI
-  tabiya-classifier:classifyImage — Classify Docker image URI
-  tabiya-classifier:mongodbDbName — MongoDB database name
+  tabiya-classifier:project          — GCP project ID
+  tabiya-classifier:region           — GCP region (default: us-central1)
+  tabiya-classifier:nerImage         — NER Docker image URI
+  tabiya-classifier:nelImage         — NEL Docker image URI
+  tabiya-classifier:classifyImage    — Classify Docker image URI
+  tabiya-classifier:mongodbDbName    — MongoDB database name
+  tabiya-classifier:firebaseProjectId — Firebase project ID for dashboard auth
 
 Required environment variables (from .env.{stack}, sourced from Secret Manager):
   MONGODB_URI   — MongoDB Atlas connection URI
@@ -36,6 +37,7 @@ config = pulumi.Config()
 project = config.require("project")
 region = config.get("region") or "us-central1"
 mongodb_db_name = config.get("mongodbDbName") or "tabiya-classifier"
+firebase_project_id = config.require("firebaseProjectId")
 ner_image = config.require("nerImage")
 nel_image = config.require("nelImage")
 classify_image = config.require("classifyImage")
@@ -80,6 +82,7 @@ ner, nel, classify = create_cloud_run_services(
     mongodb_db_name=mongodb_db_name,
     redis_host=redis.host,
     vpc_connector=vpc_connector,
+    firebase_project_id=firebase_project_id,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)
@@ -90,6 +93,7 @@ _api, _api_config, gateway = create_api_gateway(
     project=project,
     region=region,
     classify_url=classify.uri,
+    firebase_project_id=firebase_project_id,
 )
 pulumi.export("apiGatewayUrl", gateway.default_hostname)
 

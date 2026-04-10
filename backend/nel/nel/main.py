@@ -33,8 +33,13 @@ async def lifespan(app: FastAPI):
     global nel_linker, _linker_load_error
     try:
         from nel.linker import NELLinker
-        nel_linker = NELLinker(similarity_model=LINKER_MODEL, files_path=NEL_FILES_PATH)
-        log.info("NEL linker loaded: %s", LINKER_MODEL)
+        try:
+            nel_linker = NELLinker(similarity_model=LINKER_MODEL, files_path=NEL_FILES_PATH, from_cache=True)
+            log.info("NEL linker loaded from cache: %s", LINKER_MODEL)
+        except Exception as cache_err:
+            log.warning("Cache load failed (%s), recomputing embeddings — this will take a few minutes", cache_err)
+            nel_linker = NELLinker(similarity_model=LINKER_MODEL, files_path=NEL_FILES_PATH, from_cache=False)
+            log.info("NEL linker loaded (embeddings recomputed): %s", LINKER_MODEL)
     except Exception as e:
         _linker_load_error = str(e)
         log.error("Failed to load NEL linker: %s", e)
