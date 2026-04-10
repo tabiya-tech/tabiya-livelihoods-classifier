@@ -1,4 +1,0 @@
-config:
-  tabiya-classifier:project: tabiya-classifier-prod
-  tabiya-classifier:region: us-central1
-  tabiya-classifier:mongodbDbName: tabiya-classifier

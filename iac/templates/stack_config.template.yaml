@@ -1,0 +1,25 @@
+# Stack config template for the Tabiya Livelihoods Classifier.
+#
+# This file is committed to git and defines the required Pulumi config keys.
+# The actual values are stored in GCP Secret Manager under the secret named
+# "stack-config" in each environment's GCP project, and are never committed.
+#
+# scripts/prepare.py fetches the "stack-config" secret, validates it against
+# this template, and writes it to iac/pulumi/Pulumi.{stack}.yaml before
+# pulumi up runs. That generated file is git-ignored.
+
+config:
+  # GCP project ID for this environment (e.g. tabiya-classifier-dev)
+  tabiya-classifier:project: <project-id>
+
+  # GCP region for all resources
+  tabiya-classifier:region: <region>
+
+  # MongoDB database name (non-secret; the URI comes from env-vars)
+  tabiya-classifier:mongodbDbName: <db-name>
+
+  # Docker image URIs — injected by CI at deploy time; set as placeholders here
+  # so prepare.py merges them in alongside the fetched config.
+  tabiya-classifier:nerImage: <image-uri>
+  tabiya-classifier:nelImage: <image-uri>
+  tabiya-classifier:classifyImage: <image-uri>

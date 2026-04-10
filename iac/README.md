@@ -2,7 +2,44 @@
 
 Pulumi Python — GCP.
 
-**Never run `pulumi up` from this repo directly. Deployments are triggered by GitHub Actions (deploy.yml).**
+**Never run `pulumi up` from this repo directly without first running `prepare.py`.
+Deployments are triggered by GitHub Actions (deploy.yml).**
+
+## How configuration works
+
+Stack config and secrets are **never committed to git**. They live in GCP Secret Manager
+in each environment's own GCP project and are fetched at deploy time.
+
+| Secret name in GCP | Content | Written to |
+|---|---|---|
+| `env-vars` | `.env` file with secret values (`MONGODB_URI`, `HF_TOKEN`) | `iac/pulumi/.env.{stack}` |
+| `stack-config` | YAML with Pulumi config (`project`, `region`, etc.) | `iac/pulumi/Pulumi.{stack}.yaml` |
+
+Both generated files are git-ignored. The committed templates in `iac/templates/`
+define the required keys and are used by `prepare.py` to validate what it fetches
+before writing anything.
+
+## Directory structure
+
+```
+iac/
+├── pulumi/
+│   ├── __main__.py         — entry point
+│   ├── registry_and_iam.py — Artifact Registry + service accounts
+│   ├── secrets.py          — Secret Manager resources
+│   ├── memorystore.py      — Redis + VPC connector
+│   ├── cloud_run.py        — NER, NEL, Classify Cloud Run services
+│   ├── api_gateway.py      — GCP API Gateway with API key auth
+│   ├── storage.py          — GCS buckets + CDN for app and docs
+│   ├── requirements.txt    — Pulumi Python dependencies
+│   └── Pulumi.yaml         — project metadata only (no stack config)
+├── scripts/
+│   ├── prepare.py          — fetches secrets, validates, writes local files
+│   └── requirements.txt    — dependencies for prepare.py
+└── templates/
+    ├── env.template                 — required env var keys (committed)
+    └── stack_config.template.yaml  — required Pulumi config keys (committed)
+```
 
 ## Prerequisites
 
@@ -11,61 +48,73 @@ Pulumi Python — GCP.
 - [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) (`gcloud`)
 - A Pulumi account and access token
 
-## Structure
+## One-time bootstrap (per environment)
 
-```
-iac/pulumi/
-├── __main__.py         — entry point (wires all modules)
-├── registry_and_iam.py — Artifact Registry + service accounts
-├── secrets.py          — Secret Manager secrets
-├── memorystore.py      — Redis + VPC connector
-├── cloud_run.py        — NER, NEL, Classify Cloud Run services
-├── api_gateway.py      — GCP API Gateway with API key auth
-├── storage.py          — GCS buckets + CDN for app and docs
-├── requirements.txt    — Python dependencies
-├── Pulumi.yaml         — project config and schema
-├── Pulumi.dev.yaml     — dev stack config
-├── Pulumi.staging.yaml — staging stack config
-└── Pulumi.prod.yaml    — prod stack config
-```
-
-## One-time setup (per stack)
+Before deploying an environment for the first time, create its two secrets in the
+environment's GCP project:
 
 ```bash
+PROJECT=tabiya-classifier-dev   # or staging / prod
+STACK=dev
+
+# 1. Create and populate env-vars (secret values)
+gcloud secrets create env-vars --project $PROJECT
+cat <<'EOF' | gcloud secrets versions add env-vars --project $PROJECT --data-file=-
+MONGODB_URI=mongodb+srv://...
+HF_TOKEN=hf_...
+EOF
+
+# 2. Create and populate stack-config (Pulumi config YAML)
+gcloud secrets create stack-config --project $PROJECT
+cat <<'EOF' | gcloud secrets versions add stack-config --project $PROJECT --data-file=-
+config:
+  tabiya-classifier:project: tabiya-classifier-dev
+  tabiya-classifier:region: us-central1
+  tabiya-classifier:mongodbDbName: tabiya-classifier-dev
+EOF
+```
+
+## Local deployment (manual)
+
+```bash
+# Authenticate to GCP
+gcloud auth application-default login
+
+# Install script deps
+pip install -r iac/scripts/requirements.txt
+
+# Fetch config and secrets, write local files
+python iac/scripts/prepare.py \
+  --stack dev \
+  --project tabiya-classifier-dev \
+  --ner-image us-central1-docker.pkg.dev/tabiya-classifier-dev/tabiya-classifier/ner:SHA \
+  --nel-image us-central1-docker.pkg.dev/tabiya-classifier-dev/tabiya-classifier/nel:SHA \
+  --classify-image us-central1-docker.pkg.dev/tabiya-classifier-dev/tabiya-classifier/classify:SHA
+
+# Install Pulumi deps
+pip install -r iac/pulumi/requirements.txt
+
+# Source env vars and deploy
 cd iac/pulumi
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-pulumi login            # authenticate with Pulumi Cloud
-pulumi stack select dev # or staging / prod
-
-# Required secrets (store in Pulumi config, not git):
-pulumi config set --secret tabiya-classifier:mongodbUri "mongodb+srv://..."
-pulumi config set --secret tabiya-classifier:hfToken "hf_..."
-
-# Image URIs (set after first Docker build):
-pulumi config set tabiya-classifier:nerImage "us-central1-docker.pkg.dev/PROJECT/tabiya-classifier/ner:SHA"
-pulumi config set tabiya-classifier:nelImage "us-central1-docker.pkg.dev/PROJECT/tabiya-classifier/nel:SHA"
-pulumi config set tabiya-classifier:classifyImage "us-central1-docker.pkg.dev/PROJECT/tabiya-classifier/classify:SHA"
+set -a && source .env.dev && set +a
+pulumi up --stack dev
 ```
 
-## Preview and deploy (manual)
+## Rotating secrets
+
+Secret values are managed outside Pulumi. To rotate:
 
 ```bash
-pulumi preview   # dry-run — always do this first
-pulumi up        # apply changes
+echo "new-value" | gcloud secrets versions add env-vars \
+  --project tabiya-classifier-dev \
+  --data-file=-
 ```
 
-## Stack promotion
-
-- `dev` → `staging` → `prod`
-- Each stack has its own GCP project and config.
-- Promote by selecting the target stack and updating image URIs.
+Then re-deploy via GitHub Actions or locally (prepare.py will pick up the new `latest` version).
 
 ## Required GCP APIs
 
-Enable these on the GCP project before running `pulumi up`:
+Enable these on each environment's GCP project before first deploy:
 
 ```bash
 gcloud services enable \
@@ -80,21 +129,18 @@ gcloud services enable \
   --project PROJECT_ID
 ```
 
-## MongoDB Atlas
+## Stack promotion
 
-MongoDB Atlas is **not** managed by Pulumi. Provision the cluster manually or via the Atlas UI, then provide the connection URI as a Pulumi secret (see setup above).
-
-Required collections (created on first use):
-- `users`
-- `api_keys`
-- `user_configs`
+- `dev` → `staging` → `prod`
+- Each stack has its own GCP project with its own `env-vars` and `stack-config` secrets.
+- Promote by running the deploy workflow against the target stack.
 
 ## DNS
 
-After deployment, point DNS records to the load balancer IPs:
+After first deployment, point DNS records to the load balancer IPs output by `pulumi up`:
 
 ```
-app.classifier.tabiya.tech  → A  <appForwardingRuleIP>
-docs.classifier.tabiya.tech → A  <docsForwardingRuleIP>
-api.classifier.tabiya.tech  → CNAME <gatewayDefaultHostname>
+app.classifier.tabiya.tech  → A     <appForwardingRuleIP>
+docs.classifier.tabiya.tech → A     <docsForwardingRuleIP>
+api.classifier.tabiya.tech  → CNAME <apiGatewayUrl>
 ```
