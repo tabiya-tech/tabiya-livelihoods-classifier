@@ -2,20 +2,26 @@
 
 Stacks: dev, staging, prod
 
-Required Pulumi config (set via `pulumi config set`):
+Stack config is fetched from GCP Secret Manager at deploy time by scripts/prepare.py,
+which writes a Pulumi.{stack}.yaml file. That file is never committed to git.
+
+Secret values (mongodbUri, hfToken) are loaded from the .env.{stack} file written
+by prepare.py and injected into os.environ before pulumi up runs.
+
+Required Pulumi config keys (in the generated Pulumi.{stack}.yaml):
   tabiya-classifier:project       — GCP project ID
   tabiya-classifier:region        — GCP region (default: us-central1)
   tabiya-classifier:nerImage      — NER Docker image URI
   tabiya-classifier:nelImage      — NEL Docker image URI
   tabiya-classifier:classifyImage — Classify Docker image URI
-  tabiya-classifier:mongodbUri    — MongoDB Atlas URI (secret)
   tabiya-classifier:mongodbDbName — MongoDB database name
-  tabiya-classifier:hfToken       — HuggingFace token (secret)
 
-Required environment variables (for CI/CD):
-  PULUMI_ACCESS_TOKEN             — Pulumi Cloud token
-  GOOGLE_CREDENTIALS              — GCP service account JSON key
+Required environment variables (from .env.{stack}, sourced from Secret Manager):
+  MONGODB_URI   — MongoDB Atlas connection URI
+  HF_TOKEN      — HuggingFace access token
 """
+
+import os
 
 import pulumi
 
@@ -29,12 +35,22 @@ from secrets import create_secrets
 config = pulumi.Config()
 project = config.require("project")
 region = config.get("region") or "us-central1"
-mongodb_uri = config.require_secret("mongodbUri")
 mongodb_db_name = config.get("mongodbDbName") or "tabiya-classifier"
-hf_token = config.require_secret("hfToken")
 ner_image = config.require("nerImage")
 nel_image = config.require("nelImage")
 classify_image = config.require("classifyImage")
+
+# Secret values come from the .env.{stack} file loaded into the environment
+# by prepare.py before pulumi up runs. They are never stored in Pulumi config.
+def _require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise ValueError(f"Required environment variable {name} is not set. "
+                         "Run scripts/prepare.py before pulumi up.")
+    return value
+
+mongodb_uri = _require_env("MONGODB_URI")
+hf_token = _require_env("HF_TOKEN")
 
 # ── Artifact Registry ──────────────────────────────────────────────────────
 registry, service_accounts = create_artifact_registry(project=project, region=region)
@@ -44,11 +60,12 @@ pulumi.export(
 )
 
 # ── Secret Manager ─────────────────────────────────────────────────────────
+# Creates the Secret resources and pins their initial values. Subsequent rotations
+# are managed outside Pulumi (via gcloud or CI) to avoid storing secrets in state.
 secrets = create_secrets(project=project, mongodb_uri=mongodb_uri, hf_token=hf_token)
 
 # ── Memorystore Redis ──────────────────────────────────────────────────────
 redis, vpc_connector = create_redis(project=project, region=region)
-pulumi.export("redisHost", redis.host)
 
 # ── Cloud Run Services ─────────────────────────────────────────────────────
 ner, nel, classify = create_cloud_run_services(

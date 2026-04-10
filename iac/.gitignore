@@ -1,6 +1,7 @@
-# Pulumi
-.pulumi/
-
 # Generated at deploy time by scripts/prepare.py — never committed
-Pulumi.*.yaml
-.env.*
+pulumi/.env.*
+pulumi/Pulumi.*.yaml
+
+# Python
+__pycache__/
+*.pyc

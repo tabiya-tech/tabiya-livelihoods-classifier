@@ -1,14 +1,16 @@
 """Secret Manager secrets for sensitive configuration.
 
-Secrets are created here; their values are pushed externally (manually or via CI/CD).
-Cloud Run services reference secrets by name — see cloud_run.py.
+The Secret resources are managed by Pulumi (creation, IAM).
+The secret *values* are set here on first deploy from environment variables
+that prepare.py loaded from GCP Secret Manager before pulumi up ran.
+Subsequent rotations are done outside Pulumi via `gcloud secrets versions add`
+so that secret values never enter the Pulumi state file.
 """
 
-import pulumi
 import pulumi_gcp as gcp
 
 
-def create_secrets(project: str, mongodb_uri: pulumi.Output, hf_token: pulumi.Output):
+def create_secrets(project: str, mongodb_uri: str, hf_token: str) -> dict:
     mongodb_uri_secret = gcp.secretmanager.Secret(
         "mongodb-uri",
         project=project,

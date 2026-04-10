@@ -47,22 +47,27 @@ def create_artifact_registry(project: str, region: str):
             member=sa.email.apply(lambda e: f"serviceAccount:{e}"),
         )
 
-    # Grant all service accounts access to Secret Manager secrets
-    for i, sa in enumerate([ner_sa, nel_sa, classify_sa]):
-        gcp.projects.IAMMember(
-            f"secret-accessor-{i}",
-            project=project,
-            role="roles/secretmanager.secretAccessor",
-            member=sa.email.apply(lambda e: f"serviceAccount:{e}"),
-        )
+    # Grant each SA access only to the specific secrets it needs:
+    #   NER      → hf-token only
+    #   NEL      → no secrets
+    #   Classify → mongodb-uri only (hf-token is not needed by the orchestrator)
+    gcp.secretmanager.SecretIamMember(
+        "ner-sa-hf-token-accessor",
+        project=project,
+        secret_id="tabiya-classifier-hf-token",
+        role="roles/secretmanager.secretAccessor",
+        member=ner_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
 
-    # Grant classify SA Cloud Run invoker on NER and NEL (internal calls)
-    for i in range(2):
-        gcp.projects.IAMMember(
-            f"run-invoker-{i}",
-            project=project,
-            role="roles/run.invoker",
-            member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
-        )
+    gcp.secretmanager.SecretIamMember(
+        "classify-sa-mongodb-uri-accessor",
+        project=project,
+        secret_id="tabiya-classifier-mongodb-uri",
+        role="roles/secretmanager.secretAccessor",
+        member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    # Per-service Cloud Run invoker bindings are set in cloud_run.py after the
+    # services exist. No project-level run.invoker grant is needed.
 
     return registry, {"ner_sa": ner_sa, "nel_sa": nel_sa, "classify_sa": classify_sa}
