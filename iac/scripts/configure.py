@@ -16,12 +16,13 @@ Usage:
         --secret stack-config-backend --file /tmp/backend.yaml
 
 Secrets managed:
-    env-vars              — MONGODB_URI, HF_TOKEN (shared by all stacks)
-    stack-config-dns      — Pulumi config for the dns stack
-    stack-config-auth     — Pulumi config for the auth stack
-    stack-config-backend  — Pulumi config for the backend stack
-    stack-config-common   — Pulumi config for the common stack
-    stack-config-aws-ns   — Pulumi config for the aws-ns stack
+    env-vars                     — MONGODB_URI, HF_TOKEN (shared by all stacks)
+    stack-config-enable-services — Pulumi config for the enable-services stack
+    stack-config-dns             — Pulumi config for the dns stack
+    stack-config-auth            — Pulumi config for the auth stack
+    stack-config-backend         — Pulumi config for the backend stack
+    stack-config-common          — Pulumi config for the common stack
+    stack-config-aws-ns          — Pulumi config for the aws-ns stack
 """
 
 import argparse
@@ -39,6 +40,7 @@ TEMPLATES_DIR = os.path.join(IAC_DIR, "templates")
 
 ALL_SECRETS = [
     "env-vars",
+    "stack-config-enable-services",
     "stack-config-dns",
     "stack-config-auth",
     "stack-config-backend",
@@ -48,12 +50,13 @@ ALL_SECRETS = [
 
 # Maps secret name to its template file (for showing defaults)
 TEMPLATE_MAP = {
-    "env-vars":              "env.template",
-    "stack-config-dns":     "stack_config.dns.template.yaml",
-    "stack-config-auth":    "stack_config.auth.template.yaml",
-    "stack-config-backend": "stack_config.backend.template.yaml",
-    "stack-config-common":  "stack_config.common.template.yaml",
-    "stack-config-aws-ns":  "stack_config.aws-ns.template.yaml",
+    "env-vars":                      "env.template",
+    "stack-config-enable-services":  "stack_config.enable-services.template.yaml",
+    "stack-config-dns":              "stack_config.dns.template.yaml",
+    "stack-config-auth":             "stack_config.auth.template.yaml",
+    "stack-config-backend":          "stack_config.backend.template.yaml",
+    "stack-config-common":           "stack_config.common.template.yaml",
+    "stack-config-aws-ns":           "stack_config.aws-ns.template.yaml",
 }
 
 

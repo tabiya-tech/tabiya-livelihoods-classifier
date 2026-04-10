@@ -41,12 +41,13 @@ upload_secret() {
 echo "Uploading config for stack '$STACK' to project '$PROJECT'..."
 echo
 
-upload_secret "env-vars"              "$CONFIG_DIR/env-vars"
-upload_secret "stack-config-dns"      "$CONFIG_DIR/stack-config-dns.yaml"
-upload_secret "stack-config-auth"     "$CONFIG_DIR/stack-config-auth.yaml"
-upload_secret "stack-config-backend"  "$CONFIG_DIR/stack-config-backend.yaml"
-upload_secret "stack-config-common"   "$CONFIG_DIR/stack-config-common.yaml"
-upload_secret "stack-config-aws-ns"   "$CONFIG_DIR/stack-config-aws-ns.yaml"
+upload_secret "env-vars"                      "$CONFIG_DIR/env-vars"
+upload_secret "stack-config-enable-services"  "$CONFIG_DIR/stack-config-enable-services.yaml"
+upload_secret "stack-config-dns"              "$CONFIG_DIR/stack-config-dns.yaml"
+upload_secret "stack-config-auth"             "$CONFIG_DIR/stack-config-auth.yaml"
+upload_secret "stack-config-backend"          "$CONFIG_DIR/stack-config-backend.yaml"
+upload_secret "stack-config-common"           "$CONFIG_DIR/stack-config-common.yaml"
+upload_secret "stack-config-aws-ns"           "$CONFIG_DIR/stack-config-aws-ns.yaml"
 
 echo
 echo "Done. Verify with:"

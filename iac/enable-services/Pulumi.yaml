@@ -1,0 +1,3 @@
+name: tabiya-classifier-enable-services
+runtime: python
+description: Enable all required GCP APIs for Tabiya Livelihoods Classifier
