@@ -2,30 +2,19 @@
 
 import asyncio
 import logging
-import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
 
-import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from classify.batch_store import (
-    complete_batch,
-    create_batch,
-    get_batch,
-    update_batch,
-)
-from classify.config import (
-    CLASSIFIER_VERSION,
-    MAX_BATCH_SIZE,
-    MAX_TEXT_LENGTH,
-    NEL_API_URL,
-    NER_API_URL,
-)
+from classify.batch_store import complete_batch, create_batch, get_batch, update_batch
+from classify.config import CLASSIFIER_VERSION, MAX_BATCH_SIZE, MAX_TEXT_LENGTH
+from classify.get_classify_service import get_classify_service
+from classify.models import BatchJob, BatchRequest, ClassifyOptions, ClassifyRequest, ClassifyResponse
+from classify.service import IClassifyService
 from classify.user_config import (
     create_api_key_for_uid,
     delete_api_key_for_uid,
@@ -37,7 +26,7 @@ from classify.user_config import (
     record_usage_event,
     set_user_config_for_uid,
 )
-from shared.job_text import build_input_text, compute_hash
+from shared.job_text import build_input_text
 
 load_dotenv()
 
@@ -62,168 +51,54 @@ app.add_middleware(
 )
 
 
-
-
-# ── Request / Response models ──────────────────────────────────────────────
-
-class ClassifyOptions(BaseModel):
-    extract_entities: Optional[List[str]] = None
-    top_k: int = Field(5, ge=1, le=50)
-    min_similarity: float = Field(0.0, ge=0.0, le=1.0)
-
-
-class ClassifyRequest(BaseModel):
-    text: Optional[str] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
-    options: Optional[ClassifyOptions] = None
-
-
-class BatchJob(BaseModel):
-    job_id: Optional[str] = None
-    text: Optional[str] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
-
-
-class BatchRequest(BaseModel):
-    jobs: List[BatchJob] = Field(..., min_length=1)
-    options: Optional[ClassifyOptions] = None
-
+# ── Auxiliary request models ───────────────────────────────────────────────
 
 class UserConfigUpdate(BaseModel):
-    ner_type: Optional[str] = None
-    nel_type: Optional[str] = None
-    ner_model_name: Optional[str] = None
-    nel_model_name: Optional[str] = None
-    taxonomy_model_id: Optional[str] = None
+    ner_type: str | None = None
+    nel_type: str | None = None
+    ner_model_name: str | None = None
+    nel_model_name: str | None = None
+    taxonomy_model_id: str | None = None
 
 
 class CreateApiKeyRequest(BaseModel):
     label: str = Field(..., min_length=1, max_length=100)
 
 
-# ── Core classify logic ────────────────────────────────────────────────────
-
-async def _classify_text(
-    input_text: str,
-    options: Optional[ClassifyOptions] = None,
-    http_client: Optional[httpx.AsyncClient] = None,
-) -> dict:
-    """Call NER then NEL and merge results."""
-    opts = options or ClassifyOptions()
-    start = time.time()
-
-    ner_payload: Dict[str, Any] = {"text": input_text}
-    if opts.extract_entities:
-        ner_payload["entity_types"] = opts.extract_entities
-
-    client = http_client or httpx.AsyncClient(timeout=60.0)
-    try:
-        ner_resp = await client.post(f"{NER_API_URL}/v1/ner", json=ner_payload)
-        ner_resp.raise_for_status()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=502, detail=f"NER service error: {e}")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=503, detail=f"NER service unreachable: {e}")
-
-    ner_data = ner_resp.json()
-    ner_entities = ner_data.get("entities", [])
-
-    linkable_types = {"occupation", "skill", "qualification"}
-    nel_input = [
-        {"text": e["surface_form"], "entity_type": e["entity_type"]}
-        for e in ner_entities
-        if e["entity_type"] in linkable_types
-    ]
-
-    linked_map = {}
-    nel_metadata = {}
-    if nel_input:
-        try:
-            nel_resp = await client.post(
-                f"{NEL_API_URL}/v1/nel",
-                json={
-                    "entities": nel_input,
-                    "options": {"top_k": opts.top_k, "min_similarity": opts.min_similarity},
-                },
-            )
-            nel_resp.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            raise HTTPException(status_code=502, detail=f"NEL service error: {e}")
-        except httpx.RequestError as e:
-            raise HTTPException(status_code=503, detail=f"NEL service unreachable: {e}")
-
-        nel_data = nel_resp.json()
-        nel_metadata = nel_data.get("metadata", {})
-        for item in nel_data.get("linked_entities", []):
-            key = (item["input_text"], item["entity_type"])
-            linked_map[key] = item["matches"]
-
-    merged_entities = []
-    entity_counts: Dict[str, int] = {}
-
-    for entity in ner_entities:
-        etype = entity["entity_type"]
-        entity_counts[etype] = entity_counts.get(etype, 0) + 1
-        merged = {
-            "entity_type": etype,
-            "surface_form": entity["surface_form"],
-            "span": entity["span"],
-        }
-        key = (entity["surface_form"], etype)
-        if key in linked_map:
-            merged["linked_entities"] = linked_map[key]
-        merged_entities.append(merged)
-
-    if http_client is None:
-        await client.aclose()
-
-    processing_time = round((time.time() - start) * 1000, 1)
-    return {
-        "classification": {
-            "entities": merged_entities,
-            "entity_counts": entity_counts,
-        },
-        "metadata": {
-            "classifier_version": CLASSIFIER_VERSION,
-            "model_name": ner_data.get("metadata", {}).get("model_name", "unknown"),
-            "linker_model": nel_metadata.get("linker_model", "unknown"),
-            "processing_time_ms": processing_time,
-            "input_text_hash": compute_hash(input_text),
-        },
-    }
-
-
 # ── Classify endpoints ─────────────────────────────────────────────────────
 
-@app.post("/v1/classify")
-async def classify(req: ClassifyRequest, user_config: dict = Depends(get_api_key_user)):
-
+@app.post("/v1/classify", response_model=ClassifyResponse)
+async def classify(
+    req: ClassifyRequest,
+    user_config: dict = Depends(get_api_key_user),
+    service: IClassifyService = Depends(get_classify_service),
+):
     input_text = build_input_text(req.model_dump(), allow_text_field=True)
     if not input_text:
         raise HTTPException(status_code=400, detail="Provide 'text' or 'title'+'description'")
     if len(input_text) > MAX_TEXT_LENGTH:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Text exceeds maximum length ({MAX_TEXT_LENGTH} chars)",
-        )
+        raise HTTPException(status_code=413, detail=f"Text exceeds maximum length ({MAX_TEXT_LENGTH} chars)")
 
     log.info("Classify request: %d chars (user: %s)", len(input_text), user_config["user_id"])
-    result = await _classify_text(input_text, req.options)
+
+    try:
+        result = await service.classify(input_text, req.options)
+    except Exception as e:
+        log.error("Classify failed: %s", e)
+        raise HTTPException(status_code=502, detail=str(e))
+
     record_usage_event(user_config["user_id"])
-    entity_count = sum(result["classification"]["entity_counts"].values())
-    log.info(
-        "Classify done: %d entities in %.1fms",
-        entity_count,
-        result["metadata"]["processing_time_ms"],
-    )
+    entity_count = sum(result.classification.entity_counts.values())
+    log.info("Classify done: %d entities in %.1fms", entity_count, result.metadata.processing_time_ms)
     return result
 
 
 @app.post("/v1/classify/batch", status_code=202)
-async def submit_batch(req: BatchRequest, user_config: dict = Depends(get_api_key_user)):
-
+async def submit_batch(
+    req: BatchRequest,
+    user_config: dict = Depends(get_api_key_user),
+    service: IClassifyService = Depends(get_classify_service),
+):
     if len(req.jobs) > MAX_BATCH_SIZE:
         raise HTTPException(
             status_code=413,
@@ -232,33 +107,36 @@ async def submit_batch(req: BatchRequest, user_config: dict = Depends(get_api_ke
 
     batch_id = str(uuid.uuid4())[:8]
     await create_batch(batch_id, len(req.jobs))
-    asyncio.create_task(_process_batch(batch_id, req.jobs, req.options, user_config["user_id"]))
+    asyncio.create_task(_process_batch(batch_id, req.jobs, req.options, user_config["user_id"], service))
 
     log.info("Batch %s submitted: %d jobs (user: %s)", batch_id, len(req.jobs), user_config["user_id"])
     return {"batch_id": batch_id, "total": len(req.jobs), "status": "processing"}
 
 
 async def _process_batch(
-    batch_id: str, jobs: List[BatchJob], options: Optional[ClassifyOptions], user_id: str
+    batch_id: str,
+    jobs: list[BatchJob],
+    options: ClassifyOptions | None,
+    user_id: str,
+    service: IClassifyService,
 ) -> None:
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        for i, job in enumerate(jobs):
-            job_id = job.job_id or f"job_{i}"
-            input_text = build_input_text(job.model_dump(), allow_text_field=True)
+    for i, job in enumerate(jobs):
+        job_id = job.job_id or f"job_{i}"
+        input_text = build_input_text(job.model_dump(), allow_text_field=True)
 
-            if not input_text:
-                result = {"job_id": job_id, "status": "error", "error": "No classifiable text found"}
-            elif len(input_text) > MAX_TEXT_LENGTH:
-                result = {"job_id": job_id, "status": "error", "error": f"Text exceeds {MAX_TEXT_LENGTH} char limit"}
-            else:
-                try:
-                    classify_result = await _classify_text(input_text, options, client)
-                    result = {"job_id": job_id, "status": "completed", **classify_result}
-                except Exception as e:
-                    log.error("[batch-%s] Job %s failed: %s", batch_id, job_id, e)
-                    result = {"job_id": job_id, "status": "error", "error": str(e)}
+        if not input_text:
+            result = {"job_id": job_id, "status": "error", "error": "No classifiable text found"}
+        elif len(input_text) > MAX_TEXT_LENGTH:
+            result = {"job_id": job_id, "status": "error", "error": f"Text exceeds {MAX_TEXT_LENGTH} char limit"}
+        else:
+            try:
+                classify_result = await service.classify(input_text, options)
+                result = {"job_id": job_id, "status": "completed", **classify_result.model_dump()}
+            except Exception as e:
+                log.error("[batch-%s] Job %s failed: %s", batch_id, job_id, e)
+                result = {"job_id": job_id, "status": "error", "error": str(e)}
 
-            await update_batch(batch_id, i + 1, result)
+        await update_batch(batch_id, i + 1, result)
 
     await complete_batch(batch_id)
     record_usage_event(user_id)
@@ -269,12 +147,7 @@ async def batch_status(batch_id: str, user_config: dict = Depends(get_api_key_us
     batch = await get_batch(batch_id)
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
-    return {
-        "batch_id": batch_id,
-        "status": batch["status"],
-        "total": batch["total"],
-        "processed": batch["processed"],
-    }
+    return {"batch_id": batch_id, "status": batch["status"], "total": batch["total"], "processed": batch["processed"]}
 
 
 @app.get("/v1/batch/{batch_id}/results")
@@ -292,7 +165,6 @@ async def batch_results(batch_id: str, user_config: dict = Depends(get_api_key_u
 
 
 # ── Dashboard endpoints (/v1/user/*) ──────────────────────────────────────
-# These use Firebase Bearer token auth (sent by the React dashboard).
 
 @app.get("/v1/user/config")
 async def get_config(uid: str = Depends(get_firebase_uid)):
@@ -331,9 +203,11 @@ async def get_usage(uid: str = Depends(get_firebase_uid)):
 
 @app.get("/v1/health")
 async def health():
+    import httpx
+    from classify.config import NEL_API_URL, NER_API_URL
+
     ner_ok = False
     nel_ok = False
-
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
             r = await client.get(f"{NER_API_URL}/v1/health")

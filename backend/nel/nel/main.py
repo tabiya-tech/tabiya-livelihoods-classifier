@@ -2,14 +2,16 @@
 
 import logging
 import os
-import time
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+
+from nel.get_nel_service import get_nel_service
+from nel.models import NELRequest, NELResponse
+from nel.service import INELService
 
 load_dotenv()
 
@@ -55,92 +57,22 @@ app.add_middleware(
 )
 
 
-# --- Request / Response models ---
-
-class EntityInput(BaseModel):
-    text: str = Field(..., min_length=1)
-    entity_type: str
-
-
-class NELOptions(BaseModel):
-    top_k: Optional[int] = Field(5, ge=1, le=50)
-    min_similarity: Optional[float] = Field(0.0, ge=0.0, le=1.0)
-
-
-class NELRequest(BaseModel):
-    entities: List[EntityInput] = Field(..., min_length=1)
-    options: Optional[NELOptions] = None
-
-
-class TaxonomyMatch(BaseModel):
-    similarity_score: float
-    taxonomy: str
-    label: str
-    code: Optional[str] = None
-    uri: Optional[str] = None
-    eqf_level: Optional[str] = None
-
-
-class LinkedEntity(BaseModel):
-    input_text: str
-    entity_type: str
-    matches: List[TaxonomyMatch]
-
-
-class NELMetadata(BaseModel):
-    linker_model: str
-    taxonomy: str
-    processing_time_ms: float
-
-
-class NELResponse(BaseModel):
-    linked_entities: List[LinkedEntity]
-    metadata: NELMetadata
-
-
 # --- Endpoints ---
 
 @app.post("/v1/nel", response_model=NELResponse)
-async def link_entities(req: NELRequest):
+async def link_entities(req: NELRequest, service: INELService = Depends(get_nel_service)):
     if len(req.entities) > MAX_ENTITIES_PER_REQUEST:
         raise HTTPException(
             status_code=413,
             detail=f"Too many entities ({len(req.entities)}). Maximum is {MAX_ENTITIES_PER_REQUEST}.",
         )
-
-    options = req.options or NELOptions()
-    top_k = min(options.top_k, MAX_TOP_K)
-    min_similarity = options.min_similarity
-
-    if nel_linker is None:
-        raise HTTPException(
-            status_code=503, detail=_linker_load_error or "NEL linker not loaded"
-        )
-
-    log.info("NEL request: %d entities, top_k=%d", len(req.entities), top_k)
-    start = time.time()
-
     try:
-        results = nel_linker.link(
-            [e.model_dump() for e in req.entities],
-            top_k=top_k,
-            min_similarity=min_similarity,
-        )
+        return service.link_entities([e.model_dump() for e in req.entities], req.options)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         log.error("NEL linking failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Entity linking failed: {e}")
-
-    processing_time = round((time.time() - start) * 1000, 1)
-    log.info("NEL done: %d linked in %.1fms", len(results), processing_time)
-
-    return NELResponse(
-        linked_entities=results,
-        metadata=NELMetadata(
-            linker_model=nel_linker.similarity_model_name,
-            taxonomy="esco",
-            processing_time_ms=processing_time,
-        ),
-    )
 
 
 @app.get("/v1/health")

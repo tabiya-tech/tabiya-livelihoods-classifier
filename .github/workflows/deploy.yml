@@ -1,6 +1,11 @@
 name: Deploy Infrastructure (Pulumi)
 
 on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - "backend/**"
+      - "iac/**"
   workflow_dispatch:
     inputs:
       stack:
@@ -20,15 +25,70 @@ on:
         required: false
 
 # ── Shared steps ─────────────────────────────────────────────────────────────
-# Each job authenticates to GCP independently (OIDC tokens are short-lived).
-# The prepare job uploads generated configs as an artifact; all deploy jobs
-# download that artifact before running pulumi up.
+# Push trigger: only runs when commit message contains [deploy dev], always targets dev.
+# workflow_dispatch: runs unconditionally, targets the selected stack.
+
+env:
+  REGISTRY: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/tabiya-classifier
 
 jobs:
+  # Resolves which stack to deploy and gates push-triggered runs on [deploy dev]
+  resolve:
+    name: Resolve stack
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy dev]')
+    outputs:
+      stack: ${{ steps.stack.outputs.value }}
+    steps:
+      - name: Set stack
+        id: stack
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "value=dev" >> $GITHUB_OUTPUT
+          else
+            echo "value=${{ inputs.stack }}" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-push:
+    name: Build and push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: resolve
+    environment: ${{ needs.resolve.outputs.stack }}
+    strategy:
+      matrix:
+        service: [ner, nel, classify]
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: docker build -f backend/${{ matrix.service }}/Dockerfile -t ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }} -t ${{ env.REGISTRY }}/${{ matrix.service }}:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ matrix.service }}:latest
+
+      - name: Output image URI
+        run: echo "IMAGE=${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
   prepare:
     name: Prepare configs
     runs-on: ubuntu-latest
-    environment: ${{ inputs.stack }}
+    needs: [resolve, build-and-push]
+    environment: ${{ needs.resolve.outputs.stack }}
     permissions:
       contents: read
       id-token: write
@@ -49,15 +109,13 @@ jobs:
 
       - name: Resolve image URIs
         id: images
-        env:
-          REGISTRY: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/tabiya-classifier
         run: |
           NER_SHA="${{ inputs.ner_sha || github.sha }}"
           NEL_SHA="${{ inputs.nel_sha || github.sha }}"
           CLASSIFY_SHA="${{ inputs.classify_sha || github.sha }}"
-          echo "ner=${REGISTRY}/ner:${NER_SHA}" >> $GITHUB_OUTPUT
-          echo "nel=${REGISTRY}/nel:${NEL_SHA}" >> $GITHUB_OUTPUT
-          echo "classify=${REGISTRY}/classify:${CLASSIFY_SHA}" >> $GITHUB_OUTPUT
+          echo "ner=${{ env.REGISTRY }}/ner:${NER_SHA}" >> $GITHUB_OUTPUT
+          echo "nel=${{ env.REGISTRY }}/nel:${NEL_SHA}" >> $GITHUB_OUTPUT
+          echo "classify=${{ env.REGISTRY }}/classify:${CLASSIFY_SHA}" >> $GITHUB_OUTPUT
 
       - name: Install script dependencies
         run: pip install -r iac/scripts/requirements.txt
@@ -65,7 +123,7 @@ jobs:
       - name: Fetch configs and secrets from GCP Secret Manager
         run: |
           python iac/scripts/prepare.py \
-            --stack "${{ inputs.stack }}" \
+            --stack "${{ needs.resolve.outputs.stack }}" \
             --project "${{ secrets.GCP_PROJECT_ID }}" \
             --ner-image "${{ steps.images.outputs.ner }}" \
             --nel-image "${{ steps.images.outputs.nel }}" \
@@ -74,22 +132,22 @@ jobs:
       - name: Upload prepared configs
         uses: actions/upload-artifact@v4
         with:
-          name: pulumi-configs-${{ inputs.stack }}
+          name: pulumi-configs-${{ needs.resolve.outputs.stack }}
           path: |
-            iac/dns/Pulumi.${{ inputs.stack }}.yaml
-            iac/auth/Pulumi.${{ inputs.stack }}.yaml
-            iac/backend/Pulumi.${{ inputs.stack }}.yaml
-            iac/backend/.env.${{ inputs.stack }}
-            iac/common/Pulumi.${{ inputs.stack }}.yaml
-            iac/aws-ns/Pulumi.${{ inputs.stack }}.yaml
+            iac/dns/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
+            iac/auth/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
+            iac/backend/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
+            iac/backend/.env.${{ needs.resolve.outputs.stack }}
+            iac/common/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
+            iac/aws-ns/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
           retention-days: 1
 
   # ── DNS ───────────────────────────────────────────────────────────────────
   deploy-dns:
     name: Deploy dns
-    needs: prepare
+    needs: [resolve, prepare]
     runs-on: ubuntu-latest
-    environment: ${{ inputs.stack }}
+    environment: ${{ needs.resolve.outputs.stack }}
     permissions:
       contents: read
       id-token: write
@@ -100,7 +158,7 @@ jobs:
       - name: Download prepared configs
         uses: actions/download-artifact@v4
         with:
-          name: pulumi-configs-${{ inputs.stack }}
+          name: pulumi-configs-${{ needs.resolve.outputs.stack }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -119,16 +177,16 @@ jobs:
 
       - name: pulumi up — dns
         working-directory: iac/dns
-        run: pulumi up --stack "${{ inputs.stack }}" --yes --color always
+        run: pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
   # ── Auth (runs after dns) ─────────────────────────────────────────────────
   deploy-auth:
     name: Deploy auth
-    needs: deploy-dns
+    needs: [resolve, deploy-dns]
     runs-on: ubuntu-latest
-    environment: ${{ inputs.stack }}
+    environment: ${{ needs.resolve.outputs.stack }}
     permissions:
       contents: read
       id-token: write
@@ -139,7 +197,7 @@ jobs:
       - name: Download prepared configs
         uses: actions/download-artifact@v4
         with:
-          name: pulumi-configs-${{ inputs.stack }}
+          name: pulumi-configs-${{ needs.resolve.outputs.stack }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -158,16 +216,16 @@ jobs:
 
       - name: pulumi up — auth
         working-directory: iac/auth
-        run: pulumi up --stack "${{ inputs.stack }}" --yes --color always
+        run: pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
   # ── Backend (runs after dns, parallel with auth) ──────────────────────────
   deploy-backend:
     name: Deploy backend
-    needs: deploy-dns
+    needs: [resolve, deploy-dns]
     runs-on: ubuntu-latest
-    environment: ${{ inputs.stack }}
+    environment: ${{ needs.resolve.outputs.stack }}
     permissions:
       contents: read
       id-token: write
@@ -178,7 +236,7 @@ jobs:
       - name: Download prepared configs
         uses: actions/download-artifact@v4
         with:
-          name: pulumi-configs-${{ inputs.stack }}
+          name: pulumi-configs-${{ needs.resolve.outputs.stack }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -199,18 +257,18 @@ jobs:
         working-directory: iac/backend
         run: |
           set -a
-          source ".env.${{ inputs.stack }}"
+          source ".env.${{ needs.resolve.outputs.stack }}"
           set +a
-          pulumi up --stack "${{ inputs.stack }}" --yes --color always
+          pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
   # ── Common (needs dns + backend outputs) ──────────────────────────────────
   deploy-common:
     name: Deploy common
-    needs: [deploy-dns, deploy-backend]
+    needs: [resolve, deploy-dns, deploy-backend]
     runs-on: ubuntu-latest
-    environment: ${{ inputs.stack }}
+    environment: ${{ needs.resolve.outputs.stack }}
     permissions:
       contents: read
       id-token: write
@@ -221,7 +279,7 @@ jobs:
       - name: Download prepared configs
         uses: actions/download-artifact@v4
         with:
-          name: pulumi-configs-${{ inputs.stack }}
+          name: pulumi-configs-${{ needs.resolve.outputs.stack }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -240,7 +298,7 @@ jobs:
 
       - name: pulumi up — common
         working-directory: iac/common
-        run: pulumi up --stack "${{ inputs.stack }}" --yes --color always
+        run: pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -249,7 +307,7 @@ jobs:
   # manages tabiya.tech which is shared across all environments.
   deploy-aws-ns:
     name: Deploy aws-ns
-    needs: deploy-dns
+    needs: [resolve, deploy-dns]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -260,7 +318,7 @@ jobs:
       - name: Download prepared configs
         uses: actions/download-artifact@v4
         with:
-          name: pulumi-configs-${{ inputs.stack }}
+          name: pulumi-configs-${{ needs.resolve.outputs.stack }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -280,6 +338,6 @@ jobs:
 
       - name: pulumi up — aws-ns
         working-directory: iac/aws-ns
-        run: pulumi up --stack "${{ inputs.stack }}" --yes --color always
+        run: pulumi up --stack "${{ needs.resolve.outputs.stack }}" --yes --color always
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

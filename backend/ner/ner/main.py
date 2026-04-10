@@ -2,14 +2,16 @@
 
 import logging
 import os
-import time
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import List, Optional
+
+from ner.get_ner_service import get_ner_service
+from ner.models import NERRequest, NERResponse
+from ner.service import INERService
 
 load_dotenv()
 
@@ -51,78 +53,24 @@ app.add_middleware(
 )
 
 
-# --- Request / Response models ---
-
-class NERRequest(BaseModel):
-    text: str = Field(..., description="Job-related text to extract entities from")
-    entity_types: Optional[List[str]] = Field(
-        None, description="Filter to specific entity types (e.g. ['occupation', 'skill'])"
-    )
-
-
-class EntitySpan(BaseModel):
-    start: int
-    end: int
-
-
-class Entity(BaseModel):
-    entity_type: str
-    surface_form: str
-    span: EntitySpan
-
-
-class NERMetadata(BaseModel):
-    model_name: str
-    entity_count: int
-    processing_time_ms: float
-
-
-class NERResponse(BaseModel):
-    entities: List[Entity]
-    metadata: NERMetadata
-
-
 # --- Endpoints ---
 
 @app.post("/v1/ner", response_model=NERResponse)
-async def extract_entities(req: NERRequest):
-    if not req.text:
-        raise HTTPException(status_code=400, detail="Field 'text' is required")
-
+async def extract_entities(req: NERRequest, service: INERService = Depends(get_ner_service)):
     if len(req.text) > MAX_TEXT_LENGTH:
         raise HTTPException(
             status_code=413,
             detail=f"Text exceeds maximum length ({MAX_TEXT_LENGTH} chars)",
         )
-
-    if ner_model is None:
-        raise HTTPException(
-            status_code=503, detail=_model_load_error or "NER model not loaded"
-        )
-
-    start = time.time()
     try:
-        entities = ner_model.extract(req.text)
+        return service.extract_entities(req.text, req.entity_types)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         log.error("NER inference failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Model inference failed: {e}")
-
-    processing_time = round((time.time() - start) * 1000, 1)
-
-    if req.entity_types:
-        allowed = {t.lower() for t in req.entity_types}
-        entities = [e for e in entities if e["entity_type"] in allowed]
-
-    log.info("NER done: %d entities in %.1fms", len(entities), processing_time)
-
-    return NERResponse(
-        entities=entities,
-        metadata=NERMetadata(
-            model_name=ner_model.model_name,
-            entity_count=len(entities),
-            processing_time_ms=processing_time,
-        ),
-    )
 
 
 @app.get("/v1/health")
