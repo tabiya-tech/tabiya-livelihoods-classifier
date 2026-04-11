@@ -200,19 +200,6 @@ def create_cloud_run_services(
         ),
     )
 
-    # Allow the GCP API Gateway service agent to invoke Classify.
-    # The service agent identity follows the pattern below; it is project-number-based
-    # and is created automatically when the API Gateway API is enabled.
-    api_gateway_sa = f"serviceAccount:service-{project}@gcp-sa-apigateway.iam.gserviceaccount.com"
-    gcp.cloudrunv2.ServiceIamMember(
-        "classify-invoker",
-        project=project,
-        location=region,
-        name=classify.name,
-        role="roles/run.invoker",
-        member=api_gateway_sa,
-    )
-
     # Allow Classify SA to invoke NER and NEL internally
     gcp.cloudrunv2.ServiceIamMember(
         "ner-classify-invoker",
