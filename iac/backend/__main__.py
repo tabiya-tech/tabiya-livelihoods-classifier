@@ -37,7 +37,6 @@ config = pulumi.Config()
 project = config.require("project")
 region = config.get("region") or "us-central1"
 env = config.require("env")
-mongodb_db_name = config.get("mongodbDbName") or "tabiya-classifier"
 firebase_project_id = config.require("firebaseProjectId")
 env_subdomain = config.require("envSubdomain")
 ner_image = config.require("nerImage")
@@ -56,6 +55,7 @@ def _require_env(name: str) -> str:
 
 
 mongodb_uri = _require_env("MONGODB_URI")
+mongodb_db_name = _require_env("MONGODB_DB_NAME")
 hf_token = _require_env("HF_TOKEN")
 
 # ── Artifact Registry ──────────────────────────────────────────────────────
