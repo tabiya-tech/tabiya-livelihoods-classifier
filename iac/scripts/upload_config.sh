@@ -46,6 +46,7 @@ upload_secret "stack-config-enable-services"  "$CONFIG_DIR/stack-config-enable-s
 upload_secret "stack-config-dns"              "$CONFIG_DIR/stack-config-dns.yaml"
 upload_secret "stack-config-auth"             "$CONFIG_DIR/stack-config-auth.yaml"
 upload_secret "stack-config-backend"          "$CONFIG_DIR/stack-config-backend.yaml"
+upload_secret "stack-config-frontend"         "$CONFIG_DIR/stack-config-frontend.yaml"
 upload_secret "stack-config-common"           "$CONFIG_DIR/stack-config-common.yaml"
 upload_secret "stack-config-aws-ns"           "$CONFIG_DIR/stack-config-aws-ns.yaml"
 

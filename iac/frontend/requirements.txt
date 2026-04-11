@@ -1,0 +1,4 @@
+pulumi>=3.0.0,<4.0.0
+pulumi-gcp>=7.0.0,<8.0.0
+google-cloud-storage>=2.0.0,<3.0.0
+brotli>=1.0.0

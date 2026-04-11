@@ -1,13 +1,15 @@
-"""Global HTTPS load balancer with path-based routing.
+"""Global HTTPS load balancer with host-based routing.
 
-Routes:
-  /api/*   → API Gateway (via Serverless NEG)
-  /*       → app GCS bucket (React dashboard)
-  /docs/*  → docs GCS bucket
+Hosts and their backends:
+  dev.classifier.tabiya.tech        /api/* → API Gateway (Serverless NEG)
+  app.dev.classifier.tabiya.tech    /*     → app GCS bucket
+  docs.dev.classifier.tabiya.tech   /*     → docs GCS bucket
 
-SSL: GCP-managed certificate for the frontend domain.
+SSL: GCP-managed certificate covering all three domains.
 HTTP → HTTPS redirect on port 80.
 """
+
+import hashlib
 
 import pulumi
 import pulumi_gcp as gcp
@@ -16,7 +18,9 @@ import pulumi_gcp as gcp
 def create_load_balancer(
     project: str,
     region: str,
-    frontend_domain: str,
+    api_domain: str,
+    app_domain: str,
+    docs_domain: str,
     api_gateway_id: pulumi.Output,
     app_bucket_name: pulumi.Output,
     docs_bucket_name: pulumi.Output,
@@ -37,7 +41,7 @@ def create_load_balancer(
         bucket_name=app_bucket_name,
         enable_cdn=True,
         cdn_policy=gcp.compute.BackendBucketCdnPolicyArgs(
-            cache_mode="CACHE_ALL_STATIC",
+            cache_mode="USE_ORIGIN_HEADERS",
             default_ttl=3600,
             max_ttl=86400,
         ),
@@ -50,7 +54,7 @@ def create_load_balancer(
         bucket_name=docs_bucket_name,
         enable_cdn=True,
         cdn_policy=gcp.compute.BackendBucketCdnPolicyArgs(
-            cache_mode="CACHE_ALL_STATIC",
+            cache_mode="USE_ORIGIN_HEADERS",
             default_ttl=3600,
             max_ttl=86400,
         ),
@@ -83,6 +87,8 @@ def create_load_balancer(
     )
 
     # ── URL map (HTTPS) ────────────────────────────────────────────────────
+    # Three host rules — each domain routes to its own backend.
+    # The API domain strips the /api prefix before forwarding to the gateway.
     url_map = gcp.compute.URLMap(
         "classifier-url-map",
         project=project,
@@ -90,17 +96,25 @@ def create_load_balancer(
         default_service=app_backend.self_link,
         host_rules=[
             gcp.compute.URLMapHostRuleArgs(
-                hosts=[frontend_domain],
-                path_matcher="all-paths",
-            )
+                hosts=[api_domain],
+                path_matcher="api-paths",
+            ),
+            gcp.compute.URLMapHostRuleArgs(
+                hosts=[app_domain],
+                path_matcher="app-paths",
+            ),
+            gcp.compute.URLMapHostRuleArgs(
+                hosts=[docs_domain],
+                path_matcher="docs-paths",
+            ),
         ],
         path_matchers=[
             gcp.compute.URLMapPathMatcherArgs(
-                name="all-paths",
+                name="api-paths",
                 default_service=app_backend.self_link,
                 path_rules=[
                     gcp.compute.URLMapPathMatcherPathRuleArgs(
-                        paths=["/api/*"],
+                        paths=["/api", "/api/*"],
                         service=api_backend.self_link,
                         route_action=gcp.compute.URLMapPathMatcherPathRuleRouteActionArgs(
                             url_rewrite=gcp.compute.URLMapPathMatcherPathRuleRouteActionUrlRewriteArgs(
@@ -108,27 +122,33 @@ def create_load_balancer(
                             )
                         ),
                     ),
-                    gcp.compute.URLMapPathMatcherPathRuleArgs(
-                        paths=["/docs", "/docs/*"],
-                        service=docs_backend.self_link,
-                        route_action=gcp.compute.URLMapPathMatcherPathRuleRouteActionArgs(
-                            url_rewrite=gcp.compute.URLMapPathMatcherPathRuleRouteActionUrlRewriteArgs(
-                                path_prefix_rewrite="/",
-                            )
-                        ),
-                    ),
                 ],
-            )
+            ),
+            gcp.compute.URLMapPathMatcherArgs(
+                name="app-paths",
+                default_service=app_backend.self_link,
+            ),
+            gcp.compute.URLMapPathMatcherArgs(
+                name="docs-paths",
+                default_service=docs_backend.self_link,
+            ),
         ],
     )
 
-    # ── SSL certificate ────────────────────────────────────────────────────
+    # ── SSL certificate (covers all three domains) ─────────────────────────
+    # Name includes a hash of the domains so that any change in domains causes
+    # Pulumi to create the new cert before deleting the old one (create-before-
+    # delete), avoiding the GCP error where a cert in use cannot be deleted.
+    domains = [f"{api_domain}.", f"{app_domain}.", f"{docs_domain}."]
+    cert_hash = hashlib.sha1(",".join(sorted(domains)).encode()).hexdigest()[:8]
+    cert_name = f"classifier-ssl-{cert_hash}"
+
     ssl_cert = gcp.compute.ManagedSslCertificate(
         "classifier-ssl-cert",
         project=project,
-        name="classifier-ssl-cert",
+        name=cert_name,
         managed=gcp.compute.ManagedSslCertificateManagedArgs(
-            domains=[f"{frontend_domain}."],
+            domains=domains,
         ),
     )
 

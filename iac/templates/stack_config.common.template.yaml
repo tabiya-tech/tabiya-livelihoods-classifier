@@ -12,6 +12,14 @@ config:
   # Stack name
   tabiya-classifier-common:env: <dev|staging|prod>
 
-  # Frontend domain — SSL cert is issued for this domain, A record points here
+  # API domain — SSL cert and A record for the API gateway
   # e.g. "dev.classifier.tabiya.tech"
-  tabiya-classifier-common:frontendDomain: <env>.classifier.tabiya.tech
+  tabiya-classifier-common:apiDomain: <env>.classifier.tabiya.tech
+
+  # App subdomain — SSL cert, A record, and LB host rule for the dashboard
+  # e.g. "app.dev.classifier.tabiya.tech"
+  tabiya-classifier-common:appDomain: <app-domain>
+
+  # Docs subdomain — SSL cert, A record, and LB host rule for the API docs
+  # e.g. "docs.dev.classifier.tabiya.tech"
+  tabiya-classifier-common:docsDomain: <docs-domain>

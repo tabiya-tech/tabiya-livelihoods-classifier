@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { getUsage, UsagePoint } from "../lib/api";
 
@@ -33,10 +33,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     getUsage()
-      .then((data) => {
+      .then((data: UsagePoint[]) => {
         setUsage(data);
         const today = new Date().toISOString().slice(0, 10);
-        const todayPoint = data.find((d) => d.date === today);
+        const todayPoint = data.find((d: UsagePoint) => d.date === today);
         setTotalToday(todayPoint?.count ?? 0);
       })
       .catch(() => {/* fail silently — usage is supplementary */})

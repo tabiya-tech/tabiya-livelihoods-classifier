@@ -9,6 +9,10 @@ config:
   # Stack name — used to identify the environment
   tabiya-classifier-auth:env: <dev|staging|prod>
 
-  # Frontend domain — added to Firebase authorized domains list
-  # e.g. "dev.classifier.tabiya.tech"
-  tabiya-classifier-auth:frontendDomain: <env>.classifier.tabiya.tech
+  # App subdomain — added to Firebase authorized domains list
+  # e.g. "app.dev.classifier.tabiya.tech"
+  tabiya-classifier-auth:appDomain: <app-domain>
+
+  # Docs subdomain — added to Firebase authorized domains list
+  # e.g. "docs.dev.classifier.tabiya.tech"
+  tabiya-classifier-auth:docsDomain: <docs-domain>

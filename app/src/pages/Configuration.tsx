@@ -3,7 +3,7 @@
  * Lets users choose their NER model, NEL type, and taxonomy.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { getConfig, saveConfig, UserConfig } from "../lib/api";
 
@@ -134,7 +134,7 @@ export default function Configuration() {
 
   useEffect(() => {
     getConfig()
-      .then((c) => setConfig(c))
+      .then((c: UserConfig) => setConfig(c))
       .catch(() => {/* no config yet — use defaults */});
   }, []);
 
@@ -186,7 +186,7 @@ export default function Configuration() {
                 key={o.value}
                 option={o}
                 selected={config.ner_type === o.value}
-                onSelect={() => setConfig((c) => ({ ...c, ner_type: o.value }))}
+                onSelect={() => setConfig((c: Partial<UserConfig>) => ({ ...c, ner_type: o.value }))}
               />
             ))}
             <div style={{ marginTop: "0.5rem" }}>
@@ -212,7 +212,7 @@ export default function Configuration() {
                 key={o.value}
                 option={o}
                 selected={config.nel_type === o.value}
-                onSelect={() => setConfig((c) => ({ ...c, nel_type: o.value }))}
+                onSelect={() => setConfig((c: Partial<UserConfig>) => ({ ...c, nel_type: o.value }))}
               />
             ))}
           </>
@@ -228,7 +228,7 @@ export default function Configuration() {
             {TAXONOMY_OPTIONS.map((o) => (
               <button
                 key={o.value}
-                onClick={() => setConfig((c) => ({ ...c, taxonomy_model_id: o.value }))}
+                onClick={() => setConfig((c: Partial<UserConfig>) => ({ ...c, taxonomy_model_id: o.value }))}
                 style={{
                   display: "block",
                   width: "100%",

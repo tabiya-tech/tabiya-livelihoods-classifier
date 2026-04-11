@@ -1,0 +1,35 @@
+name: Frontend CI
+
+on:
+  workflow_call:
+
+jobs:
+  lint-and-build:
+    name: Lint & build ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [app, docs]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: ${{ matrix.app }}/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        working-directory: ${{ matrix.app }}
+
+      - name: Build
+        run: yarn build
+        working-directory: ${{ matrix.app }}
+        env:
+          # Build with placeholder values in CI — real values are injected at deploy time.
+          VITE_FIREBASE_API_KEY: ci-placeholder
+          VITE_FIREBASE_AUTH_DOMAIN: ci-placeholder
+          VITE_FIREBASE_PROJECT_ID: ci-placeholder
+          VITE_API_BASE_URL: ci-placeholder

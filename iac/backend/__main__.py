@@ -5,22 +5,21 @@ Deploys:
   - Secret Manager secrets (mongodb_uri, hf_token)
   - Cloud Run services (NER, NEL, Classify)
   - API Gateway
-  - GCS buckets for frontend (app + docs)
 
 Required Pulumi config:
-  tabiya-classifier-backend:project          — GCP project ID
-  tabiya-classifier-backend:region           — GCP region (default: us-central1)
-  tabiya-classifier-backend:env              — Stack name (dev / staging / prod)
-  tabiya-classifier-backend:mongodbDbName    — MongoDB database name
+  tabiya-classifier-backend:project           — GCP project ID
+  tabiya-classifier-backend:region            — GCP region (default: us-central1)
+  tabiya-classifier-backend:env               — Stack name (dev / staging / prod)
   tabiya-classifier-backend:firebaseProjectId — Firebase project ID for dashboard auth
-  tabiya-classifier-backend:envSubdomain     — e.g. "dev.classifier.tabiya.tech"
-  tabiya-classifier-backend:nerImage         — NER Docker image URI (injected by CI)
-  tabiya-classifier-backend:nelImage         — NEL Docker image URI (injected by CI)
-  tabiya-classifier-backend:classifyImage    — Classify Docker image URI (injected by CI)
+  tabiya-classifier-backend:envSubdomain      — e.g. "dev.classifier.tabiya.tech"
+  tabiya-classifier-backend:nerImage          — NER Docker image URI (injected by CI)
+  tabiya-classifier-backend:nelImage          — NEL Docker image URI (injected by CI)
+  tabiya-classifier-backend:classifyImage     — Classify Docker image URI (injected by CI)
 
 Required environment variables (from .env.{stack}, sourced from Secret Manager):
-  MONGODB_URI   — MongoDB Atlas connection URI
-  HF_TOKEN      — HuggingFace access token
+  MONGODB_URI      — MongoDB Atlas connection URI
+  MONGODB_DB_NAME  — MongoDB database name
+  HF_TOKEN         — HuggingFace access token
 """
 
 import os
@@ -31,7 +30,6 @@ import pulumi_gcp as gcp
 from registry_and_iam import create_artifact_registry
 from cloud_run import create_cloud_run_services
 from api_gateway import create_api_gateway
-from storage import create_frontend_buckets
 from secrets import create_secrets
 
 config = pulumi.Config()
@@ -110,8 +108,3 @@ gcp.cloudrunv2.ServiceIamMember(
     member=f"serviceAccount:service-{_project_number}@gcp-sa-apigateway.iam.gserviceaccount.com",
     opts=pulumi.ResourceOptions(depends_on=[gateway]),
 )
-
-# ── Frontend Buckets (app + docs) ──────────────────────────────────────────
-app_bucket, docs_bucket = create_frontend_buckets(project=project, env=env)
-pulumi.export("appBucketName", app_bucket.name)
-pulumi.export("docsBucketName", docs_bucket.name)

@@ -44,6 +44,7 @@ ALL_SECRETS = [
     "stack-config-dns",
     "stack-config-auth",
     "stack-config-backend",
+    "stack-config-frontend",
     "stack-config-common",
     "stack-config-aws-ns",
 ]
@@ -55,6 +56,7 @@ TEMPLATE_MAP = {
     "stack-config-dns":              "stack_config.dns.template.yaml",
     "stack-config-auth":             "stack_config.auth.template.yaml",
     "stack-config-backend":          "stack_config.backend.template.yaml",
+    "stack-config-frontend":         "stack_config.frontend.template.yaml",
     "stack-config-common":           "stack_config.common.template.yaml",
     "stack-config-aws-ns":           "stack_config.aws-ns.template.yaml",
 }

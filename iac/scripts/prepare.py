@@ -42,6 +42,7 @@ STACKS = {
     "dns":             ("iac/dns",              "stack_config.dns.template.yaml",              "tabiya-classifier-dns"),
     "auth":            ("iac/auth",             "stack_config.auth.template.yaml",             "tabiya-classifier-auth"),
     "backend":         ("iac/backend",          "stack_config.backend.template.yaml",          "tabiya-classifier-backend"),
+    "frontend":        ("iac/frontend",         "stack_config.frontend.template.yaml",         "tabiya-classifier-frontend"),
     "common":          ("iac/common",           "stack_config.common.template.yaml",           "tabiya-classifier-common"),
     "aws-ns":          ("iac/aws-ns",           "stack_config.aws-ns.template.yaml",           "tabiya-classifier-aws-ns"),
 }
