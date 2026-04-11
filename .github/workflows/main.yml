@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+
+# Only one deploy at a time; cancel in-progress CI runs on the same branch
+# but never cancel a deploy that is already running.
+concurrency:
+  group: ${{ github.workflow }}-${{ contains(github.event.head_commit.message, '[deploy dev]') && 'deploying' || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  backend-ci:
+    name: Backend CI
+    uses: ./.github/workflows/backend-ci.yml
+    secrets: inherit
+    with:
+      # Build and push images only when deploying
+      upload-artifacts: ${{ contains(github.event.head_commit.message, '[deploy dev]') }}
+      stack: dev
+
+  frontend-ci:
+    name: Frontend CI
+    uses: ./.github/workflows/frontend-ci.yml
+    secrets: inherit
+
+  deploy:
+    name: Deploy dev
+    needs: [backend-ci, frontend-ci]
+    if: contains(github.event.head_commit.message, '[deploy dev]')
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      stack: dev

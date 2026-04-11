@@ -1,0 +1,16 @@
+# Stack config template for the Frontend stack.
+# Store the actual values in GCP Secret Manager under "stack-config-frontend".
+# scripts/prepare.py fetches this and writes iac/frontend/Pulumi.{stack}.yaml.
+
+config:
+  # GCP project ID for this environment
+  tabiya-classifier-frontend:project: <project-id>
+
+  # Stack name
+  tabiya-classifier-frontend:env: <dev|staging|prod>
+
+  # App subdomain — e.g. "app.dev.classifier.tabiya.tech"
+  tabiya-classifier-frontend:appDomain: <app-domain>
+
+  # API base URL used by the app at runtime — e.g. "https://dev.classifier.tabiya.tech/api"
+  tabiya-classifier-frontend:apiBaseUrl: <api-base-url>

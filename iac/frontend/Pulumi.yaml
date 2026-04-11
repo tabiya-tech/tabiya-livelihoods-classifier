@@ -1,0 +1,3 @@
+name: tabiya-classifier-frontend
+runtime: python
+description: Frontend buckets and content deployment for the Tabiya Livelihoods Classifier
