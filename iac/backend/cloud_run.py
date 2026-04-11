@@ -4,7 +4,6 @@ NER can optionally run on GPU (L4). NEL and Classify use CPU.
 All services are internal-only except via the API Gateway.
 """
 
-import pulumi
 import pulumi_gcp as gcp
 
 
@@ -18,8 +17,6 @@ def create_cloud_run_services(
     hf_token_secret: gcp.secretmanager.Secret,
     mongodb_uri_secret: gcp.secretmanager.Secret,
     mongodb_db_name: str,
-    redis_host: pulumi.Output,
-    vpc_connector: gcp.vpcaccess.Connector,
     firebase_project_id: str,
 ):
     ner_sa = service_accounts["ner_sa"]
@@ -62,7 +59,6 @@ def create_cloud_run_services(
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="NER_MODEL", value="tabiya/roberta-base-job-ner"
                         ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(name="PORT", value="5002"),
                     ],
                     liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
                         http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
@@ -112,7 +108,6 @@ def create_cloud_run_services(
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="NEL_FILES_PATH", value="/app/nel/nel/files"
                         ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(name="PORT", value="5003"),
                     ],
                     liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
                         http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
@@ -144,12 +139,8 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
+                min_instance_count=1,
                 max_instance_count=10,
-            ),
-            vpc_access=gcp.cloudrunv2.ServiceTemplateVpcAccessArgs(
-                connector=vpc_connector.id,
-                egress="PRIVATE_RANGES_ONLY",
             ),
             containers=[
                 gcp.cloudrunv2.ServiceTemplateContainerArgs(
@@ -165,13 +156,6 @@ def create_cloud_run_services(
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="NEL_API_URL", value=nel.uri
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="REDIS_URL",
-                            value=redis_host.apply(lambda h: f"redis://{h}:6379"),
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="REDIS_BATCH_TTL", value="3600"
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="APPLICATION_MONGODB_URI",
@@ -194,7 +178,6 @@ def create_cloud_run_services(
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="FIREBASE_PROJECT_ID", value=firebase_project_id
                         ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(name="PORT", value="5001"),
                     ],
                     liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
                         http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(

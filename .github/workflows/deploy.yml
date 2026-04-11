@@ -138,6 +138,7 @@ jobs:
             iac/backend/.env.${{ needs.resolve.outputs.stack }}
             iac/common/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
             iac/aws-ns/Pulumi.${{ needs.resolve.outputs.stack }}.yaml
+          include-hidden-files: true
           retention-days: 1
 
   # ── Shared deploy step template ───────────────────────────────────────────

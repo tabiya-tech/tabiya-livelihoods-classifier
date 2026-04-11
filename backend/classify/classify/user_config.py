@@ -25,21 +25,13 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHea
 
 from classify.config import (
     API_KEY_CACHE_TTL,
-    MONGODB_DB_NAME,
     MONGODB_URI,
     TARGET_ENVIRONMENT_TYPE,
 )
+from classify.db import ApplicationDBProvider
 
 log = logging.getLogger("classify-api")
 
-try:
-    from pymongo import MongoClient, ASCENDING
-    from pymongo.collection import Collection
-    _pymongo_available = True
-except ImportError:
-    _pymongo_available = False
-
-_mongo_client = None
 _api_key_cache: dict = {}  # key_hash -> (user_config, expires_at)
 
 _bearer_scheme = HTTPBearer(scheme_name="firebase", auto_error=False)
@@ -48,11 +40,9 @@ _api_key_header = APIKeyHeader(scheme_name="api_key", name="x-api-key", auto_err
 
 # ── MongoDB ────────────────────────────────────────────────────────────────
 
-def _get_collection(name: str):
-    global _mongo_client
-    if _mongo_client is None:
-        _mongo_client = MongoClient(MONGODB_URI)
-    return _mongo_client[MONGODB_DB_NAME][name]
+async def _get_collection(name: str):
+    db = await ApplicationDBProvider.get_db()
+    return db[name]
 
 
 # ── API key auth ───────────────────────────────────────────────────────────
@@ -61,7 +51,7 @@ def _hash_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()
 
 
-def get_user_config(api_key: str) -> Optional[dict]:
+async def get_user_config(api_key: str) -> Optional[dict]:
     """Resolve an API key to user config.
 
     Returns a dict with user_id + model config fields.
@@ -81,19 +71,21 @@ def get_user_config(api_key: str) -> Optional[dict]:
         del _api_key_cache[key_hash]
 
     try:
-        key_doc = _get_collection("api_keys").find_one(
+        api_keys_col = await _get_collection("api_keys")
+        key_doc = await api_keys_col.find_one(
             {"key_hash": key_hash, "revoked": {"$ne": True}}
         )
         if not key_doc:
             return None
 
-        _get_collection("api_keys").update_one(
+        await api_keys_col.update_one(
             {"key_hash": key_hash},
             {"$set": {"last_used_at": time.time()}},
         )
 
         user_id = key_doc["user_id"]
-        config_doc = _get_collection("user_configs").find_one({"user_id": user_id})
+        user_configs_col = await _get_collection("user_configs")
+        config_doc = await user_configs_col.find_one({"user_id": user_id})
         config = _build_config(user_id, config_doc)
         _api_key_cache[key_hash] = (config, time.time() + API_KEY_CACHE_TTL)
         return config
@@ -103,7 +95,7 @@ def get_user_config(api_key: str) -> Optional[dict]:
         return _default_config()
 
 
-def get_api_key_user(api_key: Optional[str] = Depends(_api_key_header)) -> dict:
+async def get_api_key_user(api_key: Optional[str] = Depends(_api_key_header)) -> dict:
     """FastAPI dependency: returns user config for the request's API key.
 
     In production the gateway has already validated the key; we just do the
@@ -117,13 +109,13 @@ def get_api_key_user(api_key: Optional[str] = Depends(_api_key_header)) -> dict:
     if TARGET_ENVIRONMENT_TYPE == "local":
         if not api_key:
             return _default_config()
-        config = get_user_config(api_key)
+        config = await get_user_config(api_key)
         return config if config is not None else _default_config()
 
     # Production: gateway has validated the key; enforce its presence and resolve.
     if not api_key:
         raise HTTPException(status_code=401, detail="x-api-key header required")
-    config = get_user_config(api_key)
+    config = await get_user_config(api_key)
     if config is None:
         # Key was valid at the gateway but revoked since — treat as 403.
         raise HTTPException(status_code=403, detail="API key revoked")
@@ -206,17 +198,19 @@ def get_firebase_uid(request: Request, credentials: Optional[HTTPAuthorizationCr
 
 # ── User config CRUD ───────────────────────────────────────────────────────
 
-def get_user_config_for_uid(uid: str) -> dict:
+async def get_user_config_for_uid(uid: str) -> dict:
     if not MONGODB_URI:
         return _default_config()
-    doc = _get_collection("user_configs").find_one({"user_id": uid})
+    col = await _get_collection("user_configs")
+    doc = await col.find_one({"user_id": uid})
     return _build_config(uid, doc)
 
 
-def set_user_config_for_uid(uid: str, updates: dict) -> None:
+async def set_user_config_for_uid(uid: str, updates: dict) -> None:
     allowed = {"ner_type", "nel_type", "ner_model_name", "nel_model_name", "taxonomy_model_id"}
     safe = {k: v for k, v in updates.items() if k in allowed}
-    _get_collection("user_configs").update_one(
+    col = await _get_collection("user_configs")
+    await col.update_one(
         {"user_id": uid},
         {"$set": safe},
         upsert=True,
@@ -225,15 +219,16 @@ def set_user_config_for_uid(uid: str, updates: dict) -> None:
 
 # ── API key CRUD ───────────────────────────────────────────────────────────
 
-def list_api_keys_for_uid(uid: str) -> list:
-    docs = _get_collection("api_keys").find(
+async def list_api_keys_for_uid(uid: str) -> list:
+    col = await _get_collection("api_keys")
+    cursor = col.find(
         {"user_id": uid, "revoked": {"$ne": True}},
         {"_id": 0, "key_hash": 0},
     )
-    return list(docs)
+    return await cursor.to_list(length=None)
 
 
-def create_api_key_for_uid(uid: str, label: str) -> dict:
+async def create_api_key_for_uid(uid: str, label: str) -> dict:
     plain_key = secrets.token_urlsafe(32)
     key_hash = _hash_key(plain_key)
     key_id = secrets.token_hex(8)
@@ -247,13 +242,15 @@ def create_api_key_for_uid(uid: str, label: str) -> dict:
         "last_used_at": None,
         "revoked": False,
     }
-    _get_collection("api_keys").insert_one(doc)
+    col = await _get_collection("api_keys")
+    await col.insert_one(doc)
     meta = {k: v for k, v in doc.items() if k not in ("_id", "key_hash")}
     return {"key": plain_key, "meta": meta}
 
 
-def delete_api_key_for_uid(uid: str, key_id: str) -> bool:
-    result = _get_collection("api_keys").update_one(
+async def delete_api_key_for_uid(uid: str, key_id: str) -> bool:
+    col = await _get_collection("api_keys")
+    result = await col.update_one(
         {"key_id": key_id, "user_id": uid},
         {"$set": {"revoked": True}},
     )
@@ -262,7 +259,7 @@ def delete_api_key_for_uid(uid: str, key_id: str) -> bool:
 
 # ── Usage stats ────────────────────────────────────────────────────────────
 
-def get_usage_for_uid(uid: str) -> list:
+async def get_usage_for_uid(uid: str) -> list:
     if not MONGODB_URI:
         return []
     cutoff = time.time() - 30 * 86400
@@ -275,13 +272,15 @@ def get_usage_for_uid(uid: str) -> list:
         {"$sort": {"_id": 1}},
         {"$project": {"_id": 0, "date": "$_id", "count": 1}},
     ]
-    return list(_get_collection("usage_events").aggregate(pipeline))
+    col = await _get_collection("usage_events")
+    return await col.aggregate(pipeline).to_list(length=None)
 
 
-def record_usage_event(uid: str) -> None:
+async def record_usage_event(uid: str) -> None:
     if not MONGODB_URI or uid == "default":
         return
     try:
-        _get_collection("usage_events").insert_one({"user_id": uid, "ts": time.time()})
+        col = await _get_collection("usage_events")
+        await col.insert_one({"user_id": uid, "ts": time.time()})
     except Exception as e:
         log.warning("Failed to record usage event: %s", e)
