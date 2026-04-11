@@ -60,6 +60,14 @@ def create_artifact_registry(project: str, region: str):
     )
 
     gcp.secretmanager.SecretIamMember(
+        "nel-sa-hf-token-accessor",
+        project=project,
+        secret_id="tabiya-classifier-hf-token",
+        role="roles/secretmanager.secretAccessor",
+        member=nel_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    gcp.secretmanager.SecretIamMember(
         "classify-sa-mongodb-uri-accessor",
         project=project,
         secret_id="tabiya-classifier-mongodb-uri",
