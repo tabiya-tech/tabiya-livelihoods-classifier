@@ -1,61 +1,75 @@
-"""Batch job state management backed by Redis (GCP Memorystore)."""
+"""Batch job state management backed by MongoDB."""
 
-import json
 import time
 from typing import Optional
 
-import redis.asyncio as aioredis
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from classify.config import REDIS_URL, REDIS_BATCH_TTL
+from classify.db import ApplicationDBProvider
 
-_redis: Optional[aioredis.Redis] = None
-
-
-async def get_redis() -> aioredis.Redis:
-    global _redis
-    if _redis is None:
-        _redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-    return _redis
+COLLECTION = "batch_jobs"
 
 
-async def create_batch(batch_id: str, total: int) -> None:
-    r = await get_redis()
-    state = {
+async def _col():
+    db = await ApplicationDBProvider.get_db()
+    return db[COLLECTION]
+
+
+async def ensure_indexes() -> None:
+    """Create indexes once at startup. Safe to call multiple times (idempotent)."""
+    col = await _col()
+    # _id index covers primary batch_id lookups.
+    # user_id index covers listing a user's batches.
+    await col.create_index("user_id")
+
+
+async def create_batch(batch_id: str, user_id: str, total: int) -> None:
+    col = await _col()
+    await col.insert_one({
+        "_id": batch_id,
+        "user_id": user_id,
         "status": "processing",
         "total": total,
         "processed": 0,
         "results": [],
         "created_at": time.time(),
         "completed_at": None,
-    }
-    await r.setex(f"batch:{batch_id}", REDIS_BATCH_TTL, json.dumps(state))
+    })
 
 
-async def get_batch(batch_id: str) -> Optional[dict]:
-    r = await get_redis()
-    raw = await r.get(f"batch:{batch_id}")
-    if raw is None:
+async def get_batch_for_user(batch_id: str, user_id: str) -> Optional[dict]:
+    """Fetch a batch only if it belongs to the given user."""
+    col = await _col()
+    doc = await col.find_one({"_id": batch_id, "user_id": user_id})
+    if doc is None:
         return None
-    return json.loads(raw)
+    doc["batch_id"] = doc.pop("_id")
+    return doc
 
 
-async def update_batch(batch_id: str, processed: int, result: dict) -> None:
-    r = await get_redis()
-    raw = await r.get(f"batch:{batch_id}")
-    if raw is None:
-        return
-    state = json.loads(raw)
-    state["processed"] = processed
-    state["results"].append(result)
-    await r.setex(f"batch:{batch_id}", REDIS_BATCH_TTL, json.dumps(state))
+async def update_batch(batch_id: str, result: dict) -> None:
+    # Single atomic operation — no read-modify-write.
+    col = await _col()
+    await col.update_one(
+        {"_id": batch_id},
+        {
+            "$push": {"results": result},
+            "$inc": {"processed": 1},
+        },
+    )
 
 
 async def complete_batch(batch_id: str) -> None:
-    r = await get_redis()
-    raw = await r.get(f"batch:{batch_id}")
-    if raw is None:
-        return
-    state = json.loads(raw)
-    state["status"] = "completed"
-    state["completed_at"] = time.time()
-    await r.setex(f"batch:{batch_id}", REDIS_BATCH_TTL, json.dumps(state))
+    col = await _col()
+    await col.update_one(
+        {"_id": batch_id},
+        {"$set": {"status": "completed", "completed_at": time.time()}},
+    )
+
+
+async def fail_batch(batch_id: str, error: str) -> None:
+    col = await _col()
+    await col.update_one(
+        {"_id": batch_id},
+        {"$set": {"status": "failed", "error": error, "completed_at": time.time()}},
+    )

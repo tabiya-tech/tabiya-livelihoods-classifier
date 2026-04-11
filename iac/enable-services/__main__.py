@@ -17,6 +17,9 @@ project = config.require("project")
 # disable_on_destroy=False: never accidentally disable APIs when tearing down,
 # as doing so could break other stacks or require manual recovery.
 REQUIRED_SERVICES = [
+    # ── Bootstrap (must exist before Pulumi can manage any other service) ──
+    "cloudresourcemanager.googleapis.com",
+
     # ── DNS ────────────────────────────────────────────────────────────────
     "dns.googleapis.com",
 
@@ -28,8 +31,6 @@ REQUIRED_SERVICES = [
     "artifactregistry.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
-    "vpcaccess.googleapis.com",
-    "redis.googleapis.com",
     "apigateway.googleapis.com",
     "servicemanagement.googleapis.com",  # required by API Gateway
     "servicecontrol.googleapis.com",     # required by API Gateway

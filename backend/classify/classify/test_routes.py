@@ -117,3 +117,90 @@ class TestClassifyRoute:
 
         # THEN the response is BAD GATEWAY
         assert response.status_code == HTTPStatus.BAD_GATEWAY
+
+
+class TestBatchRoutes:
+    _BATCH_JOBS = [{"job_id": "j1", "text": "Senior chef needed."}]
+
+    @pytest.mark.asyncio
+    async def test_submit_batch_returns_202(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+        client, mock_service = client_with_mocks
+        mock_service.classify = AsyncMock(return_value=_make_classify_response())
+
+        # WHEN a batch is submitted
+        response = client.post("/v1/classify/batch", json={"jobs": self._BATCH_JOBS})
+
+        # THEN accepted
+        assert response.status_code == HTTPStatus.ACCEPTED
+        body = response.json()
+        assert body["status"] == "processing"
+        assert body["total"] == 1
+        assert "batch_id" in body
+
+    @pytest.mark.asyncio
+    async def test_submit_batch_too_large_returns_413(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+        client, _ = client_with_mocks
+        # GIVEN more jobs than MAX_BATCH_SIZE (501 > 500)
+        jobs = [{"job_id": f"j{i}", "text": "text"} for i in range(501)]
+
+        response = client.post("/v1/classify/batch", json={"jobs": jobs})
+
+        assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+
+    @pytest.mark.asyncio
+    async def test_batch_status_returns_processing(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+        client, mock_service = client_with_mocks
+        mock_service.classify = AsyncMock(return_value=_make_classify_response())
+
+        # GIVEN a submitted batch
+        submit = client.post("/v1/classify/batch", json={"jobs": self._BATCH_JOBS})
+        batch_id = submit.json()["batch_id"]
+
+        # WHEN status is checked immediately
+        response = client.get(f"/v1/batch/{batch_id}/status")
+
+        # THEN it is found (processing or completed depending on task scheduling)
+        assert response.status_code == HTTPStatus.OK
+        assert response.json()["batch_id"] == batch_id
+        assert response.json()["total"] == 1
+
+    @pytest.mark.asyncio
+    async def test_batch_status_not_found_returns_404(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+        client, _ = client_with_mocks
+
+        response = client.get("/v1/batch/nonexistent-batch-id/status")
+
+        assert response.status_code == HTTPStatus.NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_batch_results_not_found_returns_404(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+        client, _ = client_with_mocks
+
+        response = client.get("/v1/batch/nonexistent-batch-id/results")
+
+        assert response.status_code == HTTPStatus.NOT_FOUND
+
+    def test_batch_results_completed(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+        client, mock_service = client_with_mocks
+        mock_service.classify = AsyncMock(return_value=_make_classify_response())
+
+        # GIVEN a submitted batch
+        submit = client.post("/v1/classify/batch", json={"jobs": self._BATCH_JOBS})
+        batch_id = submit.json()["batch_id"]
+
+        # Poll for completion (background task runs in the TestClient's event loop)
+        import time
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            response = client.get(f"/v1/batch/{batch_id}/results")
+            assert response.status_code == HTTPStatus.OK
+            if response.json()["status"] == "completed":
+                break
+            time.sleep(0.1)
+
+        # THEN results are present and batch is completed
+        body = response.json()
+        assert body["status"] == "completed"
+        assert len(body["results"]) == 1
+        assert body["results"][0]["job_id"] == "j1"
+        assert body["results"][0]["status"] == "completed"

@@ -3,7 +3,6 @@
 Deploys:
   - Artifact Registry + service accounts
   - Secret Manager secrets (mongodb_uri, hf_token)
-  - Memorystore Redis + VPC connector
   - Cloud Run services (NER, NEL, Classify)
   - API Gateway
   - GCS buckets for frontend (app + docs)
@@ -31,7 +30,6 @@ import pulumi
 from registry_and_iam import create_artifact_registry
 from cloud_run import create_cloud_run_services
 from api_gateway import create_api_gateway
-from memorystore import create_redis
 from storage import create_frontend_buckets
 from secrets import create_secrets
 
@@ -70,9 +68,6 @@ pulumi.export(
 # ── Secret Manager ─────────────────────────────────────────────────────────
 secrets = create_secrets(project=project, mongodb_uri=mongodb_uri, hf_token=hf_token)
 
-# ── Memorystore Redis ──────────────────────────────────────────────────────
-redis, vpc_connector = create_redis(project=project, region=region)
-
 # ── Cloud Run Services ─────────────────────────────────────────────────────
 ner, nel, classify = create_cloud_run_services(
     project=project,
@@ -84,8 +79,6 @@ ner, nel, classify = create_cloud_run_services(
     hf_token_secret=secrets["hf_token"],
     mongodb_uri_secret=secrets["mongodb_uri"],
     mongodb_db_name=mongodb_db_name,
-    redis_host=redis.host,
-    vpc_connector=vpc_connector,
     firebase_project_id=firebase_project_id,
 )
 pulumi.export("nerUrl", ner.uri)
