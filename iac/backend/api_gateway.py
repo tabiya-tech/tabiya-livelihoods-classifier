@@ -71,6 +71,22 @@ def _build_spec(project: str, classify_url: str, firebase_project_id: str, env_s
             },
         },
         "paths": {
+            "/docs": {
+                "get": {
+                    "summary": "FastAPI Swagger UI",
+                    "operationId": "swaggerUI",
+                    "x-google-backend": {"address": f"{classify_url}/docs"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/openapi.json": {
+                "get": {
+                    "summary": "OpenAPI schema",
+                    "operationId": "openapiSchema",
+                    "x-google-backend": {"address": f"{classify_url}/openapi.json"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
             "/v1/health": {
                 "get": {
                     "summary": "Health check (unauthenticated)",
