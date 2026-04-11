@@ -60,6 +60,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -71,7 +73,15 @@ jobs:
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Build Docker image
-        run: docker build -f backend/${{ matrix.service }}/Dockerfile -t ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }} -t ${{ env.REGISTRY }}/${{ matrix.service }}:latest .
+        run: |
+          echo "${{ secrets.HF_TOKEN }}" > /tmp/hf_token
+          docker build \
+            -f backend/${{ matrix.service }}/Dockerfile \
+            --secret id=HF_TOKEN,src=/tmp/hf_token \
+            -t ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ matrix.service }}:latest \
+            .
+          rm -f /tmp/hf_token
 
       - name: Push Docker image
         run: |

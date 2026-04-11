@@ -241,4 +241,5 @@ fabric.properties
 .DS_Store
 # NEL taxonomy files and embedding caches (large binary/data files)
 data/
-backend/nel/nel/files
+backend/nel/nel/files/**
+!backend/nel/nel/files/*.csv

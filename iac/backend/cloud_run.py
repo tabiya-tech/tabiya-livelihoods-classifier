@@ -103,6 +103,15 @@ def create_cloud_run_services(
                     ),
                     envs=[
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="HF_TOKEN",
+                            value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                                secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                                    secret=hf_token_secret.secret_id,
+                                    version="latest",
+                                ),
+                            ),
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="LINKER_MODEL", value="all-MiniLM-L6-v2"
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
@@ -120,9 +129,9 @@ def create_cloud_run_services(
                         http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(
                             path="/v1/health", port=5003
                         ),
-                        initial_delay_seconds=60,
+                        initial_delay_seconds=30,
                         period_seconds=10,
-                        failure_threshold=30,
+                        failure_threshold=12,  # 2 min total: model loads from image cache
                     ),
                 )
             ],
