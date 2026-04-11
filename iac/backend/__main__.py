@@ -26,6 +26,7 @@ Required environment variables (from .env.{stack}, sourced from Secret Manager):
 import os
 
 import pulumi
+import pulumi_gcp as gcp
 
 from registry_and_iam import create_artifact_registry
 from cloud_run import create_cloud_run_services
@@ -95,6 +96,20 @@ _api, _api_config, gateway = create_api_gateway(
 )
 pulumi.export("apiGatewayUrl", gateway.default_hostname)
 pulumi.export("apiGatewayId", gateway.gateway_id)
+
+# Allow the API Gateway service agent to invoke Classify.
+# The service agent is provisioned by GCP when the first Gateway resource is
+# created — so this binding must come after the gateway exists.
+_project_number = gcp.organizations.get_project(project_id=project).number
+gcp.cloudrunv2.ServiceIamMember(
+    "classify-invoker",
+    project=project,
+    location=region,
+    name=classify.name,
+    role="roles/run.invoker",
+    member=f"serviceAccount:service-{_project_number}@gcp-sa-apigateway.iam.gserviceaccount.com",
+    opts=pulumi.ResourceOptions(depends_on=[gateway]),
+)
 
 # ── Frontend Buckets (app + docs) ──────────────────────────────────────────
 app_bucket, docs_bucket = create_frontend_buckets(project=project, env=env)
