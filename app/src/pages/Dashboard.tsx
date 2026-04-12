@@ -105,7 +105,7 @@ export default function Dashboard() {
       <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
         {[
           { label: "Manage API keys →", to: "/api-keys" },
-          { label: "Configure model →", to: "/configuration" },
+          // { label: "Configure model →", to: "/configuration" }, // hidden: model config not user-configurable yet
         ].map(({ label, to }) => (
           <a
             key={to}

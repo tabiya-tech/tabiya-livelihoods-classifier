@@ -6,7 +6,7 @@ import { useAuth } from "../hooks/useAuth";
 
 const NAV_LINKS = [
   { to: "/dashboard", label: "Dashboard" },
-  { to: "/configuration", label: "Configuration" },
+  // { to: "/configuration", label: "Configuration" }, // hidden: model config not user-configurable yet
   { to: "/api-keys", label: "API Keys" },
 ];
 
