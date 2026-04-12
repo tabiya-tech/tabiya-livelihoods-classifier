@@ -27,7 +27,6 @@ iac/
 │   ├── __main__.py         — entry point
 │   ├── registry_and_iam.py — Artifact Registry + service accounts
 │   ├── secrets.py          — Secret Manager resources
-│   ├── memorystore.py      — Redis + VPC connector
 │   ├── cloud_run.py        — NER, NEL, Classify Cloud Run services
 │   ├── api_gateway.py      — GCP API Gateway with API key auth
 │   ├── storage.py          — GCS buckets + CDN for app and docs
@@ -122,8 +121,6 @@ gcloud services enable \
   apigateway.googleapis.com \
   artifactregistry.googleapis.com \
   secretmanager.googleapis.com \
-  redis.googleapis.com \
-  vpcaccess.googleapis.com \
   compute.googleapis.com \
   storage.googleapis.com \
   --project PROJECT_ID
