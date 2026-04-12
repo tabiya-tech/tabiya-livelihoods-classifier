@@ -246,3 +246,4 @@ iac/*/Pulumi.*.yaml
 data/
 backend/nel/nel/files/**
 !backend/nel/nel/files/*.csv
+/app/.vite/*
