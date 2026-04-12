@@ -18,6 +18,7 @@ def create_cloud_run_services(
     mongodb_uri_secret: gcp.secretmanager.Secret,
     mongodb_db_name: str,
     firebase_project_id: str,
+    managed_service: str,
 ):
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
@@ -186,6 +187,12 @@ def create_cloud_run_services(
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="FIREBASE_PROJECT_ID", value=firebase_project_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GCP_PROJECT_ID", value=project
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GCP_API_MANAGED_SERVICE", value=managed_service
                         ),
                     ],
                     startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(

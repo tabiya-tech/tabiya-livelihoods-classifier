@@ -293,9 +293,23 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, fir
     return json.dumps(spec)
 
 
+def create_api(project: str) -> gcp.apigateway.Api:
+    """Create the API Gateway Api resource.
+
+    Separated from the rest of the gateway so callers can access
+    `api.managed_service` before Cloud Run services are declared.
+    """
+    return gcp.apigateway.Api(
+        "classifier-api",
+        project=project,
+        api_id="tabiya-classifier-api",
+    )
+
+
 def create_api_gateway(
     project: str,
     region: str,
+    api: gcp.apigateway.Api,
     classify_url: pulumi.Output,
     ner_url: pulumi.Output,
     nel_url: pulumi.Output,
@@ -309,12 +323,6 @@ def create_api_gateway(
         account_id="classifier-gateway-sa",
         display_name="Classifier API Gateway Service Account",
         create_ignore_already_exists=True,
-    )
-
-    api = gcp.apigateway.Api(
-        "classifier-api",
-        project=project,
-        api_id="tabiya-classifier-api",
     )
 
     api_config = gcp.apigateway.ApiConfig(
@@ -358,4 +366,4 @@ def create_api_gateway(
         display_name="Tabiya Classifier Gateway",
     )
 
-    return api, api_config, gateway, gateway_sa
+    return api_config, gateway, gateway_sa
