@@ -1,8 +1,11 @@
 """GCP API Gateway with API key and Firebase authentication.
 
 Routes:
-  /v1/health              → unauthenticated
-  /v1/classify/**         → API key required (x-api-key header)
+  /v1/health              → unauthenticated (classify health, aggregates NER+NEL)
+  /v1/ner                 → API key required
+  /v1/nel                 → API key required
+  /v1/classify            → API key required
+  /v1/classify/batch      → API key required
   /v1/batch/**            → API key required
   /v1/user/**             → Firebase Bearer token required
 
@@ -20,7 +23,7 @@ import pulumi
 import pulumi_gcp as gcp
 
 
-def _build_spec(project: str, classify_url: str, firebase_project_id: str, env_subdomain: str) -> str:
+def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, firebase_project_id: str, env_subdomain: str) -> str:
     spec = {
         "swagger": "2.0",
         "info": {
@@ -93,6 +96,26 @@ def _build_spec(project: str, classify_url: str, firebase_project_id: str, env_s
                     "operationId": "healthCheck",
                     "x-google-backend": {"address": f"{classify_url}/v1/health"},
                     "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/v1/ner": {
+                "post": {
+                    "summary": "Extract named entities from text",
+                    "operationId": "extractEntities",
+                    "security": [{"api_key": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{ner_url}/v1/ner"},
+                    "responses": {"200": {"description": "Extracted entities"}},
+                }
+            },
+            "/v1/nel": {
+                "post": {
+                    "summary": "Link entities to ESCO taxonomy",
+                    "operationId": "linkEntities",
+                    "security": [{"api_key": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{nel_url}/v1/nel"},
+                    "responses": {"200": {"description": "Linked entities"}},
                 }
             },
             "/v1/classify": {
@@ -212,6 +235,8 @@ def create_api_gateway(
     project: str,
     region: str,
     classify_url: pulumi.Output,
+    ner_url: pulumi.Output,
+    nel_url: pulumi.Output,
     firebase_project_id: str,
     env_subdomain: str,
 ):
@@ -244,11 +269,13 @@ def create_api_gateway(
             gcp.apigateway.ApiConfigOpenapiDocumentArgs(
                 document=gcp.apigateway.ApiConfigOpenapiDocumentDocumentArgs(
                     path="openapi.json",
-                    contents=classify_url.apply(
-                        lambda url: base64.b64encode(
+                    contents=pulumi.Output.all(classify_url, ner_url, nel_url).apply(
+                        lambda urls: base64.b64encode(
                             _build_spec(
                                 project,
-                                url or "http://localhost:5001",
+                                urls[0] or "http://localhost:5001",
+                                urls[1] or "http://localhost:5002",
+                                urls[2] or "http://localhost:5003",
                                 firebase_project_id,
                                 env_subdomain,
                             ).encode()

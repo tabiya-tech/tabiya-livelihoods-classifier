@@ -2,6 +2,10 @@
 
 The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the entity-linking paradigm to support job description heuristics. Using state-of-the-art transformer neural networks, this tool can extract five entity types: Occupation, Skill, Qualification, Experience, and Domain. For the Occupations and Skills, ESCO-related entries are retrieved. The procedure consists of two discrete steps: entity extraction and similarity vector search.
 
+## Architecture
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for a full overview of the system design, services, and infrastructure.
+
 ## Table of Contents
 
 - **[Installation](#installation)**

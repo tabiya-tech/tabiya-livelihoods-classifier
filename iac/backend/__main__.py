@@ -89,18 +89,38 @@ _api, _api_config, gateway, gateway_sa = create_api_gateway(
     project=project,
     region=region,
     classify_url=classify.uri,
+    ner_url=ner.uri,
+    nel_url=nel.uri,
     firebase_project_id=firebase_project_id,
     env_subdomain=env_subdomain,
 )
 pulumi.export("apiGatewayUrl", gateway.default_hostname)
 pulumi.export("apiGatewayId", gateway.gateway_id)
 
-# Allow the gateway service account to invoke Classify.
+# Allow the gateway service account to invoke all three services.
 gcp.cloudrunv2.ServiceIamMember(
     "classify-invoker",
     project=project,
     location=region,
     name=classify.name,
+    role="roles/run.invoker",
+    member=gateway_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    opts=pulumi.ResourceOptions(depends_on=[gateway_sa]),
+)
+gcp.cloudrunv2.ServiceIamMember(
+    "ner-gw-invoker",
+    project=project,
+    location=region,
+    name=ner.name,
+    role="roles/run.invoker",
+    member=gateway_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    opts=pulumi.ResourceOptions(depends_on=[gateway_sa]),
+)
+gcp.cloudrunv2.ServiceIamMember(
+    "nel-gw-invoker",
+    project=project,
+    location=region,
+    name=nel.name,
     role="roles/run.invoker",
     member=gateway_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     opts=pulumi.ResourceOptions(depends_on=[gateway_sa]),
