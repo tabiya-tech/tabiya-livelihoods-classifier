@@ -169,6 +169,12 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, fir
                 }
             },
             "/v1/user/config": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUserConfig",
+                    "x-google-backend": {"address": f"{classify_url}/v1/user/config"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
                 "get": {
                     "summary": "Get user model configuration",
                     "operationId": "getUserConfig",
@@ -186,6 +192,12 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, fir
                 },
             },
             "/v1/user/api-keys": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUserApiKeys",
+                    "x-google-backend": {"address": f"{classify_url}/v1/user/api-keys"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
                 "get": {
                     "summary": "List API keys",
                     "operationId": "listApiKeys",
@@ -203,6 +215,18 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, fir
                 },
             },
             "/v1/user/api-keys/{key_id}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUserApiKeyById",
+                    "parameters": [
+                        {"in": "path", "name": "key_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_url}/v1/user/api-keys/{{key_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
                 "delete": {
                     "summary": "Revoke an API key",
                     "operationId": "deleteApiKey",
@@ -218,6 +242,12 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, fir
                 }
             },
             "/v1/user/usage": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUserUsage",
+                    "x-google-backend": {"address": f"{classify_url}/v1/user/usage"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
                 "get": {
                     "summary": "Get 30-day usage stats",
                     "operationId": "getUsage",
