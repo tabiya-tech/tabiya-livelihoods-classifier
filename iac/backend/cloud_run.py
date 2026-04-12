@@ -188,6 +188,14 @@ def create_cloud_run_services(
                             name="FIREBASE_PROJECT_ID", value=firebase_project_id
                         ),
                     ],
+                    startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(
+                            path="/v1/health", port=5001
+                        ),
+                        initial_delay_seconds=10,
+                        period_seconds=10,
+                        failure_threshold=12,  # 2 min total
+                    ),
                     liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
                         http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
                             path="/v1/health", port=5001
