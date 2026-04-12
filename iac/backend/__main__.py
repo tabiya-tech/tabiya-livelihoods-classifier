@@ -72,6 +72,17 @@ secrets = create_secrets(project=project, mongodb_uri=mongodb_uri, hf_token=hf_t
 # needs to restrict generated GCP API keys to this gateway.
 api = create_api(project=project)
 
+# Enable the managed service in the project — required for API keys to work.
+# The managed service name is dynamic (GCP-generated hash), so it can't be
+# enabled in the enable-services stack. Must be done here after the Api exists.
+gcp.projects.Service(
+    "enable-api-managed-service",
+    project=project,
+    service=api.managed_service,
+    disable_dependent_services=False,
+    disable_on_destroy=False,
+)
+
 # ── Cloud Run Services ─────────────────────────────────────────────────────
 ner, nel, classify = create_cloud_run_services(
     project=project,
