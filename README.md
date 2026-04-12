@@ -6,6 +6,20 @@ The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the 
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for a full overview of the system design, services, and infrastructure.
 
+## Deployed Environments
+
+Environments follow the pattern `<env>.classifier.tabiya.tech`. The `dev` environment is used as an example below.
+
+| Resource | URL |
+|----------|-----|
+| API | `https://dev.classifier.tabiya.tech` |
+| App (dashboard) | `https://app.dev.classifier.tabiya.tech` |
+| Docs | `https://docs.dev.classifier.tabiya.tech` |
+| API health check | `https://dev.classifier.tabiya.tech/v1/health` |
+| Classify Swagger UI | `https://dev.classifier.tabiya.tech/docs` |
+| NER Swagger UI | `https://dev.classifier.tabiya.tech/docs/ner` |
+| NEL Swagger UI | `https://dev.classifier.tabiya.tech/docs/nel` |
+
 ## Table of Contents
 
 - **[Installation](#installation)**

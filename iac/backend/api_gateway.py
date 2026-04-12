@@ -76,7 +76,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, fir
         "paths": {
             "/docs": {
                 "get": {
-                    "summary": "FastAPI Swagger UI",
+                    "summary": "Classify Swagger UI",
                     "operationId": "swaggerUI",
                     "x-google-backend": {"address": f"{classify_url}/docs"},
                     "responses": {"200": {"description": "OK"}},
@@ -84,9 +84,41 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, fir
             },
             "/openapi.json": {
                 "get": {
-                    "summary": "OpenAPI schema",
+                    "summary": "Classify OpenAPI schema",
                     "operationId": "openapiSchema",
                     "x-google-backend": {"address": f"{classify_url}/openapi.json"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/docs/ner": {
+                "get": {
+                    "summary": "NER Swagger UI",
+                    "operationId": "nerSwaggerUI",
+                    "x-google-backend": {"address": f"{ner_url}/docs"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/docs/ner/openapi.json": {
+                "get": {
+                    "summary": "NER OpenAPI schema",
+                    "operationId": "nerOpenapiSchema",
+                    "x-google-backend": {"address": f"{ner_url}/openapi.json"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/docs/nel": {
+                "get": {
+                    "summary": "NEL Swagger UI",
+                    "operationId": "nelSwaggerUI",
+                    "x-google-backend": {"address": f"{nel_url}/docs"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/docs/nel/openapi.json": {
+                "get": {
+                    "summary": "NEL OpenAPI schema",
+                    "operationId": "nelOpenapiSchema",
+                    "x-google-backend": {"address": f"{nel_url}/openapi.json"},
                     "responses": {"200": {"description": "OK"}},
                 }
             },
