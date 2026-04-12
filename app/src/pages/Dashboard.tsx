@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [usage, setUsage] = useState<UsagePoint[]>([]);
   const [totalToday, setTotalToday] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     getUsage()
@@ -39,7 +40,7 @@ export default function Dashboard() {
         const todayPoint = data.find((d: UsagePoint) => d.date === today);
         setTotalToday(todayPoint?.count ?? 0);
       })
-      .catch(() => {/* fail silently — usage is supplementary */})
+      .catch(() => setError("Failed to load usage data"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -54,8 +55,8 @@ export default function Dashboard() {
       {/* Stat cards */}
       <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", flexWrap: "wrap" }}>
         {[
-          { label: "Requests today", value: loading ? "—" : totalToday },
-          { label: "Requests (30 d)", value: loading ? "—" : total30d },
+          { label: "Requests today", value: loading || error ? "—" : totalToday },
+          { label: "Requests (30 d)", value: loading || error ? "—" : total30d },
         ].map(({ label, value }) => (
           <div
             key={label}
@@ -93,6 +94,8 @@ export default function Dashboard() {
         </h3>
         {loading ? (
           <p style={{ color: "#888" }}>Loading…</p>
+        ) : error ? (
+          <p style={{ color: "#c0392b", margin: 0 }}>{error}</p>
         ) : (
           <UsageChart data={usage} />
         )}

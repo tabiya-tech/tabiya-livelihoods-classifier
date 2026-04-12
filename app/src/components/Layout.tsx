@@ -63,7 +63,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         ))}
 
         <a
-          href="https://docs.classifier.tabiya.tech"
+          href={import.meta.env.VITE_DOCS_URL ?? "https://docs.classifier.tabiya.tech"}
           target="_blank"
           rel="noreferrer"
           style={{
