@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Configuration from "./pages/Configuration";
+// import Configuration from "./pages/Configuration"; // hidden: model config not user-configurable yet
 import ApiKeys from "./pages/ApiKeys";
 
 export default function App() {
@@ -19,14 +19,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
+        {/* <Route
           path="/configuration"
           element={
             <ProtectedRoute>
               <Configuration />
             </ProtectedRoute>
           }
-        />
+        /> */}
         <Route
           path="/api-keys"
           element={
