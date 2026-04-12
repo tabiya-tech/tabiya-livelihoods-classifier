@@ -61,7 +61,6 @@ jobs:
           pip install \
             -r iac/scripts/requirements.txt \
             -r iac/enable-services/requirements.txt \
-            -r iac/dns/requirements.txt \
             -r iac/auth/requirements.txt \
             -r iac/backend/requirements.txt \
             -r iac/frontend/requirements.txt \
@@ -90,7 +89,7 @@ jobs:
       # ── Phase 1: deploy everything except frontend ─────────────────────────
       - name: Deploy infrastructure (pre-frontend)
         run: |
-          for module in enable-services dns auth backend; do
+          for module in enable-services auth backend; do
             python iac/scripts/up.py --stack "${{ inputs.stack }}" --module "$module"
           done
         env:

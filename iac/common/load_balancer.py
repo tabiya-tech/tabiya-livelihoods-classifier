@@ -111,18 +111,7 @@ def create_load_balancer(
         path_matchers=[
             gcp.compute.URLMapPathMatcherArgs(
                 name="api-paths",
-                default_service=app_backend.self_link,
-                path_rules=[
-                    gcp.compute.URLMapPathMatcherPathRuleArgs(
-                        paths=["/api", "/api/*"],
-                        service=api_backend.self_link,
-                        route_action=gcp.compute.URLMapPathMatcherPathRuleRouteActionArgs(
-                            url_rewrite=gcp.compute.URLMapPathMatcherPathRuleRouteActionUrlRewriteArgs(
-                                path_prefix_rewrite="/",
-                            )
-                        ),
-                    ),
-                ],
+                default_service=api_backend.self_link,
             ),
             gcp.compute.URLMapPathMatcherArgs(
                 name="app-paths",
