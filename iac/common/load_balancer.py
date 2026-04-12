@@ -65,7 +65,7 @@ def create_load_balancer(
         "api-gateway-neg",
         project=project,
         region=region,
-        name="classifier-api-gateway-neg",
+        name="classifier-api-gw-neg",
         network_endpoint_type="SERVERLESS",
         app_engine=None,
         cloud_run=None,

@@ -210,17 +210,26 @@ async def get_usage(uid: str = Depends(get_firebase_uid)):
 async def health():
     import httpx
     from classify.config import NEL_API_URL, NER_API_URL
+    from classify.get_classify_service import _gcp_identity_token
 
     ner_ok = False
     nel_ok = False
+    ner_headers = {}
+    nel_headers = {}
+    ner_token = _gcp_identity_token(NER_API_URL)
+    if ner_token:
+        ner_headers["Authorization"] = f"Bearer {ner_token}"
+    nel_token = _gcp_identity_token(NEL_API_URL)
+    if nel_token:
+        nel_headers["Authorization"] = f"Bearer {nel_token}"
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
-            r = await client.get(f"{NER_API_URL}/v1/health")
+            r = await client.get(f"{NER_API_URL}/v1/health", headers=ner_headers)
             ner_ok = r.status_code == 200
         except Exception:
             pass
         try:
-            r = await client.get(f"{NEL_API_URL}/v1/health")
+            r = await client.get(f"{NEL_API_URL}/v1/health", headers=nel_headers)
             nel_ok = r.status_code == 200
         except Exception:
             pass

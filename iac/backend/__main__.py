@@ -85,7 +85,7 @@ pulumi.export("nelUrl", nel.uri)
 pulumi.export("classifyUrl", classify.uri)
 
 # ── API Gateway ────────────────────────────────────────────────────────────
-_api, _api_config, gateway = create_api_gateway(
+_api, _api_config, gateway, gateway_sa = create_api_gateway(
     project=project,
     region=region,
     classify_url=classify.uri,
@@ -95,16 +95,13 @@ _api, _api_config, gateway = create_api_gateway(
 pulumi.export("apiGatewayUrl", gateway.default_hostname)
 pulumi.export("apiGatewayId", gateway.gateway_id)
 
-# Allow the API Gateway service agent to invoke Classify.
-# The service agent is provisioned by GCP when the first Gateway resource is
-# created — so this binding must come after the gateway exists.
-_project_number = gcp.organizations.get_project(project_id=project).number
+# Allow the gateway service account to invoke Classify.
 gcp.cloudrunv2.ServiceIamMember(
     "classify-invoker",
     project=project,
     location=region,
     name=classify.name,
     role="roles/run.invoker",
-    member=f"serviceAccount:service-{_project_number}@gcp-sa-apigateway.iam.gserviceaccount.com",
-    opts=pulumi.ResourceOptions(depends_on=[gateway]),
+    member=gateway_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    opts=pulumi.ResourceOptions(depends_on=[gateway_sa]),
 )
