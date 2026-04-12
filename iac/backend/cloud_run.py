@@ -29,7 +29,7 @@ def create_cloud_run_services(
         project=project,
         location=region,
         name="ner-service",
-        ingress="INGRESS_TRAFFIC_INTERNAL_ONLY",
+        ingress="INGRESS_TRAFFIC_ALL",
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=ner_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
@@ -86,7 +86,7 @@ def create_cloud_run_services(
         project=project,
         location=region,
         name="nel-service",
-        ingress="INGRESS_TRAFFIC_INTERNAL_ONLY",
+        ingress="INGRESS_TRAFFIC_ALL",
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=nel_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
@@ -144,7 +144,7 @@ def create_cloud_run_services(
         project=project,
         location=region,
         name="classify-service",
-        ingress="INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",  # GCP API Gateway counts as LB; blocks direct .run.app access
+        ingress="INGRESS_TRAFFIC_ALL",  # API Gateway ESPv2 calls Cloud Run directly (not via LB), so all traffic must be allowed; IAM protects access
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(

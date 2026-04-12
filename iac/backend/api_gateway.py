@@ -215,6 +215,15 @@ def create_api_gateway(
     firebase_project_id: str,
     env_subdomain: str,
 ):
+    # Dedicated service account for the gateway to call Cloud Run with
+    gateway_sa = gcp.serviceaccount.Account(
+        "classifier-gateway-sa",
+        project=project,
+        account_id="classifier-gateway-sa",
+        display_name="Classifier API Gateway Service Account",
+        create_ignore_already_exists=True,
+    )
+
     api = gcp.apigateway.Api(
         "classifier-api",
         project=project,
@@ -226,6 +235,11 @@ def create_api_gateway(
         project=project,
         api=api.api_id,
         display_name="Tabiya Classifier API Config",
+        gateway_config=gcp.apigateway.ApiConfigGatewayConfigArgs(
+            backend_config=gcp.apigateway.ApiConfigGatewayConfigBackendConfigArgs(
+                google_service_account=gateway_sa.email,
+            )
+        ),
         openapi_documents=[
             gcp.apigateway.ApiConfigOpenapiDocumentArgs(
                 document=gcp.apigateway.ApiConfigOpenapiDocumentDocumentArgs(
@@ -243,6 +257,7 @@ def create_api_gateway(
                 )
             )
         ],
+        opts=pulumi.ResourceOptions(depends_on=[gateway_sa]),
     )
 
     gateway = gcp.apigateway.Gateway(
@@ -254,4 +269,4 @@ def create_api_gateway(
         display_name="Tabiya Classifier Gateway",
     )
 
-    return api, api_config, gateway
+    return api, api_config, gateway, gateway_sa
