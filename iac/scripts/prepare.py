@@ -39,7 +39,6 @@ TEMPLATES_DIR = os.path.join(IAC_DIR, "templates")
 # Logical stack name → (directory, template file, Pulumi project name)
 STACKS = {
     "enable-services": ("iac/enable-services", "stack_config.enable-services.template.yaml", "tabiya-classifier-enable-services"),
-    "dns":             ("iac/dns",              "stack_config.dns.template.yaml",              "tabiya-classifier-dns"),
     "auth":            ("iac/auth",             "stack_config.auth.template.yaml",             "tabiya-classifier-auth"),
     "backend":         ("iac/backend",          "stack_config.backend.template.yaml",          "tabiya-classifier-backend"),
     "frontend":        ("iac/frontend",         "stack_config.frontend.template.yaml",         "tabiya-classifier-frontend"),

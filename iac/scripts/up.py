@@ -36,7 +36,6 @@ IAC_DIR = REPO_ROOT / "iac"
 # Deployment order matters — each module may depend on outputs from the previous.
 DEPLOY_ORDER = [
     "enable-services",
-    "dns",
     "auth",
     "backend",
     "frontend",  # must come before common (common has a StackReference to frontend)
