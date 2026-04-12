@@ -20,6 +20,11 @@ API_KEY_CACHE_TTL = int(os.getenv("API_KEY_CACHE_TTL", "300"))  # 5 min
 # The gateway verifies the token and forwards decoded user info to the backend.
 FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID", "")
 
+# GCP project and managed service name — used to create GCP-managed API keys
+# that are validated by the API Gateway.
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "")
+GCP_API_MANAGED_SERVICE = os.getenv("GCP_API_MANAGED_SERVICE", "")
+
 # Set to "local" in local development so Bearer tokens are decoded without
 # signature verification (mirrors the Compass pattern).
 TARGET_ENVIRONMENT_TYPE = os.getenv("TARGET_ENVIRONMENT_TYPE", "")

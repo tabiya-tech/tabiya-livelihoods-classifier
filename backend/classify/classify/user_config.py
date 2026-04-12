@@ -15,9 +15,20 @@ import base64
 import hashlib
 import json
 import logging
-import secrets
 import time
 from typing import Optional
+
+from google.cloud import api_keys_v2
+from google.cloud.api_keys_v2.types import Key, Restrictions, ApiTarget
+
+_gcp_keys_async_client: api_keys_v2.ApiKeysAsyncClient | None = None
+
+
+def _get_gcp_keys_client() -> api_keys_v2.ApiKeysAsyncClient:
+    global _gcp_keys_async_client
+    if _gcp_keys_async_client is None:
+        _gcp_keys_async_client = api_keys_v2.ApiKeysAsyncClient()
+    return _gcp_keys_async_client
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
@@ -25,6 +36,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHea
 
 from classify.config import (
     API_KEY_CACHE_TTL,
+    GCP_PROJECT_ID,
+    GCP_API_MANAGED_SERVICE,
     MONGODB_URI,
     TARGET_ENVIRONMENT_TYPE,
 )
@@ -229,32 +242,52 @@ async def list_api_keys_for_uid(uid: str) -> list:
 
 
 async def create_api_key_for_uid(uid: str, label: str) -> dict:
-    plain_key = secrets.token_urlsafe(32)
-    key_hash = _hash_key(plain_key)
-    key_id = secrets.token_hex(8)
     now = time.time()
+
+    client = _get_gcp_keys_client()
+    key = Key(
+        display_name=f"{label} ({uid})",
+        restrictions=Restrictions(
+            api_targets=[ApiTarget(service=GCP_API_MANAGED_SERVICE)],
+        ),
+    )
+    op = await client.create_key(parent=f"projects/{GCP_PROJECT_ID}/locations/global", key=key)
+    created = await op.result()
+
+    # GCP key name format: projects/{project}/locations/global/keys/{key_id}
+    gcp_key_id = created.name.split("/")[-1]
+    plain_key = created.key_string
+
     doc = {
-        "key_id": key_id,
+        "key_id": gcp_key_id,
+        "gcp_key_name": created.name,
         "user_id": uid,
         "label": label,
-        "key_hash": key_hash,
+        "key_hash": _hash_key(plain_key),
         "created_at": now,
         "last_used_at": None,
         "revoked": False,
     }
     col = await _get_collection("api_keys")
     await col.insert_one(doc)
-    meta = {k: v for k, v in doc.items() if k not in ("_id", "key_hash")}
+    meta = {k: v for k, v in doc.items() if k not in ("_id", "key_hash", "gcp_key_name")}
     return {"key": plain_key, "meta": meta}
 
 
 async def delete_api_key_for_uid(uid: str, key_id: str) -> bool:
     col = await _get_collection("api_keys")
-    result = await col.update_one(
-        {"key_id": key_id, "user_id": uid},
-        {"$set": {"revoked": True}},
-    )
-    return result.matched_count > 0
+    doc = await col.find_one({"key_id": key_id, "user_id": uid})
+    if not doc:
+        return False
+
+    gcp_key_name = doc.get("gcp_key_name")
+    if gcp_key_name:
+        client = _get_gcp_keys_client()
+        op = await client.delete_key(name=gcp_key_name)
+        await op.result()
+
+    await col.update_one({"key_id": key_id, "user_id": uid}, {"$set": {"revoked": True}})
+    return True
 
 
 # ── Usage stats ────────────────────────────────────────────────────────────

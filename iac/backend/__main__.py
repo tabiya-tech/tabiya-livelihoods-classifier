@@ -29,7 +29,7 @@ import pulumi_gcp as gcp
 
 from registry_and_iam import create_artifact_registry
 from cloud_run import create_cloud_run_services
-from api_gateway import create_api_gateway
+from api_gateway import create_api, create_api_gateway
 from secrets import create_secrets
 
 config = pulumi.Config()
@@ -67,6 +67,11 @@ pulumi.export(
 # ── Secret Manager ─────────────────────────────────────────────────────────
 secrets = create_secrets(project=project, mongodb_uri=mongodb_uri, hf_token=hf_token)
 
+# ── API resource (declared before Cloud Run so managed_service is available) ─
+# The Api resource provides the managed_service name that the Classify service
+# needs to restrict generated GCP API keys to this gateway.
+api = create_api(project=project)
+
 # ── Cloud Run Services ─────────────────────────────────────────────────────
 ner, nel, classify = create_cloud_run_services(
     project=project,
@@ -79,15 +84,17 @@ ner, nel, classify = create_cloud_run_services(
     mongodb_uri_secret=secrets["mongodb_uri"],
     mongodb_db_name=mongodb_db_name,
     firebase_project_id=firebase_project_id,
+    managed_service=api.managed_service,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)
 pulumi.export("classifyUrl", classify.uri)
 
-# ── API Gateway ────────────────────────────────────────────────────────────
-_api, _api_config, gateway, gateway_sa = create_api_gateway(
+# ── API Gateway (config + gateway, uses Cloud Run URLs) ────────────────────
+_api_config, gateway, gateway_sa = create_api_gateway(
     project=project,
     region=region,
+    api=api,
     classify_url=classify.uri,
     ner_url=ner.uri,
     nel_url=nel.uri,
@@ -96,6 +103,14 @@ _api, _api_config, gateway, gateway_sa = create_api_gateway(
 )
 pulumi.export("apiGatewayUrl", gateway.default_hostname)
 pulumi.export("apiGatewayId", gateway.gateway_id)
+
+# Grant classify SA permission to create/delete GCP API keys.
+gcp.projects.IAMMember(
+    "classify-sa-apikeys-admin",
+    project=project,
+    role="roles/serviceusage.apiKeysAdmin",
+    member=service_accounts["classify_sa"].email.apply(lambda e: f"serviceAccount:{e}"),
+)
 
 # Allow the gateway service account to invoke all three services.
 gcp.cloudrunv2.ServiceIamMember(
