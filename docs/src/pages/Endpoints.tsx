@@ -14,33 +14,59 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "POST",
     path: "/v1/classify",
-    description: "Classify a single job description. Returns extracted entities linked to ESCO.",
+    description: [
+      "Classify a single job description. Runs NER to detect occupations, skills, and qualifications, then links each entity to ESCO via NEL.",
+      "",
+      "Request fields:",
+      "  • text — raw job ad text (use this OR title+description)",
+      "  • title — job title (combined with description if text is omitted)",
+      "  • description — job description body",
+      "  • options.extract_entities — filter to specific entity types; allowed values: \"occupation\", \"skill\", \"qualification\". Omit to extract all.",
+      "  • options.top_k — max ESCO matches per entity (1–50, default 5)",
+      "  • options.min_similarity — minimum cosine similarity for a match to appear (0.0–1.0, default 0.0)",
+    ].join("\n"),
     requestBody: JSON.stringify(
-      { text: "Looking for a Senior Data Engineer with Python and SQL experience." },
+      {
+        text: "Looking for a Senior Data Engineer with Python and SQL experience.",
+        options: {
+          extract_entities: ["occupation", "skill"],
+          top_k: 3,
+          min_similarity: 0.5,
+        },
+      },
       null,
       2
     ),
     responseBody: JSON.stringify(
       {
-        version: "1.0.0",
-        entities: [
-          {
-            entity_type: "Occupation",
-            surface_form: "Senior Data Engineer",
-            span: { start: 15, end: 35 },
-            links: [
-              { label: "data engineer", uri: "http://data.europa.eu/esco/occupation/...", score: 0.94 }
-            ]
-          },
-          {
-            entity_type: "Skill",
-            surface_form: "Python",
-            span: { start: 41, end: 47 },
-            links: [
-              { label: "Python (programming language)", uri: "http://data.europa.eu/esco/skill/...", score: 0.98 }
-            ]
-          }
-        ]
+        classification: {
+          entities: [
+            {
+              entity_type: "occupation",
+              surface_form: "Senior Data Engineer",
+              span: { start: 15, end: 35 },
+              linked_entities: [
+                { label: "data engineer", uri: "http://data.europa.eu/esco/occupation/...", score: 0.94 }
+              ]
+            },
+            {
+              entity_type: "skill",
+              surface_form: "Python",
+              span: { start: 41, end: 47 },
+              linked_entities: [
+                { label: "Python (programming language)", uri: "http://data.europa.eu/esco/skill/...", score: 0.98 }
+              ]
+            }
+          ],
+          entity_counts: { occupation: 1, skill: 1 }
+        },
+        metadata: {
+          classifier_version: "1.0.0",
+          model_name: "tabiya/roberta-base-job-ner",
+          linker_model: "sentence-transformers/...",
+          processing_time_ms: 142.3,
+          input_text_hash: "a3f5c..."
+        }
       },
       null,
       2
@@ -49,31 +75,61 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "POST",
     path: "/v1/classify/batch",
-    description: "Submit a list of job descriptions for batch classification. Returns a batch_id to poll.",
+    description: [
+      "Submit a list of job descriptions for async batch classification. Returns immediately with a batch_id — poll /v1/batch/{batch_id}/status to track progress.",
+      "",
+      "Request fields:",
+      "  • jobs — array of job objects (required, min 1 item)",
+      "    – job_id — optional identifier; defaults to \"job_0\", \"job_1\", …",
+      "    – text / title / description — same as the single classify endpoint",
+      "  • options — same ClassifyOptions as the single endpoint (applied to all jobs)",
+    ].join("\n"),
     requestBody: JSON.stringify(
-      { items: [{ id: "job-1", text: "..." }, { id: "job-2", text: "..." }] },
+      {
+        jobs: [
+          { job_id: "job-1", text: "Looking for a nurse with ICU experience." },
+          { job_id: "job-2", title: "Software Engineer", description: "Python and Kubernetes required." }
+        ],
+        options: { top_k: 5, min_similarity: 0.4 }
+      },
       null,
       2
     ),
-    responseBody: JSON.stringify({ batch_id: "batch_abc123", status: "queued", total: 2 }, null, 2),
+    responseBody: JSON.stringify({ batch_id: "batch_abc123", status: "processing", total: 2 }, null, 2),
   },
   {
     method: "GET",
     path: "/v1/batch/{batch_id}/status",
-    description: "Poll the status of a batch job.",
+    description: "Poll the processing status of a batch. status values: \"processing\" | \"completed\" | \"failed\".",
     responseBody: JSON.stringify({ batch_id: "batch_abc123", status: "processing", processed: 1, total: 2 }, null, 2),
   },
   {
     method: "GET",
     path: "/v1/batch/{batch_id}/results",
-    description: "Retrieve results once the batch is complete.",
+    description: [
+      "Retrieve results for a completed batch. Each result mirrors the single /v1/classify response, augmented with job_id and status.",
+      "",
+      "Per-job status values: \"completed\" | \"error\"",
+      "On error, the result includes an \"error\" string field instead of classification/metadata.",
+    ].join("\n"),
     responseBody: JSON.stringify(
       {
         batch_id: "batch_abc123",
-        status: "complete",
+        status: "completed",
+        total: 2,
+        processed: 2,
         results: [
-          { id: "job-1", entities: [] },
-          { id: "job-2", entities: [] }
+          {
+            job_id: "job-1",
+            status: "completed",
+            classification: { entities: [], entity_counts: {} },
+            metadata: { classifier_version: "1.0.0", model_name: "...", linker_model: "...", processing_time_ms: 98.4, input_text_hash: "..." }
+          },
+          {
+            job_id: "job-2",
+            status: "error",
+            error: "No classifiable text found"
+          }
         ]
       },
       null,
@@ -83,8 +139,19 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "GET",
     path: "/v1/health",
-    description: "Health check. Does not require authentication.",
-    responseBody: JSON.stringify({ status: "ok", version: "1.0.0" }, null, 2),
+    description: "Health check. Returns overall status and per-dependency health for the NER and NEL services. Does not require authentication.",
+    responseBody: JSON.stringify(
+      {
+        status: "healthy",
+        service: "classify-api",
+        dependencies: {
+          ner_api: "healthy",
+          nel_api: "healthy"
+        }
+      },
+      null,
+      2
+    ),
   },
 ];
 
@@ -141,7 +208,7 @@ function EndpointCard({ ep }: { ep: Endpoint }) {
 
       {open && (
         <div style={{ padding: "0 1.25rem 1.25rem", borderTop: "1px solid #e0ddd9" }}>
-          <p style={{ color: "#555", fontSize: "0.9rem" }}>{ep.description}</p>
+          <p style={{ color: "#555", fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{ep.description}</p>
 
           {ep.requestBody && (
             <>
