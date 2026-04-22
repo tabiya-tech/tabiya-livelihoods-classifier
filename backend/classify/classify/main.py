@@ -13,7 +13,10 @@ from pydantic import BaseModel, Field
 from classify.batch_store import complete_batch, create_batch, fail_batch, get_batch_for_user, update_batch, ensure_indexes
 from classify.config import CLASSIFIER_VERSION, MAX_BATCH_SIZE, MAX_TEXT_LENGTH
 from classify.get_classify_service import get_classify_service
-from classify.models import BatchJob, BatchRequest, ClassifyOptions, ClassifyRequest, ClassifyResponse
+from classify.models import (
+    BatchJob, BatchRequest, BatchStatus, BatchSubmitResponse, BatchStatusResponse,
+    BatchResultsResponse, ClassifyOptions, ClassifyRequest, ClassifyResponse, JobStatus,
+)
 from classify.service import IClassifyService
 from classify.user_config import (
     create_api_key_for_uid,
@@ -94,7 +97,7 @@ async def classify(
     return result
 
 
-@app.post("/v1/classify/batch", status_code=202)
+@app.post("/v1/classify/batch", status_code=202, response_model=BatchSubmitResponse)
 async def submit_batch(
     req: BatchRequest,
     user_config: dict = Depends(get_api_key_user),
@@ -111,7 +114,7 @@ async def submit_batch(
     asyncio.create_task(_process_batch(batch_id, req.jobs, req.options, user_config["user_id"], service))
 
     log.info("Batch %s submitted: %d jobs (user: %s)", batch_id, len(req.jobs), user_config["user_id"])
-    return {"batch_id": batch_id, "total": len(req.jobs), "status": "processing"}
+    return BatchSubmitResponse(batch_id=batch_id, total=len(req.jobs), status=BatchStatus.processing)
 
 
 async def _process_batch(
@@ -127,16 +130,16 @@ async def _process_batch(
             input_text = build_input_text(job.model_dump(), allow_text_field=True)
 
             if not input_text:
-                result = {"job_id": job_id, "status": "error", "error": "No classifiable text found"}
+                result = {"job_id": job_id, "status": JobStatus.error, "error": "No classifiable text found"}
             elif len(input_text) > MAX_TEXT_LENGTH:
-                result = {"job_id": job_id, "status": "error", "error": f"Text exceeds {MAX_TEXT_LENGTH} char limit"}
+                result = {"job_id": job_id, "status": JobStatus.error, "error": f"Text exceeds {MAX_TEXT_LENGTH} char limit"}
             else:
                 try:
                     classify_result = await service.classify(input_text, options)
-                    result = {"job_id": job_id, "status": "completed", **classify_result.model_dump()}
+                    result = {"job_id": job_id, "status": JobStatus.completed, **classify_result.model_dump()}
                 except Exception as e:
                     log.error("[batch-%s] Job %s failed: %s", batch_id, job_id, e)
-                    result = {"job_id": job_id, "status": "error", "error": str(e)}
+                    result = {"job_id": job_id, "status": JobStatus.error, "error": str(e)}
 
             await update_batch(batch_id, result)
 
@@ -147,26 +150,31 @@ async def _process_batch(
         await fail_batch(batch_id, str(e))
 
 
-@app.get("/v1/batch/{batch_id}/status")
+@app.get("/v1/batch/{batch_id}/status", response_model=BatchStatusResponse)
 async def batch_status(batch_id: str, user_config: dict = Depends(get_api_key_user)):
     batch = await get_batch_for_user(batch_id, user_config["user_id"])
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
-    return {"batch_id": batch_id, "status": batch["status"], "total": batch["total"], "processed": batch["processed"]}
+    return BatchStatusResponse(
+        batch_id=batch_id,
+        status=BatchStatus(batch["status"]),
+        total=batch["total"],
+        processed=batch["processed"],
+    )
 
 
-@app.get("/v1/batch/{batch_id}/results")
+@app.get("/v1/batch/{batch_id}/results", response_model=BatchResultsResponse)
 async def batch_results(batch_id: str, user_config: dict = Depends(get_api_key_user)):
     batch = await get_batch_for_user(batch_id, user_config["user_id"])
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
-    return {
-        "batch_id": batch_id,
-        "status": batch["status"],
-        "total": batch["total"],
-        "processed": batch["processed"],
-        "results": batch["results"],
-    }
+    return BatchResultsResponse(
+        batch_id=batch_id,
+        status=BatchStatus(batch["status"]),
+        total=batch["total"],
+        processed=batch["processed"],
+        results=batch["results"],
+    )
 
 
 # ── Dashboard endpoints (/v1/user/*) ──────────────────────────────────────

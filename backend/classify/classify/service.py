@@ -63,11 +63,8 @@ class ClassifyService(IClassifyService):
         opts = options or ClassifyOptions()
         start = time.time()
 
-        ner_payload: dict = {"text": input_text}
-        if opts.extract_entities:
-            ner_payload["entity_types"] = opts.extract_entities
-
-        ner_data = await self._ner.extract(input_text, opts.extract_entities or None)
+        entity_type_filter = [e.value for e in opts.extract_entities] if opts.extract_entities else None
+        ner_data = await self._ner.extract(input_text, entity_type_filter)
         ner_entities = ner_data.get("entities", [])
 
         linkable_types = {"occupation", "skill", "qualification"}
