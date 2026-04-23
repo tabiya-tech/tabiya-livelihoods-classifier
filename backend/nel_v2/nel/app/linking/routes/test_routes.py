@@ -1,11 +1,11 @@
 """Tests for entity linking routes."""
 
-import pytest
-from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from unittest.mock import patch
 
-from nel.app.linking.routes.routes import router, _get_service
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+
+from nel.app.linking.routes.routes import router, _get_service, _get_user_config
 from nel.app.linking.service.errors import EmbeddingsCacheNotReadyError
 from nel.app.linking.service.service import INELService
 from nel.app.linking.service.types import (
@@ -17,6 +17,7 @@ from nel.app.linking.service.types import (
     OccupationEntity,
     OccupationMatch,
 )
+from nel.app.user_config.service.types import UserConfig
 
 
 class FakeNELService(INELService):
@@ -37,10 +38,15 @@ class FakeNELService(INELService):
         return self._response
 
 
-def _make_app(svc: INELService) -> FastAPI:
+def _make_app(
+    svc: INELService,
+    user_config: UserConfig | None = None,
+) -> FastAPI:
     test_app = FastAPI()
     test_app.include_router(router)
+    resolved_config = user_config or UserConfig(user_id="user-1", taxonomy_model_id="tax-1", nel_model_id="nel-1")
     test_app.dependency_overrides[_get_service] = lambda: svc
+    test_app.dependency_overrides[_get_user_config] = lambda: resolved_config
     return test_app
 
 
@@ -72,15 +78,14 @@ def _make_response(label="Head Chef") -> NELResponse:
 
 class TestLinkEntities:
     async def test_happy_path_returns_linked_entities(self):
-        # GIVEN the service returns a successful response
+        # GIVEN the service returns a successful response and user has config set
         svc = FakeNELService(response=_make_response("Head Chef"))
 
-        # WHEN POST /v2/nel is called with valid entities and headers
+        # WHEN POST /v2/nel is called with valid entities
         async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
             resp = await client.post(
                 "/v2/nel",
                 json={"entities": [{"text": "Head Chef", "entity_type": "occupation"}]},
-                headers={"x-taxonomy-model-id": "tax-1", "x-nel-model-id": "nel-1"},
             )
 
         # THEN 200 is returned with the linked entity
@@ -88,21 +93,21 @@ class TestLinkEntities:
         data = resp.json()
         assert data["linked_entities"][0]["matches"][0]["entity"]["preferred_label"] == "Head Chef"
 
-    async def test_forwards_correct_args_to_service(self):
-        # GIVEN a fake service that records its call
+    async def test_forwards_model_ids_from_user_config_to_service(self):
+        # GIVEN a user with specific model ids in their config
         svc = FakeNELService(response=_make_response())
+        user_config = UserConfig(user_id="user-1", taxonomy_model_id="tax-custom", nel_model_id="nel-custom")
 
-        # WHEN POST /v2/nel is called with specific headers and options
-        async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
+        # WHEN POST /v2/nel is called
+        async with AsyncClient(transport=ASGITransport(app=_make_app(svc, user_config)), base_url="http://test") as client:
             await client.post(
                 "/v2/nel",
                 json={"entities": [{"text": "Head Chef", "entity_type": "occupation"}], "top_k": 3, "min_similarity": 0.5},
-                headers={"x-taxonomy-model-id": "tax-1", "x-nel-model-id": "nel-1"},
             )
 
-        # THEN the service receives the correct arguments
-        assert svc.last_call["taxonomy_model_id"] == "tax-1"
-        assert svc.last_call["nel_model_id"] == "nel-1"
+        # THEN the service receives the model ids from the user config
+        assert svc.last_call["taxonomy_model_id"] == "tax-custom"
+        assert svc.last_call["nel_model_id"] == "nel-custom"
         assert svc.last_call["options"] == NELOptions(top_k=3, min_similarity=0.5)
         assert svc.last_call["entities"] == [("Head Chef", EntityType.occupation)]
 
@@ -115,19 +120,19 @@ class TestLinkEntities:
             resp = await client.post(
                 "/v2/nel",
                 json={"entities": [{"text": "Head Chef", "entity_type": "occupation"}]},
-                headers={"x-taxonomy-model-id": "tax-1"},
             )
 
         # THEN 503 is returned
         assert resp.status_code == 503
 
-    async def test_400_when_no_taxonomy_model_id(self):
-        # GIVEN no taxonomy model id in headers or env
+    async def test_400_when_user_config_has_no_taxonomy_model_and_no_default(self):
+        # GIVEN user has no taxonomy model set and DEFAULT_TAXONOMY_MODEL_ID is empty
         svc = FakeNELService(response=_make_response())
+        user_config = UserConfig(user_id="user-1", taxonomy_model_id="", nel_model_id="nel-1")
 
-        # WHEN POST /v2/nel is called without the taxonomy model id header
+        # WHEN POST /v2/nel is called
         with patch("nel.config.DEFAULT_TAXONOMY_MODEL_ID", ""):
-            async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
+            async with AsyncClient(transport=ASGITransport(app=_make_app(svc, user_config)), base_url="http://test") as client:
                 resp = await client.post(
                     "/v2/nel",
                     json={"entities": [{"text": "Head Chef", "entity_type": "occupation"}]},
@@ -145,7 +150,6 @@ class TestLinkEntities:
             resp = await client.post(
                 "/v2/nel",
                 json={"entities": []},
-                headers={"x-taxonomy-model-id": "tax-1"},
             )
 
         # THEN Pydantic rejects it with 422
@@ -161,7 +165,6 @@ class TestLinkEntities:
             resp = await client.post(
                 "/v2/nel",
                 json={"entities": entities},
-                headers={"x-taxonomy-model-id": "tax-1"},
             )
 
         # THEN Pydantic rejects it with 422 before the handler runs
