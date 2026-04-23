@@ -59,11 +59,11 @@ def _fake_taxonomy_source(occupations=None, skills=None):
     """Returns a fake TaxonomyAPISource with configurable data."""
     source = MagicMock()
 
-    async def _occ_gen(_id):
+    async def _occ_gen(_id, **_kwargs):
         for item in (occupations or []):
             yield item
 
-    async def _skill_gen(_id):
+    async def _skill_gen(_id, **_kwargs):
         for item in (skills or []):
             yield item
 
@@ -181,7 +181,7 @@ class TestEmbeddingGenerationService:
     async def test_sets_failed_status_on_error(self):
         # GIVEN the taxonomy source raises an error
         source = MagicMock()
-        async def _fail(_id):
+        async def _fail(_id, **_kwargs):
             raise RuntimeError("API down")
             yield  # makes it a generator
         source.fetch_occupations.side_effect = _fail

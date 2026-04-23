@@ -56,6 +56,7 @@ taxonomy_api_base_url = config.require("taxonomyApiBaseUrl")
 default_nel_model_id = config.get("defaultNELModelId") or "all-MiniLM-L6-v2"
 default_taxonomy_model_id = config.get("defaultTaxonomyModelId") or ""
 vertex_api_region = config.get("vertexApiRegion") or region
+app_origin = f"https://app.{env_subdomain}"
 
 
 def _require_env(name: str) -> str:
@@ -119,7 +120,9 @@ ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     taxonomy_api_base_url=taxonomy_api_base_url,
     default_nel_model_id=default_nel_model_id,
     default_taxonomy_model_id=default_taxonomy_model_id,
+    app_origin=app_origin,
     vertex_api_region=vertex_api_region,
+    env=env,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)

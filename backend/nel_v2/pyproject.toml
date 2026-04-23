@@ -12,13 +12,15 @@ uvicorn = { version = "^0.30.0", extras = ["standard"] }
 httpx = "^0.27.0"
 motor = "^3.4"
 dnspython = "^2.6.0"
-torch = "^2.1.2"
-sentence-transformers = "^2.2.2"
-google-cloud-aiplatform = "^1.60.0"
+sentence-transformers = { version = "^2.2.2", optional = true }
+google-cloud-aiplatform = { version = "^1.60.0", optional = true }
 pandas = "^2.0.3"
 python-dotenv = "^1.0.1"
 tqdm = "^4.66.0"
 tabiya-shared = { path = "../shared", develop = true }
+
+[tool.poetry.extras]
+inference = ["sentence-transformers", "google-cloud-aiplatform"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

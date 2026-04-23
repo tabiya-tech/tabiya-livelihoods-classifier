@@ -9,7 +9,7 @@
 import { auth } from "./firebase";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
-const NEL_V2_API_BASE = import.meta.env.VITE_NEL_V2_API_BASE_URL ?? "http://localhost:5003";
+const NEL_V2_BASE = import.meta.env.VITE_NEL_V2_API_BASE_URL ?? API_BASE;
 
 async function getIdToken(): Promise<string> {
   const user = auth.currentUser;
@@ -17,9 +17,11 @@ async function getIdToken(): Promise<string> {
   return user.getIdToken();
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T>;
+async function request<T>(path: string, init: RequestInit | undefined, base: string): Promise<T>;
+async function request<T>(path: string, init?: RequestInit, base: string = API_BASE): Promise<T> {
   const token = await getIdToken();
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${base}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -55,23 +57,6 @@ export function saveConfig(config: Partial<UserConfig>): Promise<void> {
   });
 }
 
-async function nelV2Request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await getIdToken();
-  const res = await fetch(`${NEL_V2_API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
-  }
-  return res.json() as Promise<T>;
-}
-
 // ── NEL v2 user config ────────────────────────────────────────────────────
 
 export interface V2UserConfig {
@@ -80,14 +65,14 @@ export interface V2UserConfig {
 }
 
 export function getV2Config(): Promise<V2UserConfig> {
-  return nelV2Request<V2UserConfig>("/v2/nel/user/config");
+  return request<V2UserConfig>("/v2/nel/user/config", undefined, NEL_V2_BASE);
 }
 
 export function saveV2Config(config: V2UserConfig): Promise<V2UserConfig> {
-  return nelV2Request<V2UserConfig>("/v2/nel/user/config", {
+  return request<V2UserConfig>("/v2/nel/user/config", {
     method: "PUT",
     body: JSON.stringify(config),
-  });
+  }, NEL_V2_BASE);
 }
 
 // ── NEL v2 models ─────────────────────────────────────────────────────────
@@ -99,7 +84,7 @@ export interface NELModel {
 }
 
 export function listNELModels(): Promise<NELModel[]> {
-  return nelV2Request<NELModel[]>("/v2/nel/models");
+  return request<NELModel[]>("/v2/nel/models", undefined, NEL_V2_BASE);
 }
 
 // ── NEL v2 taxonomy models ────────────────────────────────────────────────
@@ -113,7 +98,7 @@ export interface TaxonomyModel {
 }
 
 export function listTaxonomyModels(): Promise<TaxonomyModel[]> {
-  return nelV2Request<TaxonomyModel[]>("/v2/nel/taxonomy-models");
+  return request<TaxonomyModel[]>("/v2/nel/taxonomy-models", undefined, NEL_V2_BASE);
 }
 
 // ── API keys ──────────────────────────────────────────────────────────────
