@@ -1,9 +1,8 @@
 """Entity linking routes."""
 
 import logging
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from nel.app.embedding.service.service import get_embedding_service
 from nel.app.embeddings_cache.repository.repository import EmbeddingsCacheRepository
@@ -13,15 +12,25 @@ from nel.app.linking.service.errors import EmbeddingsCacheNotReadyError
 from nel.app.linking.service.service import INELService, NELService
 from nel.app.linking.service.types import NELOptions, NELResponse
 from nel.app.server_dependencies.db_dependencies import ClassifierDBProvider
+from nel.app.user_config.repository.repository import UserConfigRepository
+from nel.app.user_config.routes.auth import get_firebase_uid
+from nel.app.user_config.service.service import UserConfigService
+from nel.app.user_config.service.types import UserConfig
 
 _logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v2/nel", tags=["nel"])
 
 
-async def _get_service(x_nel_model_id: Annotated[str | None, Header()] = None) -> INELService:
+async def _get_user_config(uid: str = Depends(get_firebase_uid)) -> UserConfig:
+    app_db = await ClassifierDBProvider.get_application_db()
+    return await UserConfigService(UserConfigRepository(app_db)).get(uid)
+
+
+async def _get_service(user_config: UserConfig = Depends(_get_user_config)) -> INELService:
     from nel.config import DEFAULT_NEL_MODEL_ID
-    nel_model_id = x_nel_model_id or DEFAULT_NEL_MODEL_ID
+    nel_model_id = user_config.nel_model_id or DEFAULT_NEL_MODEL_ID
+
     app_db = await ClassifierDBProvider.get_application_db()
     taxonomy_db = await ClassifierDBProvider.get_taxonomy_db()
     cache_repo = EmbeddingsCacheRepository(app_db=app_db, taxonomy_db=taxonomy_db)
@@ -37,19 +46,17 @@ async def _get_service(x_nel_model_id: Annotated[str | None, Header()] = None) -
 @router.post("", response_model=NELResponse)
 async def link_entities(
     request: NELRequest,
-    x_taxonomy_model_id: Annotated[str | None, Header()] = None,
-    x_nel_model_id: Annotated[str | None, Header()] = None,
+    user_config: UserConfig = Depends(_get_user_config),
     svc: INELService = Depends(_get_service),
 ):
-    from nel.config import DEFAULT_TAXONOMY_MODEL_ID, DEFAULT_NEL_MODEL_ID
-
-    taxonomy_model_id = x_taxonomy_model_id or DEFAULT_TAXONOMY_MODEL_ID
-    nel_model_id = x_nel_model_id or DEFAULT_NEL_MODEL_ID
+    from nel.config import DEFAULT_NEL_MODEL_ID, DEFAULT_TAXONOMY_MODEL_ID
+    taxonomy_model_id = user_config.taxonomy_model_id or DEFAULT_TAXONOMY_MODEL_ID
+    nel_model_id = user_config.nel_model_id or DEFAULT_NEL_MODEL_ID
 
     if not taxonomy_model_id:
         raise HTTPException(
             status_code=400,
-            detail="taxonomy_model_id required — pass X-Taxonomy-Model-Id header or set DEFAULT_TAXONOMY_MODEL_ID",
+            detail="No taxonomy model configured — set one via PUT /v2/nel/user/config or set DEFAULT_TAXONOMY_MODEL_ID",
         )
 
     try:
