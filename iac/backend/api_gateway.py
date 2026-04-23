@@ -122,6 +122,22 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                     "responses": {"200": {"description": "OK"}},
                 }
             },
+            "/docs/nel-v2": {
+                "get": {
+                    "summary": "NEL v2 Swagger UI",
+                    "operationId": "nelV2SwaggerUI",
+                    "x-google-backend": {"address": f"{nel_v2_url}/docs"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/docs/nel-v2/openapi.json": {
+                "get": {
+                    "summary": "NEL v2 OpenAPI schema",
+                    "operationId": "nelV2OpenapiSchema",
+                    "x-google-backend": {"address": f"{nel_v2_url}/openapi.json"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
             "/v1/health": {
                 "get": {
                     "summary": "Health check (unauthenticated)",
@@ -290,6 +306,12 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
             },
             # ── v2 routes ─────────────────────────────────────────────────────
             "/v2/classify": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsClassifyV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classify"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
                 "post": {
                     "summary": "Classify a job description (v2 — full taxonomy schema)",
                     "operationId": "classifyV2",
@@ -297,7 +319,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                     "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
                     "x-google-backend": {"address": f"{classify_v2_url}/v2/classify"},
                     "responses": {"200": {"description": "Classification result"}},
-                }
+                },
             },
             "/v2/classify/health": {
                 "get": {
@@ -308,14 +330,20 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                 }
             },
             "/v2/nel": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsNELV2",
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
                 "post": {
                     "summary": "Link entities using NEL v2",
                     "operationId": "nelV2Link",
-                    "security": [{"firebase": []}],
+                    "security": [{"api_key": []}],
                     "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
                     "x-google-backend": {"address": f"{nel_v2_url}/v2/nel"},
                     "responses": {"200": {"description": "Linked entities"}},
-                }
+                },
             },
             "/v2/nel/health": {
                 "get": {
@@ -326,22 +354,34 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                 }
             },
             "/v2/nel/models": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsNELV2Models",
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/models"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
                 "get": {
                     "summary": "List available NEL models",
                     "operationId": "listNELModels",
                     "security": [{"firebase": []}],
                     "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/models"},
                     "responses": {"200": {"description": "NEL model list"}},
-                }
+                },
             },
             "/v2/nel/taxonomy-models": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsNELV2TaxonomyModels",
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/taxonomy-models"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
                 "get": {
                     "summary": "List available taxonomy models",
                     "operationId": "listTaxonomyModels",
                     "security": [{"firebase": []}],
                     "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/taxonomy-models"},
                     "responses": {"200": {"description": "Taxonomy model list"}},
-                }
+                },
             },
             "/v2/nel/user/config": {
                 "options": {

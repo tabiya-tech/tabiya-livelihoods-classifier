@@ -7,7 +7,6 @@ import {
   listTaxonomyModels,
   NELModel,
   TaxonomyModel,
-  V2UserConfig,
 } from "../lib/api";
 
 export default function Configuration() {

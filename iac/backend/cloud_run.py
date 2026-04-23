@@ -26,7 +26,9 @@ def create_cloud_run_services(
     taxonomy_api_base_url: str,
     default_nel_model_id: str,
     default_taxonomy_model_id: str,
+    app_origin: str,
     vertex_api_region: str = "us-central1",
+    env: str = "dev",
 ):
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
@@ -303,7 +305,10 @@ def create_cloud_run_services(
                             name="VERTEX_API_REGION", value=vertex_api_region
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="TARGET_ENVIRONMENT_TYPE", value="production"
+                            name="TARGET_ENVIRONMENT_TYPE", value=env
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="CORS_ALLOWED_ORIGINS", value=app_origin
                         ),
                     ],
                     startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
@@ -355,7 +360,10 @@ def create_cloud_run_services(
                             name="NEL_V2_API_URL", value=nel_v2.uri
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="TARGET_ENVIRONMENT_TYPE", value="production"
+                            name="TARGET_ENVIRONMENT_TYPE", value=env
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="CORS_ALLOWED_ORIGINS", value=app_origin
                         ),
                     ],
                     startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
@@ -395,6 +403,14 @@ def create_cloud_run_services(
         name=nel_v2.name,
         role="roles/run.invoker",
         member=classify_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    # Allow NEL v2 SA to call Vertex AI for embeddings
+    gcp.projects.IAMMember(
+        "nel-v2-vertex-ai-user",
+        project=project,
+        role="roles/aiplatform.user",
+        member=nel_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
 
     return ner, nel, classify, nel_v2, classify_v2

@@ -64,19 +64,21 @@ class TestGetUserConfig:
         assert data["taxonomy_model_id"] == ""
         assert data["nel_model_id"] == ""
 
-    async def test_returns_401_when_not_authenticated_in_production(self):
+    async def test_api_key_auth_uses_shared_uid_in_production(self):
         # GIVEN the service is running in production mode (not local)
         test_app = FastAPI()
         test_app.include_router(router)
         test_app.dependency_overrides[_get_service] = lambda: FakeUserConfigService()
 
-        # WHEN GET /v2/nel/user/config is called without the gateway auth header
+        # WHEN GET /v2/nel/user/config is called without the gateway user-info header
+        # (i.e. authenticated via API key — the gateway has already verified the key
+        # but does not set x-apigateway-api-userinfo for API key auth)
         with patch("nel.app.user_config.routes.auth.TARGET_ENVIRONMENT_TYPE", "production"):
             async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
                 resp = await client.get("/v2/nel/user/config")
 
-        # THEN 401 is returned
-        assert resp.status_code == 401
+        # THEN 200 is returned using the shared api-key-user uid
+        assert resp.status_code == 200
 
 
 class TestUpdateUserConfig:
@@ -134,13 +136,14 @@ class TestUpdateUserConfig:
             resp = await client.get("/v2/nel/user/config")
         assert resp.json()["taxonomy_model_id"] == "tax-2"
 
-    async def test_returns_401_when_not_authenticated_in_production(self):
+    async def test_api_key_auth_uses_shared_uid_in_production(self):
         # GIVEN the service is running in production mode (not local)
         test_app = FastAPI()
         test_app.include_router(router)
         test_app.dependency_overrides[_get_service] = lambda: FakeUserConfigService()
 
-        # WHEN PUT /v2/nel/user/config is called without the gateway auth header
+        # WHEN PUT /v2/nel/user/config is called without the gateway user-info header
+        # (i.e. authenticated via API key)
         with patch("nel.app.user_config.routes.auth.TARGET_ENVIRONMENT_TYPE", "production"):
             async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
                 resp = await client.put(
@@ -148,5 +151,5 @@ class TestUpdateUserConfig:
                     json={"taxonomy_model_id": "tax-1", "nel_model_id": "nel-1"},
                 )
 
-        # THEN 401 is returned
-        assert resp.status_code == 401
+        # THEN 200 is returned using the shared api-key-user uid
+        assert resp.status_code == 200

@@ -26,19 +26,23 @@ jobs:
           python-version: "3.11"
 
       - name: Install Poetry
-        run: pip install poetry==1.8.3
+        run: |
+          pip install poetry==1.8.3
+          poetry config virtualenvs.in-project true
+
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: backend/${{ matrix.service }}/.venv
+          key: venv-${{ matrix.service }}-py3.11-${{ hashFiles(format('backend/{0}/poetry.lock', matrix.service)) }}
 
       - name: Install shared
         working-directory: backend/shared
         run: poetry install --no-root
 
-      - name: Lock ${{ matrix.service }} dependencies
-        working-directory: backend/${{ matrix.service }}
-        run: poetry lock
-
       - name: Install ${{ matrix.service }} service
         working-directory: backend/${{ matrix.service }}
-        run: poetry install
+        run: poetry install ${{ matrix.service == 'nel_v2' && '--extras inference' || '' }}
 
       - name: Run tests
         working-directory: backend/${{ matrix.service }}

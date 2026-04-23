@@ -20,7 +20,24 @@ config:
   # e.g. "dev.classifier.tabiya.tech"
   tabiya-classifier-backend:envSubdomain: <env>.classifier.tabiya.tech
 
+  # MongoDB database name for the taxonomy/embeddings Atlas cluster
+  tabiya-classifier-backend:taxonomyMongoDbName: <database-name>
+
+  # Base URL for the taxonomy REST API
+  tabiya-classifier-backend:taxonomyApiBaseUrl: <https://taxonomy.tabiya.tech>
+
+  # Default NEL model ID (used when user has no config set)
+  tabiya-classifier-backend:defaultNELModelId: <model-id>
+
+  # Default taxonomy model ID (used when user has no config set)
+  tabiya-classifier-backend:defaultTaxonomyModelId: <taxonomy-model-uuid>
+
+  # GCP region for Vertex AI embedding calls (default: same as region)
+  tabiya-classifier-backend:vertexApiRegion: <region>
+
   # Docker image URIs — injected by CI; set as placeholders here
   tabiya-classifier-backend:nerImage: <image-uri>
   tabiya-classifier-backend:nelImage: <image-uri>
   tabiya-classifier-backend:classifyImage: <image-uri>
+  tabiya-classifier-backend:nelV2Image: <image-uri>
+  tabiya-classifier-backend:classifyV2Image: <image-uri>
