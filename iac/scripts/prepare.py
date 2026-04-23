@@ -8,7 +8,9 @@ Usage (called by CI before pulumi up):
         --project tabiya-classifier-dev \\
         --ner-image us-central1-docker.pkg.dev/.../ner:SHA \\
         --nel-image us-central1-docker.pkg.dev/.../nel:SHA \\
-        --classify-image us-central1-docker.pkg.dev/.../classify:SHA
+        --classify-image us-central1-docker.pkg.dev/.../classify:SHA \\
+        --nel-v2-image us-central1-docker.pkg.dev/.../nel_v2:SHA \\
+        --classify-v2-image us-central1-docker.pkg.dev/.../classify_v2:SHA
 
 What it does:
   1. Fetches "env-vars" from GCP Secret Manager → writes iac/backend/.env.{stack}
@@ -135,6 +137,8 @@ def _write_pulumi_yaml(
     ner_image: str = "",
     nel_image: str = "",
     classify_image: str = "",
+    nel_v2_image: str = "",
+    classify_v2_image: str = "",
 ):
     stack_dir, _, _ = STACKS[logical_stack]
     if logical_stack == "backend":
@@ -142,6 +146,8 @@ def _write_pulumi_yaml(
         config["config"]["tabiya-classifier-backend:nerImage"] = ner_image
         config["config"]["tabiya-classifier-backend:nelImage"] = nel_image
         config["config"]["tabiya-classifier-backend:classifyImage"] = classify_image
+        config["config"]["tabiya-classifier-backend:nelV2Image"] = nel_v2_image
+        config["config"]["tabiya-classifier-backend:classifyV2Image"] = classify_v2_image
 
     path = os.path.join(REPO_ROOT, stack_dir, f"Pulumi.{stack}.yaml")
     with open(path, "w", encoding="utf-8") as f:
@@ -161,6 +167,8 @@ def _main():
     parser.add_argument("--ner-image", required=True, help="NER Docker image URI")
     parser.add_argument("--nel-image", required=True, help="NEL Docker image URI")
     parser.add_argument("--classify-image", required=True, help="Classify Docker image URI")
+    parser.add_argument("--nel-v2-image", required=True, help="NEL v2 Docker image URI")
+    parser.add_argument("--classify-v2-image", required=True, help="Classify v2 Docker image URI")
     parser.add_argument(
         "--stacks",
         default="all",
@@ -195,6 +203,8 @@ def _main():
             ner_image=args.ner_image,
             nel_image=args.nel_image,
             classify_image=args.classify_image,
+            nel_v2_image=args.nel_v2_image,
+            classify_v2_image=args.classify_v2_image,
         )
 
     print(f"info: preparation complete for stack '{args.stack}'.")

@@ -23,7 +23,7 @@ import pulumi
 import pulumi_gcp as gcp
 
 
-def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, firebase_project_id: str, env_subdomain: str) -> str:
+def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel_v2_url: str, classify_v2_url: str, firebase_project_id: str, env_subdomain: str) -> str:
     spec = {
         "swagger": "2.0",
         "info": {
@@ -288,6 +288,84 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, fir
                     "responses": {"200": {"description": "Usage data"}},
                 }
             },
+            # ── v2 routes ─────────────────────────────────────────────────────
+            "/v2/classify": {
+                "post": {
+                    "summary": "Classify a job description (v2 — full taxonomy schema)",
+                    "operationId": "classifyV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classify"},
+                    "responses": {"200": {"description": "Classification result"}},
+                }
+            },
+            "/v2/classify/health": {
+                "get": {
+                    "summary": "Classify v2 health check",
+                    "operationId": "classifyV2Health",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classify/health"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/v2/nel": {
+                "post": {
+                    "summary": "Link entities using NEL v2",
+                    "operationId": "nelV2Link",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel"},
+                    "responses": {"200": {"description": "Linked entities"}},
+                }
+            },
+            "/v2/nel/health": {
+                "get": {
+                    "summary": "NEL v2 health check",
+                    "operationId": "nelV2Health",
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/health"},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            },
+            "/v2/nel/models": {
+                "get": {
+                    "summary": "List available NEL models",
+                    "operationId": "listNELModels",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/models"},
+                    "responses": {"200": {"description": "NEL model list"}},
+                }
+            },
+            "/v2/nel/taxonomy-models": {
+                "get": {
+                    "summary": "List available taxonomy models",
+                    "operationId": "listTaxonomyModels",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/taxonomy-models"},
+                    "responses": {"200": {"description": "Taxonomy model list"}},
+                }
+            },
+            "/v2/nel/user/config": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsNELV2UserConfig",
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/user/config"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get NEL v2 user config",
+                    "operationId": "getNELV2UserConfig",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/user/config"},
+                    "responses": {"200": {"description": "User config"}},
+                },
+                "put": {
+                    "summary": "Update NEL v2 user config",
+                    "operationId": "updateNELV2UserConfig",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{nel_v2_url}/v2/nel/user/config"},
+                    "responses": {"200": {"description": "Updated config"}},
+                },
+            },
         },
     }
     return json.dumps(spec)
@@ -313,6 +391,8 @@ def create_api_gateway(
     classify_url: pulumi.Output,
     ner_url: pulumi.Output,
     nel_url: pulumi.Output,
+    nel_v2_url: pulumi.Output,
+    classify_v2_url: pulumi.Output,
     firebase_project_id: str,
     env_subdomain: str,
 ):
@@ -339,13 +419,15 @@ def create_api_gateway(
             gcp.apigateway.ApiConfigOpenapiDocumentArgs(
                 document=gcp.apigateway.ApiConfigOpenapiDocumentDocumentArgs(
                     path="openapi.json",
-                    contents=pulumi.Output.all(classify_url, ner_url, nel_url).apply(
+                    contents=pulumi.Output.all(classify_url, ner_url, nel_url, nel_v2_url, classify_v2_url).apply(
                         lambda urls: base64.b64encode(
                             _build_spec(
                                 project,
                                 urls[0] or "http://localhost:5001",
                                 urls[1] or "http://localhost:5002",
                                 urls[2] or "http://localhost:5003",
+                                urls[3] or "http://localhost:5003",
+                                urls[4] or "http://localhost:5004",
                                 firebase_project_id,
                                 env_subdomain,
                             ).encode()

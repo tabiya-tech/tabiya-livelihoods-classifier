@@ -36,8 +36,22 @@ def create_artifact_registry(project: str, region: str):
         display_name="Classify Cloud Run Service Account",
     )
 
+    nel_v2_sa = gcp.serviceaccount.Account(
+        "nel-v2-sa",
+        project=project,
+        account_id="nel-v2-service",
+        display_name="NEL v2 Cloud Run Service Account",
+    )
+
+    classify_v2_sa = gcp.serviceaccount.Account(
+        "classify-v2-sa",
+        project=project,
+        account_id="classify-v2-service",
+        display_name="Classify v2 Cloud Run Service Account",
+    )
+
     # Grant each SA read access to the Artifact Registry
-    for i, sa in enumerate([ner_sa, nel_sa, classify_sa]):
+    for i, sa in enumerate([ner_sa, nel_sa, classify_sa, nel_v2_sa, classify_v2_sa]):
         gcp.artifactregistry.RepositoryIamMember(
             f"registry-reader-{i}",
             project=project,
@@ -75,7 +89,30 @@ def create_artifact_registry(project: str, region: str):
         member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
 
+    # NEL v2 needs both the app MongoDB URI and the taxonomy MongoDB URI
+    gcp.secretmanager.SecretIamMember(
+        "nel-v2-sa-mongodb-uri-accessor",
+        project=project,
+        secret_id="tabiya-classifier-mongodb-uri",
+        role="roles/secretmanager.secretAccessor",
+        member=nel_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    gcp.secretmanager.SecretIamMember(
+        "nel-v2-sa-taxonomy-mongodb-uri-accessor",
+        project=project,
+        secret_id="tabiya-classifier-taxonomy-mongodb-uri",
+        role="roles/secretmanager.secretAccessor",
+        member=nel_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
     # Per-service Cloud Run invoker bindings are set in cloud_run.py after the
     # services exist. No project-level run.invoker grant is needed.
 
-    return registry, {"ner_sa": ner_sa, "nel_sa": nel_sa, "classify_sa": classify_sa}
+    return registry, {
+        "ner_sa": ner_sa,
+        "nel_sa": nel_sa,
+        "classify_sa": classify_sa,
+        "nel_v2_sa": nel_v2_sa,
+        "classify_v2_sa": classify_v2_sa,
+    }

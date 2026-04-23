@@ -10,7 +10,7 @@ so that secret values never enter the Pulumi state file.
 import pulumi_gcp as gcp
 
 
-def create_secrets(project: str, mongodb_uri: str, hf_token: str) -> dict:
+def create_secrets(project: str, mongodb_uri: str, hf_token: str, taxonomy_mongodb_uri: str) -> dict:
     mongodb_uri_secret = gcp.secretmanager.Secret(
         "mongodb-uri",
         project=project,
@@ -37,4 +37,21 @@ def create_secrets(project: str, mongodb_uri: str, hf_token: str) -> dict:
         secret_data=hf_token,
     )
 
-    return {"mongodb_uri": mongodb_uri_secret, "hf_token": hf_token_secret}
+    taxonomy_mongodb_uri_secret = gcp.secretmanager.Secret(
+        "taxonomy-mongodb-uri",
+        project=project,
+        secret_id="tabiya-classifier-taxonomy-mongodb-uri",
+        replication=gcp.secretmanager.SecretReplicationArgs(auto={}),
+    )
+
+    gcp.secretmanager.SecretVersion(
+        "taxonomy-mongodb-uri-version",
+        secret=taxonomy_mongodb_uri_secret.id,
+        secret_data=taxonomy_mongodb_uri,
+    )
+
+    return {
+        "mongodb_uri": mongodb_uri_secret,
+        "hf_token": hf_token_secret,
+        "taxonomy_mongodb_uri": taxonomy_mongodb_uri_secret,
+    }
