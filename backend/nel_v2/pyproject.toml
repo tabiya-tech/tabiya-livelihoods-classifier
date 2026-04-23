@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "tabiya-nel-v2"
+version = "0.1.0"
+description = "NEL v2 service for Tabiya Livelihoods Classifier — taxonomy API source + MongoDB Atlas vector search"
+authors = ["Tabiya <tabiya@tabiya.org>"]
+packages = [{ include = "nel" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.111.0"
+uvicorn = { version = "^0.30.0", extras = ["standard"] }
+httpx = "^0.27.0"
+motor = "^3.4"
+dnspython = "^2.6.0"
+torch = "^2.1.2"
+sentence-transformers = "^2.2.2"
+pandas = "^2.0.3"
+python-dotenv = "^1.0.1"
+tqdm = "^4.66.0"
+tabiya-shared = { path = "../shared", develop = true }
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+respx = "^0.21.0"
+pymongo-inmemory = ">=0.4.2"
+
+[tool.pytest.ini_options]
+testpaths = ["nel"]
+asyncio_mode = "auto"
+env = [
+    "PYMONGO_INMEMORY_MONGOD_BIN=/opt/homebrew/bin/mongod",
+]
+markers = [
+    "integration: marks tests requiring live external services (deselect with '-m \"not integration\"')",
+]
+addopts = "-m 'not integration'"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
