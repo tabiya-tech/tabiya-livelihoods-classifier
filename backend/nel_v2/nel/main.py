@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from nel.app.linking.routes.routes import router as linking_router
 from nel.app.nel_models.routes.routes import router as nel_models_router
+from nel.app.taxonomy_models.routes.routes import router as taxonomy_models_router
 from nel.app.version.routes import router as version_router
 from nel.config import LOG_LEVEL
 
@@ -37,4 +38,5 @@ app = FastAPI(title="NEL v2", version="2.0.0", lifespan=lifespan)
 
 app.include_router(version_router)
 app.include_router(nel_models_router)
+app.include_router(taxonomy_models_router)
 app.include_router(linking_router)
