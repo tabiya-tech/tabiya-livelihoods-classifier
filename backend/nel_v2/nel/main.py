@@ -4,14 +4,14 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from nel.app.embeddings_cache.routes.routes import router as embeddings_cache_router
 from nel.app.linking.routes.routes import router as linking_router
 from nel.app.nel_models.routes.routes import router as nel_models_router
 from nel.app.taxonomy_models.routes.routes import router as taxonomy_models_router
 from nel.app.user_config.routes.routes import router as user_config_router
 from nel.app.version.routes import router as version_router
-from nel.config import LOG_LEVEL
+from nel.config import LOG_LEVEL, CORS_ALLOWED_ORIGINS
 
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
 
@@ -38,9 +38,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NEL v2", version="2.0.0", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(version_router)
 app.include_router(nel_models_router)
 app.include_router(taxonomy_models_router)
-app.include_router(embeddings_cache_router)
 app.include_router(user_config_router)
 app.include_router(linking_router)
