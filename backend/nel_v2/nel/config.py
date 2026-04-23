@@ -25,3 +25,6 @@ CLASSIFIER_VERSION: str = os.getenv("CLASSIFIER_VERSION", "2.0.0")
 
 # Logging
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Environment
+TARGET_ENVIRONMENT_TYPE: str = os.getenv("TARGET_ENVIRONMENT_TYPE", "")
