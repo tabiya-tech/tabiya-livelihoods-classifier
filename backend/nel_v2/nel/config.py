@@ -22,3 +22,6 @@ DEFAULT_TAXONOMY_MODEL_ID: str = os.getenv("DEFAULT_TAXONOMY_MODEL_ID", "")
 
 # Service metadata
 CLASSIFIER_VERSION: str = os.getenv("CLASSIFIER_VERSION", "2.0.0")
+
+# Logging
+LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()

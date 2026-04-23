@@ -19,6 +19,7 @@ STEPS (per entity type)
   [4] Embed each page using SentenceTransformer
   [5] Insert embedding documents into Atlas
   [6] Mark cache status as "ready"
+  [7] Create/update Atlas vector search indexes (skipped with --no-indexes)
 
 REQUIRED ENV VARS
 -----------------
@@ -52,6 +53,13 @@ EXAMPLES
       --entity-types occupation \\
       --force \\
       --hot-run
+
+  # Create/update Atlas vector search indexes only (no embedding generation):
+  python scripts/generate_embeddings.py \\
+      --taxonomy-model-id <uuid> \\
+      --nel-model-id all-MiniLM-L6-v2 \\
+      --indexes-only \\
+      --hot-run
 """
 
 import argparse
@@ -64,6 +72,7 @@ import time
 from pathlib import Path
 
 import yaml
+from pymongo.operations import SearchIndexModel
 from tqdm import tqdm
 
 _HERE = Path(__file__).resolve().parent
@@ -161,10 +170,62 @@ class DryRunGenerationService:
             logger.info("[DRY-RUN] Would mark %s cache status as 'ready'", entity_type)
 
 
+# ── Vector search index management ───────────────────────────────────────────
+
+_INDEX_NAME = "nel_embedding_index_384"
+_INDEX_DEFINITION = {
+    "fields": [
+        {
+            "type": "vector",
+            "path": "embedding",
+            "numDimensions": 384,
+            "similarity": "cosine",
+        },
+        {"type": "filter", "path": "taxonomy_model_id"},
+        {"type": "filter", "path": "nel_model_id"},
+    ]
+}
+
+
+async def _upsert_vector_search_index(collection, hot_run: bool) -> None:
+    exists = False
+    async for idx in collection.list_search_indexes():
+        if idx["name"] == _INDEX_NAME:
+            exists = True
+            break
+
+    if exists:
+        if hot_run:
+            logger.info("  Updating vector search index '%s' on %s", _INDEX_NAME, collection.name)
+            await collection.update_search_index(_INDEX_NAME, _INDEX_DEFINITION)
+        else:
+            logger.info("  [DRY-RUN] Would update vector search index '%s' on %s", _INDEX_NAME, collection.name)
+    else:
+        model = SearchIndexModel(definition=_INDEX_DEFINITION, name=_INDEX_NAME, type="vectorSearch")
+        if hot_run:
+            logger.info("  Creating vector search index '%s' on %s", _INDEX_NAME, collection.name)
+            await collection.create_search_index(model=model)
+        else:
+            logger.info("  [DRY-RUN] Would create vector search index '%s' on %s", _INDEX_NAME, collection.name)
+
+
+async def create_vector_search_indexes(taxonomy_db, hot_run: bool) -> None:
+    from nel.app.server_dependencies.database_collections import Collections
+    collections = [
+        Collections.OCCUPATION_EMBEDDINGS,
+        Collections.SKILL_EMBEDDINGS,
+        Collections.QUALIFICATION_EMBEDDINGS,
+    ]
+    # list_search_indexes() can be flaky when called concurrently — run sequentially
+    for col_name in collections:
+        await _upsert_vector_search_index(taxonomy_db[col_name], hot_run)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 async def main(args: argparse.Namespace) -> None:
     hot_run: bool = args.hot_run
+    indexes_only: bool = args.indexes_only
 
     app_uri = os.environ["APPLICATION_MONGODB_URI"]
     app_db_name = os.environ.get("APPLICATION_DATABASE_NAME", "tabiya-classifier")
@@ -178,15 +239,17 @@ async def main(args: argparse.Namespace) -> None:
     logger.info("NEL Embedding Generation — %s", mode_label)
     logger.info("  taxonomy_model_id : %s", args.taxonomy_model_id)
     logger.info("  nel_model_id      : %s", args.nel_model_id)
-    logger.info("  entity_types      : %s", args.entity_types)
-    logger.info("  force             : %s", args.force)
+    logger.info("  indexes_only      : %s", indexes_only)
+    if not indexes_only:
+        logger.info("  entity_types      : %s", args.entity_types)
+        logger.info("  force             : %s", args.force)
     logger.info("  taxonomy API      : %s", taxonomy_base_url)
     logger.info("  app DB            : %s", app_db_name)
     logger.info("  taxonomy DB       : %s", taxonomy_db_name)
     logger.info("=" * 60)
 
-    # ── [1/4] Connect ─────────────────────────────────────────────────────────
-    logger.info("[1/4] Connecting to MongoDB …")
+    # ── [1] Connect ───────────────────────────────────────────────────────────
+    logger.info("[1] Connecting to MongoDB …")
     app_client = AsyncIOMotorClient(app_uri, tlsAllowInvalidCertificates=True)
     taxonomy_client = AsyncIOMotorClient(taxonomy_uri, tlsAllowInvalidCertificates=True)
     app_db = app_client.get_database(app_db_name)
@@ -194,55 +257,63 @@ async def main(args: argparse.Namespace) -> None:
 
     repo = EmbeddingsCacheRepository(app_db=app_db, taxonomy_db=taxonomy_db)
 
-    if hot_run:
-        logger.info("  Ensuring MongoDB indexes …")
-        await repo.ensure_indexes()
-    else:
-        logger.info("  [DRY-RUN] Would ensure MongoDB indexes")
+    if not indexes_only:
+        if hot_run:
+            logger.info("  Ensuring MongoDB indexes …")
+            await repo.ensure_indexes()
+        else:
+            logger.info("  [DRY-RUN] Would ensure MongoDB indexes")
 
-    # ── [2/4] Load embedding model ────────────────────────────────────────────
-    logger.info("[2/4] Loading SentenceTransformer model: %s …", args.nel_model_id)
-    t0 = time.monotonic()
-    embedding_svc = SentenceTransformerEmbeddingService(args.nel_model_id)
-    logger.info(
-        "  Model loaded in %.1fs — dimensions: %d",
-        time.monotonic() - t0,
-        embedding_svc.dimensions,
-    )
+        # ── [2] Load embedding model ──────────────────────────────────────────
+        logger.info("[2] Loading SentenceTransformer model: %s …", args.nel_model_id)
+        t0 = time.monotonic()
+        embedding_svc = SentenceTransformerEmbeddingService(args.nel_model_id)
+        logger.info(
+            "  Model loaded in %.1fs — dimensions: %d",
+            time.monotonic() - t0,
+            embedding_svc.dimensions,
+        )
 
-    # ── [3/4] Build services ──────────────────────────────────────────────────
-    logger.info("[3/4] Initialising taxonomy source and generation service …")
-    taxonomy_source = TaxonomyAPISource(
-        base_url=taxonomy_base_url,
-        api_key=taxonomy_api_key,
-    )
-    qual_source = QualificationsMongoSource(app_db=app_db)
+        # ── [3] Build services ────────────────────────────────────────────────
+        logger.info("[3] Initialising taxonomy source and generation service …")
+        taxonomy_source = TaxonomyAPISource(
+            base_url=taxonomy_base_url,
+            api_key=taxonomy_api_key,
+        )
+        qual_source = QualificationsMongoSource(app_db=app_db)
 
-    inner_svc = EmbeddingGenerationService(
-        cache_repository=repo,
-        embedding_service=embedding_svc,
-        taxonomy_source=taxonomy_source,
-        qualifications_source=qual_source,
-        page_size=100,
-    )
-    svc = DryRunGenerationService(inner_svc, entity_types=args.entity_types, hot_run=hot_run)
+        inner_svc = EmbeddingGenerationService(
+            cache_repository=repo,
+            embedding_service=embedding_svc,
+            taxonomy_source=taxonomy_source,
+            qualifications_source=qual_source,
+            page_size=100,
+        )
+        svc = DryRunGenerationService(inner_svc, entity_types=args.entity_types, hot_run=hot_run)
 
-    # ── [4/4] Generate ────────────────────────────────────────────────────────
-    logger.info("[4/4] Running embedding generation for: %s", args.entity_types)
-    t_start = time.monotonic()
-    await svc.run(
-        taxonomy_model_id=args.taxonomy_model_id,
-        nel_model_id=args.nel_model_id,
-        force=args.force,
-    )
-    elapsed = time.monotonic() - t_start
+        # ── [4] Generate ──────────────────────────────────────────────────────
+        logger.info("[4] Running embedding generation for: %s", args.entity_types)
+        t_start = time.monotonic()
+        await svc.run(
+            taxonomy_model_id=args.taxonomy_model_id,
+            nel_model_id=args.nel_model_id,
+            force=args.force,
+        )
+        elapsed = time.monotonic() - t_start
+        if hot_run:
+            logger.info("Embeddings generated in %.1fs", elapsed)
+        else:
+            logger.info("Dry-run complete in %.1fs — no writes were made", elapsed)
+
+    # ── [5] Vector search indexes ─────────────────────────────────────────────
+    logger.info("[5] Creating/updating Atlas vector search indexes …")
+    await create_vector_search_indexes(taxonomy_db, hot_run=hot_run)
 
     logger.info("=" * 60)
     if hot_run:
-        logger.info("Done — embeddings generated in %.1fs", elapsed)
+        logger.info("Done.")
     else:
-        logger.info("Dry-run complete in %.1fs — no writes were made", elapsed)
-        logger.info("Re-run with --hot-run to perform actual writes.")
+        logger.info("Dry-run complete — no writes were made. Re-run with --hot-run to apply.")
     logger.info("=" * 60)
 
     app_client.close()
@@ -278,6 +349,11 @@ def parse_args() -> argparse.Namespace:
         "--force",
         action="store_true",
         help="Delete existing embeddings and regenerate even if already 'ready'",
+    )
+    parser.add_argument(
+        "--indexes-only",
+        action="store_true",
+        help="Skip embedding generation — only create/update Atlas vector search indexes.",
     )
     parser.add_argument(
         "--hot-run",
