@@ -28,3 +28,10 @@ LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # Environment
 TARGET_ENVIRONMENT_TYPE: str = os.getenv("TARGET_ENVIRONMENT_TYPE", "")
+
+# CORS — comma-separated list of allowed origins (local dev only; in prod the API Gateway handles this)
+CORS_ALLOWED_ORIGINS: list[str] = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]

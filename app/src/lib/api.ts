@@ -9,6 +9,7 @@
 import { auth } from "./firebase";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
+const NEL_V2_API_BASE = import.meta.env.VITE_NEL_V2_API_BASE_URL ?? "http://localhost:5003";
 
 async function getIdToken(): Promise<string> {
   const user = auth.currentUser;
@@ -52,6 +53,67 @@ export function saveConfig(config: Partial<UserConfig>): Promise<void> {
     method: "PUT",
     body: JSON.stringify(config),
   });
+}
+
+async function nelV2Request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await getIdToken();
+  const res = await fetch(`${NEL_V2_API_BASE}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`API ${res.status}: ${body}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// ── NEL v2 user config ────────────────────────────────────────────────────
+
+export interface V2UserConfig {
+  taxonomy_model_id: string;
+  nel_model_id: string;
+}
+
+export function getV2Config(): Promise<V2UserConfig> {
+  return nelV2Request<V2UserConfig>("/v2/nel/user/config");
+}
+
+export function saveV2Config(config: V2UserConfig): Promise<V2UserConfig> {
+  return nelV2Request<V2UserConfig>("/v2/nel/user/config", {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
+// ── NEL v2 models ─────────────────────────────────────────────────────────
+
+export interface NELModel {
+  model_id: string;
+  dimensions: number;
+  description: string;
+}
+
+export function listNELModels(): Promise<NELModel[]> {
+  return nelV2Request<NELModel[]>("/v2/nel/models");
+}
+
+// ── NEL v2 taxonomy models ────────────────────────────────────────────────
+
+export interface TaxonomyModel {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  released: boolean;
+}
+
+export function listTaxonomyModels(): Promise<TaxonomyModel[]> {
+  return nelV2Request<TaxonomyModel[]>("/v2/nel/taxonomy-models");
 }
 
 // ── API keys ──────────────────────────────────────────────────────────────
