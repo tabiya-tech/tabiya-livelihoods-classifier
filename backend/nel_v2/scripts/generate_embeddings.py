@@ -11,15 +11,21 @@ By default the script runs in DRY-RUN mode — it connects to all services,
 validates config, and logs what *would* happen, but writes nothing to the database.
 Pass --hot-run to perform actual writes.
 
+Supported embedding backends (auto-selected by --nel-model-id):
+  SentenceTransformer  — any HuggingFace model (e.g. all-MiniLM-L6-v2, 384 dims)
+  Google Vertex AI     — text-embedding-005 (768 dims), models/gemini-embedding-001 (3072 dims)
+                         requires VERTEX_API_REGION env var; authenticated via ADC
+
 STEPS (per entity type)
 -----------------------
   [1] Check current cache status
-  [2] Delete existing embeddings     (only when --force is set)
-  [3] Stream items from source API / MongoDB
-  [4] Embed each page using SentenceTransformer
-  [5] Insert embedding documents into Atlas
-  [6] Mark cache status as "ready"
-  [7] Create/update Atlas vector search indexes (skipped with --no-indexes)
+  [2] Load embedding model
+  [3] Delete existing embeddings     (only when --force is set)
+  [4] Stream items from source API / MongoDB
+  [5] Embed each page
+  [6] Insert embedding documents into Atlas
+  [7] Mark cache status as "ready"
+  [8] Create/update Atlas vector search indexes (skipped with --no-indexes)
 
 REQUIRED ENV VARS
 -----------------
@@ -32,6 +38,7 @@ OPTIONAL ENV VARS
   APPLICATION_DATABASE_NAME    Default: tabiya-classifier
   TAXONOMY_DATABASE_NAME       Default: tabiya-taxonomy
   TAXONOMY_API_BASE_URL        Default: https://taxonomy.tabiya.tech
+  VERTEX_API_REGION            Required for Vertex AI models (default: us-central1)
 
 EXAMPLES
 --------
@@ -93,7 +100,7 @@ logger = logging.getLogger(__name__)
 # ── Service imports (after path and logging are set up) ───────────────────────
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from nel.app.embedding.service.service import SentenceTransformerEmbeddingService
+from nel.app.embedding.service.service import get_embedding_service
 from nel.app.embeddings_cache.repository.repository import EmbeddingsCacheRepository
 from nel.app.embeddings_cache.service.generation_service import (
     EmbeddingGenerationService,
@@ -122,7 +129,12 @@ class DryRunGenerationService:
         self._hot_run = hot_run
 
     async def run(
-        self, taxonomy_model_id: str, nel_model_id: str, force: bool
+        self,
+        taxonomy_model_id: str,
+        nel_model_id: str,
+        force: bool,
+        start_cursor: str | None = None,
+        start_cursor_entity_type: str | None = None,
     ) -> None:
         original = _gen_mod._ENTITY_TYPES
         _gen_mod._ENTITY_TYPES = self._entity_types
@@ -132,6 +144,8 @@ class DryRunGenerationService:
                     taxonomy_model_id=taxonomy_model_id,
                     nel_model_id=nel_model_id,
                     force=force,
+                    start_cursor=start_cursor,
+                    start_cursor_entity_type=start_cursor_entity_type,
                 )
             else:
                 await self._dry_run(taxonomy_model_id, nel_model_id, force)
@@ -172,44 +186,51 @@ class DryRunGenerationService:
 
 # ── Vector search index management ───────────────────────────────────────────
 
-_INDEX_NAME = "nel_embedding_index_384"
-_INDEX_DEFINITION = {
-    "fields": [
-        {
-            "type": "vector",
-            "path": "embedding",
-            "numDimensions": 384,
-            "similarity": "cosine",
-        },
-        {"type": "filter", "path": "taxonomy_model_id"},
-        {"type": "filter", "path": "nel_model_id"},
-    ]
-}
+def _index_name_for_dimensions(dimensions: int) -> str:
+    return f"nel_embedding_index_{dimensions}"
 
 
-async def _upsert_vector_search_index(collection, hot_run: bool) -> None:
+def _index_definition_for_dimensions(dimensions: int) -> dict:
+    return {
+        "fields": [
+            {
+                "type": "vector",
+                "path": "embedding",
+                "numDimensions": dimensions,
+                "similarity": "cosine",
+            },
+            {"type": "filter", "path": "taxonomy_model_id"},
+            {"type": "filter", "path": "nel_model_id"},
+        ]
+    }
+
+
+async def _upsert_vector_search_index(collection, dimensions: int, hot_run: bool) -> None:
+    index_name = _index_name_for_dimensions(dimensions)
+    index_definition = _index_definition_for_dimensions(dimensions)
+
     exists = False
     async for idx in collection.list_search_indexes():
-        if idx["name"] == _INDEX_NAME:
+        if idx["name"] == index_name:
             exists = True
             break
 
     if exists:
         if hot_run:
-            logger.info("  Updating vector search index '%s' on %s", _INDEX_NAME, collection.name)
-            await collection.update_search_index(_INDEX_NAME, _INDEX_DEFINITION)
+            logger.info("  Updating vector search index '%s' on %s", index_name, collection.name)
+            await collection.update_search_index(index_name, index_definition)
         else:
-            logger.info("  [DRY-RUN] Would update vector search index '%s' on %s", _INDEX_NAME, collection.name)
+            logger.info("  [DRY-RUN] Would update vector search index '%s' on %s", index_name, collection.name)
     else:
-        model = SearchIndexModel(definition=_INDEX_DEFINITION, name=_INDEX_NAME, type="vectorSearch")
+        model = SearchIndexModel(definition=index_definition, name=index_name, type="vectorSearch")
         if hot_run:
-            logger.info("  Creating vector search index '%s' on %s", _INDEX_NAME, collection.name)
+            logger.info("  Creating vector search index '%s' on %s", index_name, collection.name)
             await collection.create_search_index(model=model)
         else:
-            logger.info("  [DRY-RUN] Would create vector search index '%s' on %s", _INDEX_NAME, collection.name)
+            logger.info("  [DRY-RUN] Would create vector search index '%s' on %s", index_name, collection.name)
 
 
-async def create_vector_search_indexes(taxonomy_db, hot_run: bool) -> None:
+async def create_vector_search_indexes(taxonomy_db, dimensions: int, hot_run: bool) -> None:
     from nel.app.server_dependencies.database_collections import Collections
     collections = [
         Collections.OCCUPATION_EMBEDDINGS,
@@ -218,7 +239,7 @@ async def create_vector_search_indexes(taxonomy_db, hot_run: bool) -> None:
     ]
     # list_search_indexes() can be flaky when called concurrently — run sequentially
     for col_name in collections:
-        await _upsert_vector_search_index(taxonomy_db[col_name], hot_run)
+        await _upsert_vector_search_index(taxonomy_db[col_name], dimensions, hot_run)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -243,6 +264,8 @@ async def main(args: argparse.Namespace) -> None:
     if not indexes_only:
         logger.info("  entity_types      : %s", args.entity_types)
         logger.info("  force             : %s", args.force)
+        if args.start_cursor:
+            logger.info("  start_cursor      : %s (entity_type=%s)", args.start_cursor, args.start_cursor_entity_type)
     logger.info("  taxonomy API      : %s", taxonomy_base_url)
     logger.info("  app DB            : %s", app_db_name)
     logger.info("  taxonomy DB       : %s", taxonomy_db_name)
@@ -257,22 +280,22 @@ async def main(args: argparse.Namespace) -> None:
 
     repo = EmbeddingsCacheRepository(app_db=app_db, taxonomy_db=taxonomy_db)
 
+    # ── [2] Load embedding model (needed for dimensions even in --indexes-only mode) ──
+    logger.info("[2] Loading embedding model: %s …", args.nel_model_id)
+    t0 = time.monotonic()
+    embedding_svc = await get_embedding_service(args.nel_model_id)
+    logger.info(
+        "  Model loaded in %.1fs — dimensions: %d",
+        time.monotonic() - t0,
+        embedding_svc.dimensions,
+    )
+
     if not indexes_only:
         if hot_run:
             logger.info("  Ensuring MongoDB indexes …")
             await repo.ensure_indexes()
         else:
             logger.info("  [DRY-RUN] Would ensure MongoDB indexes")
-
-        # ── [2] Load embedding model ──────────────────────────────────────────
-        logger.info("[2] Loading SentenceTransformer model: %s …", args.nel_model_id)
-        t0 = time.monotonic()
-        embedding_svc = SentenceTransformerEmbeddingService(args.nel_model_id)
-        logger.info(
-            "  Model loaded in %.1fs — dimensions: %d",
-            time.monotonic() - t0,
-            embedding_svc.dimensions,
-        )
 
         # ── [3] Build services ────────────────────────────────────────────────
         logger.info("[3] Initialising taxonomy source and generation service …")
@@ -298,6 +321,8 @@ async def main(args: argparse.Namespace) -> None:
             taxonomy_model_id=args.taxonomy_model_id,
             nel_model_id=args.nel_model_id,
             force=args.force,
+            start_cursor=args.start_cursor,
+            start_cursor_entity_type=args.start_cursor_entity_type,
         )
         elapsed = time.monotonic() - t_start
         if hot_run:
@@ -307,7 +332,7 @@ async def main(args: argparse.Namespace) -> None:
 
     # ── [5] Vector search indexes ─────────────────────────────────────────────
     logger.info("[5] Creating/updating Atlas vector search indexes …")
-    await create_vector_search_indexes(taxonomy_db, hot_run=hot_run)
+    await create_vector_search_indexes(taxonomy_db, dimensions=embedding_svc.dimensions, hot_run=hot_run)
 
     logger.info("=" * 60)
     if hot_run:
@@ -335,7 +360,7 @@ def parse_args() -> argparse.Namespace:
         "--nel-model-id",
         default="all-MiniLM-L6-v2",
         metavar="MODEL",
-        help="SentenceTransformer model name (default: all-MiniLM-L6-v2)",
+        help="Embedding model name — SentenceTransformer or Vertex AI (text-embedding-005, models/gemini-embedding-001). Default: all-MiniLM-L6-v2",
     )
     parser.add_argument(
         "--entity-types",
@@ -351,6 +376,19 @@ def parse_args() -> argparse.Namespace:
         help="Delete existing embeddings and regenerate even if already 'ready'",
     )
     parser.add_argument(
+        "--start-cursor",
+        default=None,
+        metavar="CURSOR",
+        help="Resume pagination from this cursor value (use with --start-cursor-entity-type).",
+    )
+    parser.add_argument(
+        "--start-cursor-entity-type",
+        default=None,
+        choices=["occupation", "skill", "qualification"],
+        metavar="TYPE",
+        help="Entity type to apply --start-cursor to.",
+    )
+    parser.add_argument(
         "--indexes-only",
         action="store_true",
         help="Skip embedding generation — only create/update Atlas vector search indexes.",
@@ -364,7 +402,12 @@ def parse_args() -> argparse.Namespace:
             "sources and logs what would happen, but writes nothing."
         ),
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.start_cursor and args.force:
+        parser.error("--start-cursor and --force are mutually exclusive")
+    if args.start_cursor and not args.start_cursor_entity_type:
+        parser.error("--start-cursor requires --start-cursor-entity-type")
+    return args
 
 
 if __name__ == "__main__":

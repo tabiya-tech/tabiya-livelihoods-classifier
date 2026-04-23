@@ -26,6 +26,7 @@ def create_cloud_run_services(
     taxonomy_api_base_url: str,
     default_nel_model_id: str,
     default_taxonomy_model_id: str,
+    vertex_api_region: str = "us-central1",
 ):
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
@@ -297,6 +298,9 @@ def create_cloud_run_services(
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="DEFAULT_TAXONOMY_MODEL_ID", value=default_taxonomy_model_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="VERTEX_API_REGION", value=vertex_api_region
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="TARGET_ENVIRONMENT_TYPE", value="production"
