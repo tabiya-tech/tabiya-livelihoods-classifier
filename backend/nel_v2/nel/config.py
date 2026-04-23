@@ -16,6 +16,10 @@ TAXONOMY_DATABASE_NAME: str = os.getenv("TAXONOMY_DATABASE_NAME", "tabiya-taxono
 TAXONOMY_API_BASE_URL: str = os.getenv("TAXONOMY_API_BASE_URL", "https://taxonomy.tabiya.tech")
 TAXONOMY_API_KEY: str = os.getenv("TAXONOMY_API_KEY", "")
 
+# Google AI — Vertex AI (text-embedding-005, models/gemini-embedding-001)
+# Authentication is via Application Default Credentials (ADC); no API key needed.
+VERTEX_API_REGION: str = os.getenv("VERTEX_API_REGION", "us-central1")
+
 # Default model configuration (overridden by user config in classify-v2)
 DEFAULT_NEL_MODEL_ID: str = os.getenv("DEFAULT_NEL_MODEL_ID", "all-MiniLM-L6-v2")
 DEFAULT_TAXONOMY_MODEL_ID: str = os.getenv("DEFAULT_TAXONOMY_MODEL_ID", "")

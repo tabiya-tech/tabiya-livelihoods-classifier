@@ -54,10 +54,9 @@ class IEntityLinkingRepository(ABC):
 
 
 class EntityLinkingRepository(IEntityLinkingRepository):
-    _INDEX_NAME = "nel_embedding_index_384"
-
-    def __init__(self, cache_repository: IEmbeddingsCacheRepository):
+    def __init__(self, cache_repository: IEmbeddingsCacheRepository, dimensions: int = 384):
         self._cache_repo = cache_repository
+        self._index_name = f"nel_embedding_index_{dimensions}"
 
     async def find_matches(
         self,
@@ -75,6 +74,6 @@ class EntityLinkingRepository(IEntityLinkingRepository):
             nel_model_id=nel_model_id,
             top_k=top_k,
             min_similarity=min_similarity,
-            index_name=self._INDEX_NAME,
+            index_name=self._index_name,
         )
         return [_doc_to_match(doc, score) for doc, score in results]

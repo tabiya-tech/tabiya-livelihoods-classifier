@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [ner, nel, classify]
+        service: [ner, nel, classify, nel_v2, classify_v2]
     steps:
       - uses: actions/checkout@v4
 

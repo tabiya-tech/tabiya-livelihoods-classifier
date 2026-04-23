@@ -45,9 +45,9 @@ class TaxonomyAPISource(ITaxonomySource):
             return {"X-API-Key": self._api_key}
         return {}
 
-    async def _paginate(self, url: str) -> AsyncIterator[dict]:
+    async def _paginate(self, url: str, start_cursor: str | None = None) -> AsyncIterator[dict]:
         async with httpx.AsyncClient(timeout=120.0) as client:
-            cursor: str | None = None
+            cursor: str | None = start_cursor
             total = 0
             while True:
                 params: dict = {"limit": _PAGE_LIMIT}
@@ -79,13 +79,13 @@ class TaxonomyAPISource(ITaxonomySource):
                     break
                 _logger.debug("Fetched %d items so far, advancing cursor", total)
 
-    def fetch_occupations(self, taxonomy_model_id: str) -> AsyncIterator[dict]:
+    def fetch_occupations(self, taxonomy_model_id: str, start_cursor: str | None = None) -> AsyncIterator[dict]:
         url = f"{self._base_url}/api/app/models/{taxonomy_model_id}/occupations"
-        return self._paginate(url)
+        return self._paginate(url, start_cursor=start_cursor)
 
-    def fetch_skills(self, taxonomy_model_id: str) -> AsyncIterator[dict]:
+    def fetch_skills(self, taxonomy_model_id: str, start_cursor: str | None = None) -> AsyncIterator[dict]:
         url = f"{self._base_url}/api/app/models/{taxonomy_model_id}/skills"
-        return self._paginate(url)
+        return self._paginate(url, start_cursor=start_cursor)
 
 
 class QualificationsMongoSource:

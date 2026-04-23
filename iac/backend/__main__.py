@@ -21,6 +21,7 @@ Required Pulumi config:
   tabiya-classifier-backend:taxonomyApiBaseUrl    — Base URL for the taxonomy REST API
   tabiya-classifier-backend:defaultNELModelId     — Default NEL model ID (e.g. all-MiniLM-L6-v2)
   tabiya-classifier-backend:defaultTaxonomyModelId — Default taxonomy model ID
+  tabiya-classifier-backend:vertexApiRegion       — GCP region for Vertex AI embeddings (default: same as region)
 
 Required environment variables (from .env.{stack}, sourced from Secret Manager):
   MONGODB_URI          — MongoDB Atlas connection URI (app DB)
@@ -54,6 +55,7 @@ taxonomy_mongodb_db_name = config.require("taxonomyMongoDbName")
 taxonomy_api_base_url = config.require("taxonomyApiBaseUrl")
 default_nel_model_id = config.get("defaultNELModelId") or "all-MiniLM-L6-v2"
 default_taxonomy_model_id = config.get("defaultTaxonomyModelId") or ""
+vertex_api_region = config.get("vertexApiRegion") or region
 
 
 def _require_env(name: str) -> str:
@@ -117,6 +119,7 @@ ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     taxonomy_api_base_url=taxonomy_api_base_url,
     default_nel_model_id=default_nel_model_id,
     default_taxonomy_model_id=default_taxonomy_model_id,
+    vertex_api_region=vertex_api_region,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)

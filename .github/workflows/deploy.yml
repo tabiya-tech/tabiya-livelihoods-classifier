@@ -82,9 +82,11 @@ jobs:
           python iac/scripts/prepare.py \
             --stack "${{ inputs.stack }}" \
             --project "${{ secrets.GCP_PROJECT_ID }}" \
-            --ner-image   "${REGISTRY}/ner:${{ github.sha }}" \
-            --nel-image   "${REGISTRY}/nel:${{ github.sha }}" \
-            --classify-image "${REGISTRY}/classify:${{ github.sha }}"
+            --ner-image      "${REGISTRY}/ner:${{ github.sha }}" \
+            --nel-image      "${REGISTRY}/nel:${{ github.sha }}" \
+            --classify-image "${REGISTRY}/classify:${{ github.sha }}" \
+            --nel-v2-image      "${REGISTRY}/nel_v2:${{ github.sha }}" \
+            --classify-v2-image "${REGISTRY}/classify_v2:${{ github.sha }}"
 
       # ── Phase 1: deploy everything except frontend ─────────────────────────
       - name: Deploy infrastructure (pre-frontend)

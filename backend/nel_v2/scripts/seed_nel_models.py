@@ -55,7 +55,8 @@ _MODELS = [
     {"model_id": "all-MiniLM-L6-v2", "dimensions": 384, "description": "Fast, lightweight — good for English text"},
     {"model_id": "paraphrase-multilingual-mpnet-base-v2", "dimensions": 768, "description": "Multilingual, higher quality"},
     {"model_id": "tabiya/all-MiniLM-L6-v2-occupation-fine-tuned", "dimensions": 384, "description": "Fine-tuned on occupation data"},
-    {"model_id": "text-embedding-005", "dimensions": 768, "description": "Google Vertex AI embedding model"},
+    {"model_id": "text-embedding-005", "dimensions": 768, "description": "Google Vertex AI text-embedding-005 (768d)"},
+    {"model_id": "models/gemini-embedding-001", "dimensions": 3072, "description": "Google Gemini embedding-001 (3072d)"},
 ]
 
 

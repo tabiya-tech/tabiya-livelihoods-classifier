@@ -34,8 +34,8 @@ async def _get_service(user_config: UserConfig = Depends(_get_user_config)) -> I
     app_db = await ClassifierDBProvider.get_application_db()
     taxonomy_db = await ClassifierDBProvider.get_taxonomy_db()
     cache_repo = EmbeddingsCacheRepository(app_db=app_db, taxonomy_db=taxonomy_db)
-    linking_repo = EntityLinkingRepository(cache_repo)
     embedding_svc = await get_embedding_service(nel_model_id)
+    linking_repo = EntityLinkingRepository(cache_repo, dimensions=embedding_svc.dimensions)
     return NELService(
         linking_repository=linking_repo,
         cache_repository=cache_repo,

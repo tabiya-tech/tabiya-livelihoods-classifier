@@ -5,11 +5,14 @@ Tracks status in nel_embeddings_cache_status so the linker knows when it's safe
 to run vector search queries.
 """
 
+import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod
 
 import httpx
+from google.api_core.exceptions import DeadlineExceeded as GoogleDeadlineExceeded
+from google.api_core.exceptions import ServiceUnavailable as GoogleServiceUnavailable
 from pymongo.errors import ConnectionFailure, NetworkTimeout, ExecutionTimeout
 
 from nel.app.embedding.service.service import IEmbeddingService
@@ -31,11 +34,14 @@ _ENTITY_TYPES = ["occupation", "skill", "qualification"]
 
 # Exceptions considered transient for embedding and DB calls
 _TRANSIENT = (
+    asyncio.TimeoutError,
     httpx.TransportError,
     httpx.TimeoutException,
     ConnectionFailure,
     NetworkTimeout,
     ExecutionTimeout,
+    GoogleDeadlineExceeded,
+    GoogleServiceUnavailable,
 )
 
 _DEFAULT_RETRY = RetryPolicy(attempts=3, backoff=2.0, on=_TRANSIENT)
@@ -66,16 +72,26 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
         self._retry = retry
 
     async def generate_for_combination(
-        self, taxonomy_model_id: str, nel_model_id: str, force: bool = False
+        self,
+        taxonomy_model_id: str,
+        nel_model_id: str,
+        force: bool = False,
+        start_cursor: str | None = None,
+        start_cursor_entity_type: str | None = None,
     ) -> None:
         """Generate and store embeddings for all three entity types.
 
         If force=True, existing embeddings are deleted and regenerated even if
         already "ready". Skips entity types that are already "ready" unless forced.
+
+        start_cursor / start_cursor_entity_type: resume pagination from a known cursor
+        for a specific entity type (e.g. after a mid-run failure). Only applied to the
+        matching entity type; all others paginate from the beginning.
         """
         for entity_type in _ENTITY_TYPES:
+            cursor = start_cursor if entity_type == start_cursor_entity_type else None
             await self._generate_entity_type(
-                taxonomy_model_id, nel_model_id, entity_type, force
+                taxonomy_model_id, nel_model_id, entity_type, force, start_cursor=cursor
             )
 
     async def _generate_entity_type(
@@ -84,6 +100,7 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
         nel_model_id: str,
         entity_type: str,
         force: bool,
+        start_cursor: str | None = None,
     ) -> None:
         status = await self._cache_repo.get_cache_status(
             taxonomy_model_id, nel_model_id, entity_type
@@ -114,7 +131,7 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
 
         try:
             total = await self._run_generation(
-                taxonomy_model_id, nel_model_id, entity_type
+                taxonomy_model_id, nel_model_id, entity_type, start_cursor=start_cursor
             )
             await self._cache_repo.upsert_cache_status(
                 EmbeddingCacheStatus(
@@ -141,13 +158,13 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
             raise
 
     async def _run_generation(
-        self, taxonomy_model_id: str, nel_model_id: str, entity_type: str
+        self, taxonomy_model_id: str, nel_model_id: str, entity_type: str, start_cursor: str | None = None
     ) -> int:
         """Fetch a page, embed it, insert it, repeat. Returns total inserted count."""
         total = 0
         t0 = time.monotonic()
 
-        source = self._get_source(entity_type, taxonomy_model_id)
+        source = self._get_source(entity_type, taxonomy_model_id, start_cursor=start_cursor)
         page: list[dict] = []
 
         async for raw in source:
@@ -203,11 +220,11 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
         _logger.info("[%s] %d embedded so far (%.1fs)", entity_type, running_total + inserted, elapsed)
         return inserted
 
-    def _get_source(self, entity_type: str, taxonomy_model_id: str):
+    def _get_source(self, entity_type: str, taxonomy_model_id: str, start_cursor: str | None = None):
         if entity_type == "occupation":
-            return self._taxonomy_source.fetch_occupations(taxonomy_model_id)
+            return self._taxonomy_source.fetch_occupations(taxonomy_model_id, start_cursor=start_cursor)
         elif entity_type == "skill":
-            return self._taxonomy_source.fetch_skills(taxonomy_model_id)
+            return self._taxonomy_source.fetch_skills(taxonomy_model_id, start_cursor=start_cursor)
         else:
             return self._qual_source.fetch_qualifications()
 
