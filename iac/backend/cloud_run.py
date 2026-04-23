@@ -14,15 +14,24 @@ def create_cloud_run_services(
     ner_image: str,
     nel_image: str,
     classify_image: str,
+    nel_v2_image: str,
+    classify_v2_image: str,
     hf_token_secret: gcp.secretmanager.Secret,
     mongodb_uri_secret: gcp.secretmanager.Secret,
+    taxonomy_mongodb_uri_secret: gcp.secretmanager.Secret,
     mongodb_db_name: str,
+    taxonomy_mongodb_db_name: str,
     firebase_project_id: str,
     managed_service: str,
+    taxonomy_api_base_url: str,
+    default_nel_model_id: str,
+    default_taxonomy_model_id: str,
 ):
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
     classify_sa = service_accounts["classify_sa"]
+    nel_v2_sa = service_accounts["nel_v2_sa"]
+    classify_v2_sa = service_accounts["classify_v2_sa"]
 
     # ── NER service ───────────────────────────────────────────────────────────
     ner = gcp.cloudrunv2.Service(
@@ -234,4 +243,154 @@ def create_cloud_run_services(
         member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
 
-    return ner, nel, classify
+    # ── NEL v2 service ────────────────────────────────────────────────────────
+    nel_v2 = gcp.cloudrunv2.Service(
+        "nel-v2-service",
+        project=project,
+        location=region,
+        name="nel-v2-service",
+        ingress="INGRESS_TRAFFIC_ALL",
+        template=gcp.cloudrunv2.ServiceTemplateArgs(
+            service_account=nel_v2_sa.email,
+            scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
+                min_instance_count=0,
+                max_instance_count=5,
+            ),
+            containers=[
+                gcp.cloudrunv2.ServiceTemplateContainerArgs(
+                    image=nel_v2_image,
+                    ports=[gcp.cloudrunv2.ServiceTemplateContainerPortArgs(container_port=5003)],
+                    resources=gcp.cloudrunv2.ServiceTemplateContainerResourcesArgs(
+                        limits={"cpu": "2", "memory": "4Gi"},
+                        startup_cpu_boost=True,
+                    ),
+                    envs=[
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="APPLICATION_MONGODB_URI",
+                            value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                                secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                                    secret=mongodb_uri_secret.secret_id,
+                                    version="latest",
+                                ),
+                            ),
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TAXONOMY_MONGODB_URI",
+                            value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                                secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                                    secret=taxonomy_mongodb_uri_secret.secret_id,
+                                    version="latest",
+                                ),
+                            ),
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="APPLICATION_DATABASE_NAME", value=mongodb_db_name
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TAXONOMY_DATABASE_NAME", value=taxonomy_mongodb_db_name
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TAXONOMY_API_BASE_URL", value=taxonomy_api_base_url
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="DEFAULT_NEL_MODEL_ID", value=default_nel_model_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="DEFAULT_TAXONOMY_MODEL_ID", value=default_taxonomy_model_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TARGET_ENVIRONMENT_TYPE", value="production"
+                        ),
+                    ],
+                    startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(
+                            path="/v2/nel/health", port=5003
+                        ),
+                        initial_delay_seconds=30,
+                        period_seconds=10,
+                        failure_threshold=18,  # 3 min total: model loads on first request
+                    ),
+                    liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
+                            path="/v2/nel/health", port=5003
+                        ),
+                        initial_delay_seconds=30,
+                        period_seconds=30,
+                    ),
+                )
+            ],
+        ),
+    )
+
+    # ── Classify v2 service ───────────────────────────────────────────────────
+    classify_v2 = gcp.cloudrunv2.Service(
+        "classify-v2-service",
+        project=project,
+        location=region,
+        name="classify-v2-service",
+        ingress="INGRESS_TRAFFIC_ALL",
+        template=gcp.cloudrunv2.ServiceTemplateArgs(
+            service_account=classify_v2_sa.email,
+            scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
+                min_instance_count=1,
+                max_instance_count=10,
+            ),
+            containers=[
+                gcp.cloudrunv2.ServiceTemplateContainerArgs(
+                    image=classify_v2_image,
+                    ports=[gcp.cloudrunv2.ServiceTemplateContainerPortArgs(container_port=5004)],
+                    resources=gcp.cloudrunv2.ServiceTemplateContainerResourcesArgs(
+                        limits={"cpu": "2", "memory": "2Gi"},
+                        startup_cpu_boost=True,
+                    ),
+                    envs=[
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="NER_API_URL", value=ner.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="NEL_V2_API_URL", value=nel_v2.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TARGET_ENVIRONMENT_TYPE", value="production"
+                        ),
+                    ],
+                    startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(
+                            path="/v2/classify/health", port=5004
+                        ),
+                        initial_delay_seconds=10,
+                        period_seconds=10,
+                        failure_threshold=12,
+                    ),
+                    liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
+                            path="/v2/classify/health", port=5004
+                        ),
+                        initial_delay_seconds=10,
+                        period_seconds=30,
+                    ),
+                )
+            ],
+        ),
+    )
+
+    # Allow Classify v2 SA to invoke NER (v1) and NEL v2 internally
+    gcp.cloudrunv2.ServiceIamMember(
+        "ner-classify-v2-invoker",
+        project=project,
+        location=region,
+        name=ner.name,
+        role="roles/run.invoker",
+        member=classify_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    gcp.cloudrunv2.ServiceIamMember(
+        "nel-v2-classify-v2-invoker",
+        project=project,
+        location=region,
+        name=nel_v2.name,
+        role="roles/run.invoker",
+        member=classify_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    return ner, nel, classify, nel_v2, classify_v2

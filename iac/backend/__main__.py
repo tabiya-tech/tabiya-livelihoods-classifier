@@ -2,24 +2,31 @@
 
 Deploys:
   - Artifact Registry + service accounts
-  - Secret Manager secrets (mongodb_uri, hf_token)
-  - Cloud Run services (NER, NEL, Classify)
+  - Secret Manager secrets (mongodb_uri, hf_token, taxonomy_mongodb_uri)
+  - Cloud Run services (NER, NEL, Classify, NEL v2, Classify v2)
   - API Gateway
 
 Required Pulumi config:
-  tabiya-classifier-backend:project           — GCP project ID
-  tabiya-classifier-backend:region            — GCP region (default: us-central1)
-  tabiya-classifier-backend:env               — Stack name (dev / staging / prod)
-  tabiya-classifier-backend:firebaseProjectId — Firebase project ID for dashboard auth
-  tabiya-classifier-backend:envSubdomain      — e.g. "dev.classifier.tabiya.tech"
-  tabiya-classifier-backend:nerImage          — NER Docker image URI (injected by CI)
-  tabiya-classifier-backend:nelImage          — NEL Docker image URI (injected by CI)
-  tabiya-classifier-backend:classifyImage     — Classify Docker image URI (injected by CI)
+  tabiya-classifier-backend:project               — GCP project ID
+  tabiya-classifier-backend:region                — GCP region (default: us-central1)
+  tabiya-classifier-backend:env                   — Stack name (dev / staging / prod)
+  tabiya-classifier-backend:firebaseProjectId     — Firebase project ID for dashboard auth
+  tabiya-classifier-backend:envSubdomain          — e.g. "dev.classifier.tabiya.tech"
+  tabiya-classifier-backend:nerImage              — NER Docker image URI (injected by CI)
+  tabiya-classifier-backend:nelImage              — NEL Docker image URI (injected by CI)
+  tabiya-classifier-backend:classifyImage         — Classify Docker image URI (injected by CI)
+  tabiya-classifier-backend:nelV2Image            — NEL v2 Docker image URI (injected by CI)
+  tabiya-classifier-backend:classifyV2Image       — Classify v2 Docker image URI (injected by CI)
+  tabiya-classifier-backend:taxonomyMongoDbName   — MongoDB database name for taxonomy/embeddings Atlas cluster
+  tabiya-classifier-backend:taxonomyApiBaseUrl    — Base URL for the taxonomy REST API
+  tabiya-classifier-backend:defaultNELModelId     — Default NEL model ID (e.g. all-MiniLM-L6-v2)
+  tabiya-classifier-backend:defaultTaxonomyModelId — Default taxonomy model ID
 
 Required environment variables (from .env.{stack}, sourced from Secret Manager):
-  MONGODB_URI      — MongoDB Atlas connection URI
-  MONGODB_DB_NAME  — MongoDB database name
-  HF_TOKEN         — HuggingFace access token
+  MONGODB_URI          — MongoDB Atlas connection URI (app DB)
+  MONGODB_DB_NAME      — MongoDB database name
+  HF_TOKEN             — HuggingFace access token
+  TAXONOMY_MONGODB_URI — MongoDB Atlas connection URI (taxonomy/embeddings DB)
 """
 
 import os
@@ -41,6 +48,12 @@ env_subdomain = config.require("envSubdomain")
 ner_image = config.require("nerImage")
 nel_image = config.require("nelImage")
 classify_image = config.require("classifyImage")
+nel_v2_image = config.require("nelV2Image")
+classify_v2_image = config.require("classifyV2Image")
+taxonomy_mongodb_db_name = config.require("taxonomyMongoDbName")
+taxonomy_api_base_url = config.require("taxonomyApiBaseUrl")
+default_nel_model_id = config.get("defaultNELModelId") or "all-MiniLM-L6-v2"
+default_taxonomy_model_id = config.get("defaultTaxonomyModelId") or ""
 
 
 def _require_env(name: str) -> str:
@@ -56,6 +69,7 @@ def _require_env(name: str) -> str:
 mongodb_uri = _require_env("MONGODB_URI")
 mongodb_db_name = _require_env("MONGODB_DB_NAME")
 hf_token = _require_env("HF_TOKEN")
+taxonomy_mongodb_uri = _require_env("TAXONOMY_MONGODB_URI")
 
 # ── Artifact Registry ──────────────────────────────────────────────────────
 registry, service_accounts = create_artifact_registry(project=project, region=region)
@@ -65,7 +79,7 @@ pulumi.export(
 )
 
 # ── Secret Manager ─────────────────────────────────────────────────────────
-secrets = create_secrets(project=project, mongodb_uri=mongodb_uri, hf_token=hf_token)
+secrets = create_secrets(project=project, mongodb_uri=mongodb_uri, hf_token=hf_token, taxonomy_mongodb_uri=taxonomy_mongodb_uri)
 
 # ── API resource (declared before Cloud Run so managed_service is available) ─
 # The Api resource provides the managed_service name that the Classify service
@@ -84,22 +98,31 @@ gcp.projects.Service(
 )
 
 # ── Cloud Run Services ─────────────────────────────────────────────────────
-ner, nel, classify = create_cloud_run_services(
+ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     project=project,
     region=region,
     service_accounts=service_accounts,
     ner_image=ner_image,
     nel_image=nel_image,
     classify_image=classify_image,
+    nel_v2_image=nel_v2_image,
+    classify_v2_image=classify_v2_image,
     hf_token_secret=secrets["hf_token"],
     mongodb_uri_secret=secrets["mongodb_uri"],
+    taxonomy_mongodb_uri_secret=secrets["taxonomy_mongodb_uri"],
     mongodb_db_name=mongodb_db_name,
+    taxonomy_mongodb_db_name=taxonomy_mongodb_db_name,
     firebase_project_id=firebase_project_id,
     managed_service=api.managed_service,
+    taxonomy_api_base_url=taxonomy_api_base_url,
+    default_nel_model_id=default_nel_model_id,
+    default_taxonomy_model_id=default_taxonomy_model_id,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)
 pulumi.export("classifyUrl", classify.uri)
+pulumi.export("nelV2Url", nel_v2.uri)
+pulumi.export("classifyV2Url", classify_v2.uri)
 
 # ── API Gateway (config + gateway, uses Cloud Run URLs) ────────────────────
 _api_config, gateway, gateway_sa = create_api_gateway(
@@ -109,6 +132,8 @@ _api_config, gateway, gateway_sa = create_api_gateway(
     classify_url=classify.uri,
     ner_url=ner.uri,
     nel_url=nel.uri,
+    nel_v2_url=nel_v2.uri,
+    classify_v2_url=classify_v2.uri,
     firebase_project_id=firebase_project_id,
     env_subdomain=env_subdomain,
 )
@@ -147,6 +172,24 @@ gcp.cloudrunv2.ServiceIamMember(
     project=project,
     location=region,
     name=nel.name,
+    role="roles/run.invoker",
+    member=gateway_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    opts=pulumi.ResourceOptions(depends_on=[gateway_sa]),
+)
+gcp.cloudrunv2.ServiceIamMember(
+    "nel-v2-gw-invoker",
+    project=project,
+    location=region,
+    name=nel_v2.name,
+    role="roles/run.invoker",
+    member=gateway_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    opts=pulumi.ResourceOptions(depends_on=[gateway_sa]),
+)
+gcp.cloudrunv2.ServiceIamMember(
+    "classify-v2-gw-invoker",
+    project=project,
+    location=region,
+    name=classify_v2.name,
     role="roles/run.invoker",
     member=gateway_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     opts=pulumi.ResourceOptions(depends_on=[gateway_sa]),
