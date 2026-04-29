@@ -7,7 +7,12 @@ Routes:
   /v1/classify            → API key required
   /v1/classify/batch      → API key required
   /v1/batch/**            → API key required
+  /v2/classify            → API key required
+  /v2/nel                 → API key required
   /v1/user/**             → Firebase Bearer token required
+  /v2/nel/user/**         → Firebase Bearer token required
+  /v2/nel/models          → Firebase Bearer token required
+  /v2/nel/taxonomy-models → Firebase Bearer token required
 
 The API Gateway verifies both the API key and the Firebase JWT.
 For Firebase routes it decodes the token claims and forwards them to the
@@ -315,7 +320,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                 "post": {
                     "summary": "Classify a job description (v2 — full taxonomy schema)",
                     "operationId": "classifyV2",
-                    "security": [{"firebase": []}],
+                    "security": [{"api_key": []}],
                     "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
                     "x-google-backend": {"address": f"{classify_v2_url}/v2/classify"},
                     "responses": {"200": {"description": "Classification result"}},

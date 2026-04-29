@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from classify_v2.app.classification.routes.routes import router, _get_service, _get_firebase_token
+from classify_v2.app.classification.routes.routes import router, _get_service
 from classify_v2.app.classification.service.errors import EmbeddingsCacheNotReadyError, NERServiceError
 from classify_v2.app.classification.service.service import IClassifyService
 from classify_v2.app.classification.service.types import (
@@ -23,18 +23,17 @@ class FakeClassifyService(IClassifyService):
         self._raises = raises
         self.last_call: dict | None = None
 
-    async def classify(self, input_text, firebase_token, options=None):
-        self.last_call = dict(input_text=input_text, firebase_token=firebase_token, options=options)
+    async def classify(self, input_text, options=None):
+        self.last_call = dict(input_text=input_text, options=options)
         if self._raises:
             raise self._raises
         return self._response
 
 
-def _make_app(svc: IClassifyService, token: str = "test-token") -> FastAPI:
+def _make_app(svc: IClassifyService) -> FastAPI:
     test_app = FastAPI()
     test_app.include_router(router)
     test_app.dependency_overrides[_get_service] = lambda: svc
-    test_app.dependency_overrides[_get_firebase_token] = lambda: token
     return test_app
 
 
@@ -86,16 +85,16 @@ class TestClassifyV2:
         assert len(data["entities"]) == 1
         assert data["entities"][0]["matches"][0]["entity"]["preferred_label"] == "Head Chef"
 
-    async def test_firebase_token_forwarded_to_service(self):
+    async def test_input_text_forwarded_to_service(self):
         # GIVEN a service that records its call
         svc = FakeClassifyService(response=_make_response())
 
         # WHEN POST /v2/classify is called
-        async with AsyncClient(transport=ASGITransport(app=_make_app(svc, token="my-token")), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
             await client.post("/v2/classify", json={"text": "Head Chef needed"})
 
-        # THEN the firebase token is passed through to the service
-        assert svc.last_call["firebase_token"] == "my-token"
+        # THEN the input text is passed to the service
+        assert svc.last_call["input_text"] == "Head Chef needed"
 
     async def test_400_when_no_text_provided(self):
         # GIVEN a request with no text, title, or description
@@ -140,3 +139,4 @@ class TestClassifyV2:
 
         # THEN 502 is returned
         assert resp.status_code == 502
+

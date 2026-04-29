@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 
 from classify_v2.app.classification.service.errors import EmbeddingsCacheNotReadyError, NERServiceError, NELServiceError
 from classify_v2.app.classification.service.service import ClassifyService, IClassifyService
@@ -18,19 +18,6 @@ def _get_service() -> IClassifyService:
     return ClassifyService()
 
 
-def _get_firebase_token(request: Request) -> str:
-    """Extract the raw Firebase Bearer token from the Authorization header.
-
-    In production the API Gateway has already verified it — we just forward it
-    to nel_v2 so it can do the same gateway-based auth.
-    In local dev nel_v2 ignores auth entirely (TARGET_ENVIRONMENT_TYPE=local).
-    """
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        return auth[len("Bearer "):]
-    return ""
-
-
 def _build_input_text(req: ClassifyRequest) -> str:
     if req.text:
         return req.text.strip()
@@ -42,7 +29,6 @@ def _build_input_text(req: ClassifyRequest) -> str:
 async def classify(
     request: ClassifyRequest,
     svc: IClassifyService = Depends(_get_service),
-    firebase_token: str = Depends(_get_firebase_token),
 ):
     input_text = _build_input_text(request)
     if not input_text:
@@ -52,7 +38,7 @@ async def classify(
 
     _logger.info("Classify v2 request: %d chars", len(input_text))
     try:
-        result = await svc.classify(input_text, firebase_token=firebase_token, options=request.options)
+        result = await svc.classify(input_text, options=request.options)
     except EmbeddingsCacheNotReadyError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except (NERServiceError, NELServiceError) as exc:
