@@ -77,7 +77,7 @@ class TestClassifyService:
         svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
 
         # WHEN classify is called
-        result = await svc.classify("Head Chef Python", firebase_token="test-token")
+        result = await svc.classify("Head Chef Python")
 
         # THEN both entities are returned with their matches
         assert len(result.entities) == 2
@@ -94,7 +94,7 @@ class TestClassifyService:
         svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
 
         # WHEN classify is called
-        result = await svc.classify("Head Chef Python", firebase_token="test-token")
+        result = await svc.classify("Head Chef Python")
 
         # THEN metadata reflects the nel model and taxonomy used
         assert result.metadata.nel_model_id == "all-MiniLM-L6-v2"
@@ -113,7 +113,7 @@ class TestClassifyService:
         svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
 
         # WHEN classify is called
-        result = await svc.classify("some text", firebase_token="test-token")
+        result = await svc.classify("some text")
 
         # THEN NEL is not called and result has no entities
         assert not nel_mock.called
@@ -128,7 +128,7 @@ class TestClassifyService:
         # WHEN classify is called
         # THEN NERServiceError is raised
         with pytest.raises(NERServiceError):
-            await svc.classify("Head Chef", firebase_token="test-token")
+            await svc.classify("Head Chef")
 
     @respx.mock
     async def test_raises_embeddings_cache_not_ready_on_503(self):
@@ -140,17 +140,17 @@ class TestClassifyService:
         # WHEN classify is called
         # THEN EmbeddingsCacheNotReadyError is raised
         with pytest.raises(EmbeddingsCacheNotReadyError):
-            await svc.classify("Head Chef", firebase_token="test-token")
+            await svc.classify("Head Chef")
 
     @respx.mock
-    async def test_firebase_token_forwarded_to_nel(self):
-        # GIVEN NER and NEL both respond successfully
+    async def test_nel_called_without_auth_header_when_no_gcp_token(self):
+        # GIVEN NER and NEL both respond successfully and no GCP metadata server
         respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
         nel_mock = respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json=_NEL_RESPONSE))
         svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
 
-        # WHEN classify is called with a firebase token
-        await svc.classify("Head Chef", firebase_token="my-firebase-token")
+        # WHEN classify is called (no GCP metadata server reachable in test)
+        await svc.classify("Head Chef")
 
-        # THEN the token is forwarded to the NEL service
-        assert nel_mock.calls[0].request.headers["authorization"] == "Bearer my-firebase-token"
+        # THEN NEL is called without an Authorization header (no token available)
+        assert "authorization" not in nel_mock.calls[0].request.headers

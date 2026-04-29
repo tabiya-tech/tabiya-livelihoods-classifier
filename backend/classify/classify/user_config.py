@@ -282,9 +282,12 @@ async def delete_api_key_for_uid(uid: str, key_id: str) -> bool:
 
     gcp_key_name = doc.get("gcp_key_name")
     if gcp_key_name:
-        client = _get_gcp_keys_client()
-        op = await client.delete_key(name=gcp_key_name)
-        await op.result()
+        try:
+            client = _get_gcp_keys_client()
+            op = await client.delete_key(name=gcp_key_name)
+            await op.result()
+        except Exception as exc:
+            log.warning("Failed to delete GCP API key %s: %s", gcp_key_name, exc)
 
     await col.update_one({"key_id": key_id, "user_id": uid}, {"$set": {"revoked": True}})
     return True

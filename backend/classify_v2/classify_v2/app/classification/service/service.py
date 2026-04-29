@@ -46,7 +46,6 @@ class IClassifyService(ABC):
     async def classify(
         self,
         input_text: str,
-        firebase_token: str,
         options: Optional[ClassifyOptions] = None,
     ) -> ClassifyResponse: ...
 
@@ -63,7 +62,6 @@ class ClassifyService(IClassifyService):
     async def classify(
         self,
         input_text: str,
-        firebase_token: str,
         options: Optional[ClassifyOptions] = None,
     ) -> ClassifyResponse:
         opts = options or ClassifyOptions()
@@ -82,7 +80,7 @@ class ClassifyService(IClassifyService):
 
         nel_response: dict = {"linked_entities": [], "metadata": {}}
         if nel_input:
-            nel_response = await self._call_nel(nel_input, opts, firebase_token)
+            nel_response = await self._call_nel(nel_input, opts)
 
         linked_map: dict[tuple, list[TaxonomyMatch]] = {}
         for linked in nel_response.get("linked_entities", []):
@@ -133,8 +131,8 @@ class ClassifyService(IClassifyService):
         except httpx.RequestError as exc:
             raise NERServiceError(f"NER service unreachable: {exc}") from exc
 
-    async def _call_nel(self, entities: list[dict], opts: ClassifyOptions, firebase_token: str) -> dict:
-        headers = {"Authorization": f"Bearer {firebase_token}"}
+    async def _call_nel(self, entities: list[dict], opts: ClassifyOptions) -> dict:
+        headers: dict = {}
         token = _gcp_identity_token(NEL_V2_API_URL)
         if token:
             headers["Authorization"] = f"Bearer {token}"
