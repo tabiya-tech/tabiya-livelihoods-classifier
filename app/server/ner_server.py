@@ -93,4 +93,4 @@ def health():
 
 if __name__ == "__main__":
     _load_model()
-    app.run(host="0.0.0.0", port=5002, debug=True)
+    app.run(host="0.0.0.0", port=5002, debug=os.getenv("FLASK_DEBUG", "0") == "1")

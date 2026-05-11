@@ -119,6 +119,9 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+# Pre-downloaded NER model for Docker bake (run prepare_ner_for_bake.sh)
+ner_model_cache/
+
 # Environments
 .env
 .venv
@@ -239,3 +242,4 @@ fabric.properties
 
 # Mac Desktop Services Store
 .DS_Store
+.nltk_data/
