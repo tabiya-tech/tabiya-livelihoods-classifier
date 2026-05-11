@@ -131,6 +131,10 @@ HF_TOKEN=<YOUR_HF_TOKEN>
 - **[Use the API](app/README.md)**: Instructions on how to use the API.
 - **[Training](train/README.md)**: Details on how to train the model.
 
+### Cloud Run service (HTTPS API, GCP)
+
+The same **`docker/Dockerfile.job`** image as the batch Job can run as a **Cloud Run Service**: NER + NEL + Classify in one container, **external port `5001`** (`/v1/health`, `/v1/classify`). See **`deploy-cloud-run-classifier-service.sh`** and **`docker/entrypoint-service.sh`**. Build with **`cloudbuild.yaml`** (tags `classifier:latest` and `classifier:service`), then deploy the script from the **Demand Side** repo root.
+
 ## Model's Architecture
 
 ![Model Architecture](./pics/entity_linker.png)
