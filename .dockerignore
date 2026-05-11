@@ -5,6 +5,24 @@ __pycache__
 *.egg-info
 .venv
 venv
+env
+ENV
 benchmark_notebooks
 docs
 *.ipynb
+
+# Local tooling / IDE
+.idea
+.vscode
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Training + tests not needed in the job image
+train
+tests
+
+# Evaluation CSVs (dev only; runtime uses inference/files/*.csv)
+inference/files/eval

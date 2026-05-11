@@ -1,0 +1,47 @@
+# Requires Secret Manager: HF_TOKEN + secretAccessor for Cloud Build SA.
+# From repo root:
+#   gcloud builds submit --config=tabiya-livelihoods-classifier/cloudbuild.yaml .
+
+steps:
+  - name: 'python:3.10-slim'
+    dir: 'tabiya-livelihoods-classifier'
+    secretEnv: ['HF_TOKEN']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        apt-get update -qq && apt-get install -y -qq git curl && rm -rf /var/lib/apt/lists/*
+        # `huggingface-cli` was removed; use `hf download` (ships with huggingface_hub).
+        pip install -q --root-user-action=ignore huggingface_hub
+        export HF_TOKEN
+        hf download tabiya/roberta-base-job-ner
+        mkdir -p ner_model_cache/hub
+        cp -r "$${HOME}/.cache/huggingface/hub/models--tabiya--roberta-base-job-ner" ner_model_cache/hub/
+
+  - name: 'gcr.io/cloud-builders/docker'
+    dir: 'tabiya-livelihoods-classifier'
+    secretEnv: ['HF_TOKEN']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        docker build --platform=linux/amd64 \
+          --build-arg "HF_TOKEN=$${HF_TOKEN}" \
+          -f docker/Dockerfile.job \
+          -t us-central1-docker.pkg.dev/horizon-dev-481316/job-pipeline/classifier:latest \
+          -t us-central1-docker.pkg.dev/horizon-dev-481316/job-pipeline/classifier:service \
+          .
+
+images:
+  - 'us-central1-docker.pkg.dev/horizon-dev-481316/job-pipeline/classifier:latest'
+  - 'us-central1-docker.pkg.dev/horizon-dev-481316/job-pipeline/classifier:service'
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/horizon-dev-481316/secrets/HF_TOKEN/versions/latest
+      env: HF_TOKEN
+
+options:
+  logging: CLOUD_LOGGING_ONLY
