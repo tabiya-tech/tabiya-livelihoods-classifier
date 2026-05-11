@@ -1,0 +1,76 @@
+services:
+  ner:
+    build:
+      context: .
+      dockerfile: backend/ner/Dockerfile
+    ports:
+      - "5002:5002"
+    env_file: .env
+    environment:
+      - NER_MODEL=${NER_MODEL:-tabiya/roberta-base-job-ner}
+      - HF_TOKEN=${HF_TOKEN}
+      - MAX_TEXT_LENGTH=${MAX_TEXT_LENGTH:-50000}
+    volumes:
+      - model-cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  nel:
+    build:
+      context: .
+      dockerfile: backend/nel/Dockerfile
+    ports:
+      - "5003:5003"
+    env_file: .env
+    environment:
+      - LINKER_MODEL=${LINKER_MODEL:-all-MiniLM-L6-v2}
+      - MAX_ENTITIES_PER_REQUEST=${MAX_ENTITIES_PER_REQUEST:-200}
+      - MAX_TOP_K=${MAX_TOP_K:-50}
+      - NEL_FILES_PATH=/app/files
+    volumes:
+      - model-cache:/root/.cache/huggingface
+      - ./data:/app/files
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  classify:
+    build:
+      context: .
+      dockerfile: backend/classify/Dockerfile
+    ports:
+      - "5001:5001"
+    env_file: .env
+    environment:
+      - NER_API_URL=http://ner:5002
+      - NEL_API_URL=http://nel:5003
+      - CLASSIFIER_VERSION=${CLASSIFIER_VERSION:-1.0.0}
+      - MAX_TEXT_LENGTH=${MAX_TEXT_LENGTH:-50000}
+      - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-500}
+      - MAX_CONCURRENT_CLASSIFY_OPS=${MAX_CONCURRENT_CLASSIFY_OPS:-20}
+      - APPLICATION_MONGODB_URI=${APPLICATION_MONGODB_URI:-}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-tabiya-classifier}
+      - MONGODB_TLS_ALLOW_INVALID=${MONGODB_TLS_ALLOW_INVALID:-false}
+      - API_KEY_CACHE_TTL=${API_KEY_CACHE_TTL:-300}
+      - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
+    depends_on:
+      ner:
+        condition: service_started
+      nel:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/v1/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  model-cache:
