@@ -59,7 +59,7 @@ def _get_config():
         )
 
     if target == "zambia":
-        _default_db = "ZambiaJobs"
+        _default_db = "ZambiaJobs_V2"
     elif target == "argentina":
         _default_db = "ArgentinaJobs_V2"
     else:
@@ -69,11 +69,11 @@ def _get_config():
         or os.getenv("APPLICATION_DATABASE_NAME")
         or _default_db
     )
-    src_coll = os.getenv("SOURCE_COLLECTION", "scraped_jobs")
-    tgt_coll = os.getenv("TARGET_COLLECTION", "classified_jobs")
-    err_coll = os.getenv("ERRORS_COLLECTION", "classifier_errors")
-    logs_coll = os.getenv("CLASSIFIER_LOGS_COLLECTION", "classifier_logs")
-    state_coll = os.getenv("CLASSIFIER_STATE_COLLECTION", "classifier_state")
+    src_coll = os.getenv("SOURCE_COLLECTION", "scraped_jobs_V2")
+    tgt_coll = os.getenv("TARGET_COLLECTION", "hamz_classified_jobs")
+    err_coll = os.getenv("ERRORS_COLLECTION", "hamz_classifier_errors")
+    logs_coll = os.getenv("CLASSIFIER_LOGS_COLLECTION", "hamz_classifier_logs")
+    state_coll = os.getenv("CLASSIFIER_STATE_COLLECTION", "hamz_classifier_state")
 
     classify_url = (os.getenv("CLASSIFY_API_URL") or "").strip()
     if not classify_url:

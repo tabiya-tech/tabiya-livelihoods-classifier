@@ -1,6 +1,9 @@
 """Tests for classify API routes."""
 
+import asyncio
 from http import HTTPStatus
+
+import httpx
 from unittest.mock import AsyncMock
 
 import pytest
@@ -40,6 +43,16 @@ def _make_classify_response() -> ClassifyResponse:
 
 
 class TestClassifyRoute:
+    def test_classify_capacity_semaphore_initialized(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+        client, _ = client_with_mocks
+        assert hasattr(client.app.state, "classify_capacity")
+        assert isinstance(client.app.state.classify_capacity, asyncio.Semaphore)
+
+    def test_shared_http_client_initialized(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+        client, _ = client_with_mocks
+        assert hasattr(client.app.state, "http_client")
+        assert isinstance(client.app.state.http_client, httpx.AsyncClient)
+
     @pytest.mark.asyncio
     async def test_classify_successful(self, client_with_mocks: tuple[TestClient, IClassifyService]):
         client, mock_service = client_with_mocks
@@ -107,16 +120,33 @@ class TestClassifyRoute:
         assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
     @pytest.mark.asyncio
-    async def test_classify_service_error_returns_502(self, client_with_mocks: tuple[TestClient, IClassifyService]):
+    async def test_classify_service_error_returns_502(self, client_with_mocks: tuple[TestClient, IClassifyService], monkeypatch):
         client, mock_service = client_with_mocks
+        monkeypatch.delenv("TARGET_ENVIRONMENT_TYPE", raising=False)
         # GIVEN the service raises an exception (e.g. NER service unreachable)
         mock_service.classify = AsyncMock(side_effect=Exception("NER service unreachable"))
 
         # WHEN a POST request is made
         response = client.post("/v1/classify", json={"text": "some text"})
 
-        # THEN the response is BAD GATEWAY
+        # THEN the response is BAD GATEWAY with a generic detail (no internal string)
         assert response.status_code == HTTPStatus.BAD_GATEWAY
+        detail = response.json()["detail"]
+        assert "NER" not in detail
+        assert "unavailable" in detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_classify_service_error_returns_internal_detail_when_local(
+        self, client_with_mocks: tuple[TestClient, IClassifyService], monkeypatch
+    ):
+        client, mock_service = client_with_mocks
+        monkeypatch.setenv("TARGET_ENVIRONMENT_TYPE", "local")
+        mock_service.classify = AsyncMock(side_effect=Exception("NER service unreachable"))
+
+        response = client.post("/v1/classify", json={"text": "some text"})
+
+        assert response.status_code == HTTPStatus.BAD_GATEWAY
+        assert response.json()["detail"] == "NER service unreachable"
 
 
 class TestBatchRoutes:
@@ -204,3 +234,27 @@ class TestBatchRoutes:
         assert len(body["results"]) == 1
         assert body["results"][0]["job_id"] == "j1"
         assert body["results"][0]["status"] == "completed"
+
+    def test_batch_job_error_message_sanitized(self, client_with_mocks: tuple[TestClient, IClassifyService], monkeypatch):
+        monkeypatch.delenv("TARGET_ENVIRONMENT_TYPE", raising=False)
+        client, mock_service = client_with_mocks
+        mock_service.classify = AsyncMock(side_effect=RuntimeError("NEL HTTP 500 body: secret-token"))
+
+        submit = client.post("/v1/classify/batch", json={"jobs": self._BATCH_JOBS})
+        batch_id = submit.json()["batch_id"]
+
+        import time
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            response = client.get(f"/v1/batch/{batch_id}/results")
+            assert response.status_code == HTTPStatus.OK
+            if response.json()["status"] == "completed":
+                break
+            time.sleep(0.1)
+
+        body = response.json()
+        assert body["status"] == "completed"
+        assert body["results"][0]["status"] == "error"
+        err = body["results"][0]["error"]
+        assert "secret-token" not in err
+        assert "try again" in err.lower()

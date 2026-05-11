@@ -21,8 +21,22 @@ def _create_db(mongodb_uri: str, db_name: str) -> AsyncIOMotorDatabase:
 
     Decoupled from the provider so tests can patch this function
     instead of the provider itself.
+
+    TLS: by default certificates are validated (point G). Set
+    ``MONGODB_TLS_ALLOW_INVALID=true`` only when connecting to endpoints that
+    fail standard validation (avoid in production).
     """
-    return AsyncIOMotorClient(mongodb_uri, tlsAllowInvalidCertificates=True).get_database(db_name)
+    from classify.config import MONGODB_TLS_ALLOW_INVALID
+
+    if MONGODB_TLS_ALLOW_INVALID:
+        _logger.warning(
+            "MongoDB client using tlsAllowInvalidCertificates (MONGODB_TLS_ALLOW_INVALID). "
+            "Not recommended for production."
+        )
+        client = AsyncIOMotorClient(mongodb_uri, tlsAllowInvalidCertificates=True)
+    else:
+        client = AsyncIOMotorClient(mongodb_uri)
+    return client.get_database(db_name)
 
 
 class ApplicationDBProvider:

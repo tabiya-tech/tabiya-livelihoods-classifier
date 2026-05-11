@@ -95,6 +95,24 @@ class TestExtractEntitiesRoute:
         # THEN the response is SERVICE UNAVAILABLE
         assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
 
+    def test_extract_entities_response_includes_experience_and_domain(self, client_with_mocks: tuple[TestClient, INERService]):
+        client, mock_service = client_with_mocks
+        given_response = NERResponse(
+            entities=[
+                Entity(entity_type="experience", surface_form="3 years", span=EntitySpan(start=0, end=7)),
+                Entity(entity_type="domain", surface_form="fintech", span=EntitySpan(start=10, end=17)),
+            ],
+            metadata=NERMetadata(model_name="tabiya/roberta-base-job-ner", entity_count=2, processing_time_ms=1.0),
+        )
+        mock_service.extract_entities = MagicMock(return_value=given_response)
+
+        response = client.post("/v1/ner", json={"text": "3 years in fintech"})
+
+        assert response.status_code == HTTPStatus.OK
+        body = response.json()["entities"]
+        assert body[0]["entity_type"] == "experience"
+        assert body[1]["entity_type"] == "domain"
+
     def test_extract_entities_text_too_long_returns_413(self, client_with_mocks: tuple[TestClient, INERService]):
         client, mock_service = client_with_mocks
         # GIVEN a text that exceeds the maximum length

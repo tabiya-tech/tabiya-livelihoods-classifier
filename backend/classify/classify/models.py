@@ -6,9 +6,13 @@ from pydantic import BaseModel, Field
 
 
 class EntityType(str, Enum):
+    """Aligned with tabiya/roberta-base-job-ner labels (training/training/train_ner.py)."""
+
     occupation = "occupation"
     skill = "skill"
     qualification = "qualification"
+    experience = "experience"
+    domain = "domain"
 
 
 class BatchStatus(str, Enum):
@@ -28,7 +32,7 @@ class ClassifyOptions(BaseModel):
         description=(
             "Restrict extraction to specific entity types. "
             "Omit to extract all types. "
-            "Allowed values: 'occupation', 'skill', 'qualification'."
+            "Values: occupation, skill, qualification, experience, domain."
         ),
     )
     top_k: int = Field(

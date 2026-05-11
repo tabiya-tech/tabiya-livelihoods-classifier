@@ -68,24 +68,38 @@ class ClassifyService(IClassifyService):
         ner_entities = ner_data.get("entities", [])
 
         linkable_types = {"occupation", "skill", "qualification"}
-        nel_input = [
-            {"text": e["surface_form"], "entity_type": e["entity_type"]}
-            for e in ner_entities
-            if e["entity_type"] in linkable_types
-        ]
+        nel_input: list[dict] = []
+        # Parallel to nel_input: index into ner_entities so each occurrence gets its own NEL
+        # matches (duplicate surface_form + type no longer collapse into one map entry).
+        nel_source_indices: list[int] = []
+        for i, e in enumerate(ner_entities):
+            if e["entity_type"] in linkable_types:
+                nel_input.append({"text": e["surface_form"], "entity_type": e["entity_type"]})
+                nel_source_indices.append(i)
 
-        linked_map: dict = {}
+        linked_by_ner_index: dict[int, list] = {}
         nel_metadata: dict = {}
         if nel_input:
             nel_data = await self._nel.link(nel_input, top_k=opts.top_k, min_similarity=opts.min_similarity)
             nel_metadata = nel_data.get("metadata", {})
-            for item in nel_data.get("linked_entities", []):
-                key = (item["input_text"], item["entity_type"])
-                linked_map[key] = item["matches"]
+            linked_results = nel_data.get("linked_entities", [])
+            n_expected = len(nel_source_indices)
+            n_got = len(linked_results)
+            if n_got != n_expected:
+                self._logger.warning(
+                    "NEL linked_entities length mismatch: got %d, expected %d (using positional alignment up to min).",
+                    n_got,
+                    n_expected,
+                )
+            for j, item in enumerate(linked_results):
+                if j >= len(nel_source_indices):
+                    break
+                ner_i = nel_source_indices[j]
+                linked_by_ner_index[ner_i] = item.get("matches", [])
 
         merged_entities = []
         entity_counts: dict[str, int] = {}
-        for entity in ner_entities:
+        for i, entity in enumerate(ner_entities):
             etype = entity["entity_type"]
             entity_counts[etype] = entity_counts.get(etype, 0) + 1
             merged = {
@@ -93,9 +107,8 @@ class ClassifyService(IClassifyService):
                 "surface_form": entity["surface_form"],
                 "span": entity["span"],
             }
-            key = (entity["surface_form"], etype)
-            if key in linked_map:
-                merged["linked_entities"] = linked_map[key]
+            if i in linked_by_ner_index:
+                merged["linked_entities"] = linked_by_ner_index[i]
             merged_entities.append(merged)
 
         processing_time = round((time.time() - start) * 1000, 1)

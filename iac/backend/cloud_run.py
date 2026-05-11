@@ -180,6 +180,9 @@ def create_cloud_run_services(
                             name="MONGODB_DB_NAME", value=mongodb_db_name
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="MONGODB_TLS_ALLOW_INVALID", value="false"
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="MAX_TEXT_LENGTH", value="50000"
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(

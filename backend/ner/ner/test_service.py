@@ -71,6 +71,22 @@ class TestNERService:
             with pytest.raises(RuntimeError, match="not loaded"):
                 service.extract_entities("some text")
 
+        def test_extract_entities_accepts_experience_and_domain_in_response(self):
+            """NERResponse must accept all model label types (point F)."""
+            mock_model = MagicMock()
+            mock_model.model_name = "tabiya/roberta-base-job-ner"
+            mock_model.extract.return_value = [
+                {"entity_type": "experience", "surface_form": "5+ years", "span": {"start": 0, "end": 8}},
+                {"entity_type": "domain", "surface_form": "healthcare", "span": {"start": 10, "end": 20}},
+            ]
+            service = NERService(model=mock_model)
+
+            result = service.extract_entities("5+ years in healthcare.")
+
+            assert len(result.entities) == 2
+            assert result.entities[0].entity_type == "experience"
+            assert result.entities[1].entity_type == "domain"
+
         def test_extract_entities_returns_empty_list_when_no_entities_found(self):
             # GIVEN a model that returns no entities
             mock_model = MagicMock()

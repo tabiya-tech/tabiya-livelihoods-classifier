@@ -15,6 +15,25 @@ from classify.user_config import get_api_key_user
 from classify.main import app
 
 
+def _silence_pymongo_inmemory_loggers() -> None:
+    """Avoid pymongo_inmemory atexit logging to a stream pytest has already closed (I/O on closed file).
+
+    pymongo_inmemory/mongod.py uses logger name ``PYMONGOIM_MONGOD`` (not ``pymongo_inmemory.*``).
+    """
+    for name in (
+        "PYMONGOIM_MONGOD",
+        "pymongo_inmemory",
+        "pymongo_inmemory.mongod",
+        "pymongo_inmemory.context",
+    ):
+        log = logging.getLogger(name)
+        log.handlers.clear()
+        log.addHandler(logging.NullHandler())
+        log.propagate = False
+
+
+_silence_pymongo_inmemory_loggers()
+
 # ── In-memory MongoDB server (session-scoped — start once per test run) ────
 
 @pytest.fixture(scope="session")
