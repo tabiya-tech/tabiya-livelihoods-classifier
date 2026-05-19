@@ -8,7 +8,7 @@ from torch import Tensor
 import logging
 from tqdm import trange
 from sentence_transformers.util import cos_sim, dot_score
-from sentence_transformers.evaluation import SentenceEvaluator
+from sentence_transformers.sentence_transformer.evaluation import SentenceEvaluator
 import os
 import numpy as np
 from typing import List, Dict, Set, Tuple
@@ -16,13 +16,12 @@ import pandas as pd
 from linker import EntityLinker
 
 
-
 class InformationRetrievalEvaluator(SentenceEvaluator):
     """
     This class evaluates an Information Retrieval (IR) setting.
 
     Given a set of queries and a large corpus set. It will retrieve for each query the top-k most similar document. It measures
-    Mean Reciprocal Rank (MRR), Recall@k, and Normalized Discounted Cumulative Gain (NDCG)
+    Mean Reciprocal Rank (MRR), Recall@k, Normalized Discounted Cumulative Gain (NDCG), and RPrecision@k.
     """
 
     def __init__(
@@ -36,6 +35,7 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
         accuracy_at_k: List[int] = [1, 4, 16, 32],
         precision_recall_at_k: List[int] = [1, 4, 16, 32],
         map_at_k: List[int] = [1, 4, 5, 16, 32],
+        r_precision_at_k: List[int] = [1, 4, 16, 32], # <-- Added RP@K Initialization
         show_progress_bar: bool = False,
         batch_size: int = 32,
         name: str = "",
@@ -56,14 +56,12 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
         self.accuracy_at_k = accuracy_at_k
         self.precision_recall_at_k = precision_recall_at_k
         self.map_at_k = map_at_k
+        self.r_precision_at_k = r_precision_at_k # <-- Set internal state
 
         self.show_progress_bar = show_progress_bar
         self.batch_size = batch_size
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-
 
     def compute_metrics(self, queries_result_list: List[object]):
         # Init score computation values
@@ -73,6 +71,7 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
         MRR = {k: 0 for k in self.mrr_at_k}
         ndcg = {k: [] for k in self.ndcg_at_k}
         AveP_at_k = {k: [] for k in self.map_at_k}
+        R_Precision_at_k = {k: [] for k in self.r_precision_at_k} # <-- Init RP@K dict
 
         # Compute scores on results
         for query_itr in range(len(queries_result_list)):
@@ -82,6 +81,7 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
             #top_hits = sorted(queries_result_list[query_itr], key=lambda x: x["score"], reverse=True)
             top_hits = queries_result_list[query_itr]
             query_relevant_docs = self.relevant_docs[query_id]
+            Rn = len(query_relevant_docs) # Total relevant docs for this query
 
             # Accuracy@k - We count the result correct, if at least one relevant doc is across the top-k documents
             for k_val in self.accuracy_at_k:
@@ -98,7 +98,19 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
                         num_correct += 1
 
                 precisions_at_k[k_val].append(num_correct / k_val)
-                recall_at_k[k_val].append(num_correct / len(query_relevant_docs))
+                recall_at_k[k_val].append(num_correct / Rn)
+
+            # RPrecision@k <-- NEW METRIC CALCULATION
+            for k_val in self.r_precision_at_k:
+                num_correct = 0
+                for hit in top_hits[0:k_val]:
+                    if hit["corpus_id"] in query_relevant_docs:
+                        num_correct += 1
+                
+                # RP@K Formula: sum(Rel(n,k)) / min(K, R_n)
+                denominator = min(k_val, Rn)
+                r_precision_score = num_correct / denominator if denominator > 0 else 0.0
+                R_Precision_at_k[k_val].append(r_precision_score)
 
             # MRR@k
             for k_val in self.mrr_at_k:
@@ -112,7 +124,7 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
                 predicted_relevance = [
                     1 if top_hit["corpus_id"] in query_relevant_docs else 0 for top_hit in top_hits[0:k_val]
                 ]
-                true_relevances = [1] * len(query_relevant_docs)
+                true_relevances = [1] * Rn
 
                 ndcg_value = self.compute_dcg_at_k(predicted_relevance, k_val) / self.compute_dcg_at_k(
                     true_relevances, k_val
@@ -129,7 +141,7 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
                         num_correct += 1
                         sum_precisions += num_correct / (rank + 1)
 
-                avg_precision = sum_precisions / min(k_val, len(query_relevant_docs))
+                avg_precision = sum_precisions / min(k_val, Rn)
                 AveP_at_k[k_val].append(avg_precision)
 
         # Compute averages
@@ -150,6 +162,10 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
 
         for k in AveP_at_k:
             AveP_at_k[k] = np.mean(AveP_at_k[k])
+            
+        # Average the new RPrecision metric across all N queries
+        for k in R_Precision_at_k:
+            R_Precision_at_k[k] = np.mean(R_Precision_at_k[k])
 
         return {
             "accuracy@k": num_hits_at_k,
@@ -158,6 +174,7 @@ class InformationRetrievalEvaluator(SentenceEvaluator):
             "ndcg@k": ndcg,
             "mrr@k": MRR,
             "map@k": AveP_at_k,
+            "r_precision@k": R_Precision_at_k, # <-- Output new metric
         }
 
     @staticmethod

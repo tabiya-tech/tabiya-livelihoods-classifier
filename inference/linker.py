@@ -384,7 +384,7 @@ class EntityLinker:
 		"""
 
 		# Determine the path for storing or loading the embeddings
-		path = os.path.join(self.path_to_files, self.similarity_model_type)
+		path = os.path.join(self.path_to_files, self.similarity_model_type.split('/')[-1])
 
 		if self.from_cache:
 			# Load cached embeddings from precomputed files
