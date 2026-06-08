@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from dotenv import load_dotenv
 
 from app.server.common import setup_logging
+from util.classified_job_schema import SCRAPER_ENRICHMENT_FIELD_NAMES
 from util.job_text import build_input_text, compute_hash
 
 load_dotenv()
@@ -31,6 +32,7 @@ ALL_SOURCE_FIELDS = [
     "employment_type", "education", "experience",
     "salary_text", "posted_date", "closing_date",
     "application_url", "source_platform",
+    *SCRAPER_ENRICHMENT_FIELD_NAMES,
 ]
 
 
