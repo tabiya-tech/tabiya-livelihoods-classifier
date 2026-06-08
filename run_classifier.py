@@ -26,6 +26,7 @@ from bson import ObjectId
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
+from backend.shared.shared.classified_job_schema import build_classified_job_document
 from backend.shared.shared.job_text import build_batch_classifier_input_text as build_input_text
 
 
@@ -307,28 +308,13 @@ def process_classification(config: dict):
                 metadata = classify_result.get("metadata", {})
 
                 now_utc = datetime.now(timezone.utc)
-                classified_doc = {
-                    "job_id": job_id,
-                    "job_fingerprint": job.get("job_fingerprint"),
-                    "title": job.get("title"),
-                    "employer": job.get("employer"),
-                    "location": job.get("location"),
-                    "employment_type": job.get("employment_type"),
-                    "category": job.get("category"),
-                    "source_platform": job.get("source_platform"),
-                    "posted_date": job.get("posted_date"),
-                    "closing_date": job.get("closing_date") or job.get("expiry_date"),
-                    "application_url": job.get("application_url"),
-                    "description": job.get("description"),
-                    "requirements": job.get("requirements"),
-                    "salary_text": job.get("salary_text") or job.get("salary"),
-                    "classification": classification,
-                    "metadata": metadata,
-                    "updated_at": now_utc,
-                }
-                tr_src = job.get("translation")
-                if isinstance(tr_src, dict) and tr_src:
-                    classified_doc["translation"] = tr_src
+                classified_doc = build_classified_job_document(
+                    job,
+                    job_id=job_id,
+                    classification=classification,
+                    metadata=metadata,
+                    now_utc=now_utc,
+                )
 
                 # `classified_at` / `created_at` are immutable anchors: written only on the
                 # first insert so the reranker's incremental filter on `classified_at` is stable.
