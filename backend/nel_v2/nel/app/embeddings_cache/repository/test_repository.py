@@ -139,10 +139,37 @@ class TestVectorSearchPipelineShape:
         assert pipeline[0]["$vectorSearch"]["index"] == "nel_embedding_index_384"
         assert pipeline[0]["$vectorSearch"]["path"] == "embedding"
         assert pipeline[0]["$vectorSearch"]["limit"] == 5
-        assert pipeline[0]["$vectorSearch"]["numCandidates"] == 50
+        assert pipeline[0]["$vectorSearch"]["numCandidates"] == 150
         filter_ = pipeline[0]["$vectorSearch"]["filter"]
         assert filter_["taxonomy_model_id"]["$eq"] == "tax-1"
         assert filter_["nel_model_id"]["$eq"] == "nel-1"
+
+    async def test_num_candidates_is_stable_across_top_k_values(self, repo):
+        mock_col = MagicMock()
+        mock_col.aggregate = MagicMock(return_value=_async_iter([]))
+
+        # WHEN vector_search is called with different top_k values
+        observed_num_candidates = []
+        for top_k in [1, 3, 5, 10, 20]:
+            mock_col.aggregate.reset_mock()
+            mock_col.aggregate.return_value = _async_iter([])
+            with patch.object(repo, "_embedding_col", return_value=mock_col):
+                await repo.vector_search(
+                    entity_type="occupation",
+                    query_embedding=[0.1] * 384,
+                    taxonomy_model_id="tax-1",
+                    nel_model_id="nel-1",
+                    top_k=top_k,
+                    min_similarity=0.0,
+                    index_name="nel_embedding_index_384",
+                )
+            pipeline = mock_col.aggregate.call_args.args[0]
+            observed_num_candidates.append(pipeline[0]["$vectorSearch"]["numCandidates"])
+
+        # THEN numCandidates is the same regardless of top_k
+        assert len(set(observed_num_candidates)) == 1, (
+            f"numCandidates varied across top_k values: {observed_num_candidates}"
+        )
 
 
 def _async_iter(items):

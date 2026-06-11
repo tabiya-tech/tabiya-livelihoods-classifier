@@ -87,28 +87,37 @@ class NELLinker:
             local_emb = self.skill_emb
 
         cos_scores = util.cos_sim(embedding, local_emb)[0]
-        top_k_results = torch.topk(cos_scores, k=min(k, len(cos_scores)))
+        # Over-fetch because the CSV is denormalized (one row per alt label), so a
+        # single entity UUID can appear multiple times in the top results.
+        num_candidates = min(k * 10, len(cos_scores))
+        top_results = torch.topk(cos_scores, k=num_candidates)
 
+        seen_uuids: set = set()
         matches = []
-        for idx, score in zip(
-            top_k_results.indices.tolist(), top_k_results.values.tolist()
-        ):
+        for idx, score in zip(top_results.indices.tolist(), top_results.values.tolist()):
+            if len(matches) >= k:
+                break
             if score < min_similarity:
-                continue
+                break
 
             row = local_df.iloc[idx]
+            uuid = str(row.get("uuid", ""))
+            if uuid and uuid in seen_uuids:
+                continue
+            seen_uuids.add(uuid)
+
             match = {"similarity_score": round(score, 4), "taxonomy": "esco"}
 
             if entity_type == "occupation":
-                match["label"] = row.get("occupation", row.get("preffered_label", ""))
+                match["label"] = row.get("preffered_label", row.get("occupation", ""))
                 if "esco_code" in row:
                     match["code"] = str(row["esco_code"])
-                if "uuid" in row:
-                    match["uri"] = f"http://data.europa.eu/esco/occupation/{row['uuid']}"
+                if uuid:
+                    match["uri"] = f"http://data.europa.eu/esco/occupation/{uuid}"
             elif entity_type == "skill":
                 match["label"] = row.get("skills", "")
-                if "uuid" in row:
-                    match["uri"] = f"http://data.europa.eu/esco/skill/{row['uuid']}"
+                if uuid:
+                    match["uri"] = f"http://data.europa.eu/esco/skill/{uuid}"
             elif entity_type == "qualification":
                 match["label"] = row.get("qualification", "")
                 if "eqf_level" in row:
