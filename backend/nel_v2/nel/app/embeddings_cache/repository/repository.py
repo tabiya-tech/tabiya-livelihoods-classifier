@@ -158,7 +158,7 @@ class EmbeddingsCacheRepository(IEmbeddingsCacheRepository):
                     "index": index_name,
                     "path": "embedding",
                     "queryVector": query_embedding,
-                    "numCandidates": top_k * 10,
+                    "numCandidates": 150,
                     "limit": top_k,
                     "filter": {
                         "taxonomy_model_id": {"$eq": taxonomy_model_id},
