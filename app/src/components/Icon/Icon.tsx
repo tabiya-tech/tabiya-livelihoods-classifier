@@ -70,6 +70,12 @@ const paths: Record<IconName, JSX.Element> = {
       <path d="M10.5 10.5l3 3" />
     </>
   ),
+  globe: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M2 8h12M8 2c1.8 2 2.7 4 2.7 6S9.8 12 8 14M8 2c-1.8 2-2.7 4-2.7 6S6.2 12 8 14" />
+    </>
+  ),
   spark: (
     <path
       d="M8 1.5l1.6 4.4 4.4 1.6-4.4 1.6L8 13.5l-1.6-4.4L2 7.5l4.4-1.6L8 1.5z"

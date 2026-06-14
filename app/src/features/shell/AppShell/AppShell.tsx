@@ -1,15 +1,16 @@
 /**
  * Persistent app chrome behind every protected route.
  *
- * Composes the Sidebar, the
- * Topbar (breadcrumbs + live API health pill + ⌘K hint), and the routed
- * child via React Router's <Outlet>.
+ * Composes the Sidebar, the Topbar (breadcrumbs + live API health pill +
+ * language picker + ⌘K hint), and the routed child via React Router's
+ * <Outlet>.
  */
 
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TranslationKey } from "@/react-i18next";
 import {
   AppLayout,
-  Kbd,
   Sidebar,
   StatusPill,
   Topbar,
@@ -18,6 +19,7 @@ import {
 } from "@/components";
 import { useFirebaseAuth } from "@/lib/auth/useFirebaseAuth";
 import { routerPaths } from "@/routes/routerPaths";
+import { LanguageMenu } from "@/i18n/LanguageMenu/LanguageMenu";
 import { useApiHealth, type ApiHealthStatus } from "../useApiHealth";
 
 const uniqueId = "9c1b6c2f-3c8e-4d5e-9e1d-5b8c4d2e7a4f";
@@ -27,20 +29,22 @@ export const DATA_TEST_ID = {
   HEALTH_PILL: `app-shell-health-pill-${uniqueId}`,
 };
 
-const NAV_GROUPS: SidebarNavGroup[] = [
-  {
-    label: "Workspace",
-    items: [
-      {
-        id: "dashboard",
-        label: "Dashboard",
-        icon: "dashboard",
-      },
-    ],
-  },
-];
+function buildNavGroups(t: (key: TranslationKey, opts?: Record<string, unknown>) => string): SidebarNavGroup[] {
+  return [
+    {
+      label: t("shell.nav.groups.workspace"),
+      items: [
+        {
+          id: "dashboard",
+          label: t("shell.nav.items.dashboard"),
+          icon: "dashboard",
+        },
+      ],
+    },
+  ];
+}
 
-/** Map a route path to its sidebar nav item id, or null when the path isn't in the sidebar. */
+/** Map a route path to its sidebar nav item id. Empty string when no item matches. */
 function deriveActiveNavId(pathname: string): string {
   if (pathname.startsWith(routerPaths.DASHBOARD)) return "dashboard";
   return "";
@@ -49,24 +53,33 @@ function deriveActiveNavId(pathname: string): string {
 function buildBreadcrumbsForPath(
   pathname: string,
   navigateTo: (path: string) => void,
+  t: (key: TranslationKey, opts?: Record<string, unknown>) => string,
 ): BreadcrumbItem[] {
   if (pathname.startsWith(routerPaths.DASHBOARD)) {
     return [
-      { label: "Workspace", onClick: () => navigateTo(routerPaths.DASHBOARD) },
-      { label: "Dashboard" },
+      {
+        label: t("shell.nav.groups.workspace"),
+        onClick: () => navigateTo(routerPaths.DASHBOARD),
+      },
+      { label: t("shell.nav.items.dashboard") },
     ];
   }
-  return [{ label: "Workspace" }];
+  return [{ label: t("shell.nav.groups.workspace") }];
 }
 
 function getStatusPillLabel(
   status: ApiHealthStatus,
   version: string | undefined,
+  t: (key: TranslationKey, opts?: Record<string, unknown>) => string,
 ): string {
-  if (status === "healthy") return `API healthy${version ? ` · v${version}` : ""}`;
-  if (status === "degraded") return "API degraded";
-  if (status === "down") return "API offline";
-  return "API checking…";
+  if (status === "healthy") {
+    return version
+      ? `${t("shell.topbar.apiHealthy")} · v${version}`
+      : t("shell.topbar.apiHealthy");
+  }
+  if (status === "degraded") return t("shell.topbar.apiDegraded");
+  if (status === "down") return t("shell.topbar.apiOffline");
+  return t("shell.topbar.apiChecking");
 }
 
 function navItemIdToRoutePath(navItemId: string): string {
@@ -75,14 +88,18 @@ function navItemIdToRoutePath(navItemId: string): string {
 }
 
 export function AppShell() {
+  const { t } = useTranslation();
   const { user, signOut } = useFirebaseAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const health = useApiHealth();
 
+  const navGroups = buildNavGroups(t);
   const activeNavId = deriveActiveNavId(location.pathname);
-  const breadcrumbs = buildBreadcrumbsForPath(location.pathname, (path) =>
-    navigate(path),
+  const breadcrumbs = buildBreadcrumbsForPath(
+    location.pathname,
+    (path) => navigate(path),
+    t,
   );
 
   async function handleSignOut() {
@@ -98,11 +115,14 @@ export function AppShell() {
             activeId={activeNavId}
             onNavigate={(navItemId) => navigate(navItemIdToRoutePath(navItemId))}
             onBrandClick={() => navigate(routerPaths.DASHBOARD)}
-            groups={NAV_GROUPS}
+            groups={navGroups}
             user={
               user ? { initials: user.initials, label: user.email } : undefined
             }
             onSignOut={user ? handleSignOut : undefined}
+            signOutLabel={t("common.buttons.signOut")}
+            brandName={t("shell.brand.name")}
+            brandProduct={t("shell.brand.product")}
           />
         }
         topbar={
@@ -112,11 +132,13 @@ export function AppShell() {
               <>
                 <StatusPill
                   data-testid={DATA_TEST_ID.HEALTH_PILL}
-                  status={health.status === "unknown" ? "unknown" : health.status}
+                  status={
+                    health.status === "unknown" ? "unknown" : health.status
+                  }
                 >
-                  {getStatusPillLabel(health.status, health.version)}
+                  {getStatusPillLabel(health.status, health.version, t)}
                 </StatusPill>
-                <Kbd>⌘ K</Kbd>
+                <LanguageMenu />
               </>
             }
           />

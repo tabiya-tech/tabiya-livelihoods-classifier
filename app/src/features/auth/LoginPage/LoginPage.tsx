@@ -12,6 +12,7 @@
  */
 
 import { useState, type FormEvent } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { Button, FormField, Icon, Input } from "@/components";
 import { useFirebaseAuth } from "@/lib/auth/useFirebaseAuth";
 
@@ -30,6 +31,7 @@ export const DATA_TEST_ID = {
 };
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { signInWithEmail, signUpWithEmail } = useFirebaseAuth();
 
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
@@ -50,9 +52,7 @@ export function LoginPage() {
       }
     } catch (caught) {
       setErrorMessage(
-        caught instanceof Error
-          ? caught.message
-          : "Sign-in failed. Please try again.",
+        caught instanceof Error ? caught.message : t("auth.login.errorFallback"),
       );
     } finally {
       setSubmitting(false);
@@ -60,10 +60,18 @@ export function LoginPage() {
   }
 
   const isSignUp = mode === "sign-up";
-  const submitLabel = isSignUp ? "Create account" : "Sign in";
+  const headingText = isSignUp
+    ? t("auth.login.signUpHeading")
+    : t("auth.login.signInHeading");
+  const subheadingText = isSignUp
+    ? t("auth.login.signUpSubheading")
+    : t("auth.login.signInSubheading");
+  const submitLabel = isSignUp
+    ? t("common.buttons.createAccount")
+    : t("common.buttons.signIn");
   const toggleLabel = isSignUp
-    ? "Already have an account? Sign in"
-    : "No account? Create one";
+    ? t("auth.login.toggleToSignIn")
+    : t("auth.login.toggleToSignUp");
 
   return (
     <div
@@ -79,26 +87,31 @@ export function LoginPage() {
             T
           </div>
           <div className="font-mono text-base leading-tight">
-            Tabiya
+            {t("shell.brand.name")}
             <span className="mt-0.5 block text-[11px] font-normal tracking-wide text-cream/55">
-              Classifier
+              {t("shell.brand.product")}
             </span>
           </div>
         </div>
 
         <div className="relative z-10 my-6 max-w-md">
-          <div className="eyebrow text-cream/55">From job text to ESCO</div>
+          <div className="eyebrow text-cream/55">
+            {t("auth.login.tagline.eyebrow")}
+          </div>
           <p className="mt-3 font-serif text-2xl leading-snug text-cream">
-            Extract <span className="text-lime">occupations</span>,{" "}
-            <span className="text-lime">skills</span>, and{" "}
-            <span className="text-lime">qualifications</span> from any job
-            description — and link them to the European taxonomy in
-            milliseconds.
+            <Trans
+              i18nKey="auth.login.tagline.body"
+              components={{
+                occupations: <span className="text-lime" />,
+                skills: <span className="text-lime" />,
+                qualifications: <span className="text-lime" />,
+              }}
+            />
           </p>
         </div>
 
         <div className="relative z-10 font-mono text-[11px] text-cream/50">
-          v1.0.0 · classifier.tabiya.tech
+          {t("auth.login.versionFooter")}
         </div>
 
         <div
@@ -117,34 +130,30 @@ export function LoginPage() {
             className="h-page mb-1.5"
             style={{ fontSize: 22 }}
           >
-            {isSignUp ? "Create your account" : "Sign in"}
+            {headingText}
           </h1>
-          <p className="mb-6 text-sm text-muted">
-            {isSignUp
-              ? "Spin up an account in 30 seconds."
-              : "Welcome back."}
-          </p>
+          <p className="mb-6 text-sm text-muted">{subheadingText}</p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <FormField label="Email" required>
+            <FormField label={t("common.fields.email")} required>
               <Input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 autoComplete={isSignUp ? "email" : "username"}
-                placeholder="you@tabiya.org"
+                placeholder={t("auth.login.emailPlaceholder")}
                 required
                 data-testid={DATA_TEST_ID.EMAIL_INPUT}
               />
             </FormField>
 
-            <FormField label="Password" required>
+            <FormField label={t("common.fields.password")} required>
               <Input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete={isSignUp ? "new-password" : "current-password"}
-                placeholder="••••••••"
+                placeholder={t("auth.login.passwordPlaceholder")}
                 required
                 data-testid={DATA_TEST_ID.PASSWORD_INPUT}
               />

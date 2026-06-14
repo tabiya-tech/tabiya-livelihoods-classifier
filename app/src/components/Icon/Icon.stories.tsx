@@ -31,6 +31,7 @@ const allNames: IconName[] = [
   "upload",
   "search",
   "spark",
+  "globe",
 ];
 
 export const Gallery: Story = {

@@ -1,0 +1,67 @@
+{
+  "common": {
+    "buttons": {
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "createAccount": "Create account"
+    },
+    "fields": {
+      "email": "Email",
+      "password": "Password"
+    },
+    "loading": "Loading",
+    "loadingSession": "Loading session"
+  },
+  "auth": {
+    "login": {
+      "signInHeading": "Sign in",
+      "signUpHeading": "Create your account",
+      "signInSubheading": "Welcome back.",
+      "signUpSubheading": "Spin up an account in 30 seconds.",
+      "emailPlaceholder": "you@tabiya.org",
+      "passwordPlaceholder": "••••••••",
+      "toggleToSignUp": "No account? Create one",
+      "toggleToSignIn": "Already have an account? Sign in",
+      "tagline": {
+        "eyebrow": "From job text to ESCO",
+        "body": "Extract <occupations>occupations</occupations>, <skills>skills</skills>, and <qualifications>qualifications</qualifications> from any job description — and link them to the European taxonomy in milliseconds."
+      },
+      "errorFallback": "Sign-in failed. Please try again.",
+      "versionFooter": "v1.0.0 · classifier.tabiya.tech"
+    }
+  },
+  "shell": {
+    "brand": {
+      "name": "Tabiya",
+      "product": "Classifier"
+    },
+    "nav": {
+      "groups": {
+        "workspace": "Workspace",
+        "settings": "Settings"
+      },
+      "items": {
+        "classifier": "Classifier",
+        "dashboard": "Dashboard",
+        "history": "History",
+        "configuration": "Configuration",
+        "keys": "Keys",
+        "documentation": "Documentation"
+      }
+    },
+    "topbar": {
+      "apiHealthy": "API healthy",
+      "apiDegraded": "API degraded",
+      "apiOffline": "API offline",
+      "apiChecking": "API checking…"
+    },
+    "languageMenu": {
+      "selectLanguage": "Select language"
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Workspace · Dashboard",
+    "welcomeBack": "Welcome back, {{name}}",
+    "fallbackName": "there"
+  }
+}

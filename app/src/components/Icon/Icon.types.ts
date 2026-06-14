@@ -18,7 +18,8 @@ export type IconName =
   | "download"
   | "upload"
   | "spark"
-  | "search";
+  | "search"
+  | "globe";
 
 export interface IconProps extends SVGProps<SVGSVGElement> {
   name: IconName;
