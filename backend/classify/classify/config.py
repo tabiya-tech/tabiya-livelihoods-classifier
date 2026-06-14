@@ -7,6 +7,12 @@ load_dotenv()
 
 NER_API_URL = os.getenv("NER_API_URL", "http://localhost:5002")
 NEL_API_URL = os.getenv("NEL_API_URL", "http://localhost:5003")
+NEL_V2_API_URL = os.getenv("NEL_V2_API_URL", "")
+CLASSIFY_V2_API_URL = os.getenv("CLASSIFY_V2_API_URL", "")
+# Public-facing gateway URL — used as the `servers:` entry in the merged OpenAPI doc
+# so Swagger UI's "Try it out" hits the gateway (which enforces auth) rather than
+# the individual Cloud Run services.
+GATEWAY_BASE_URL = os.getenv("GATEWAY_BASE_URL", "")
 CLASSIFIER_VERSION = os.getenv("CLASSIFIER_VERSION", "1.0.0")
 MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", "50000"))
 MAX_BATCH_SIZE = int(os.getenv("MAX_BATCH_SIZE", "500"))

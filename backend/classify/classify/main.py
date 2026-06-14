@@ -8,11 +8,22 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel, Field
 
 from classify.batch_store import complete_batch, create_batch, fail_batch, get_batch_for_user, update_batch, ensure_indexes
-from classify.config import CLASSIFIER_VERSION, MAX_BATCH_SIZE, MAX_TEXT_LENGTH
+from classify.config import (
+    CLASSIFIER_VERSION,
+    CLASSIFY_V2_API_URL,
+    GATEWAY_BASE_URL,
+    MAX_BATCH_SIZE,
+    MAX_TEXT_LENGTH,
+    NEL_API_URL,
+    NEL_V2_API_URL,
+    NER_API_URL,
+)
 from classify.get_classify_service import get_classify_service
+from classify.openapi_merge import PeerSpec, fetch_all_peer_schemas, merge_schemas
 from classify.models import (
     BatchJob, BatchRequest, BatchStatus, BatchSubmitResponse, BatchStatusResponse,
     BatchResultsResponse, ClassifyOptions, ClassifyRequest, ClassifyResponse, JobStatus,
@@ -40,19 +51,59 @@ logging.basicConfig(
 log = logging.getLogger("classify-api")
 
 
+def _build_peer_specs() -> list[PeerSpec]:
+    """Peers whose OpenAPI we fold into classify v1's /docs. Empty URLs are skipped."""
+    candidates = [
+        PeerSpec(name="ner", base_url=NER_API_URL, tag="NER v1", prefix="NERv1"),
+        PeerSpec(name="nel", base_url=NEL_API_URL, tag="NEL v1", prefix="NELv1"),
+        PeerSpec(name="nel_v2", base_url=NEL_V2_API_URL, tag="NEL v2", prefix="NELv2"),
+        PeerSpec(name="classify_v2", base_url=CLASSIFY_V2_API_URL, tag="classify v2", prefix="Classifyv2"),
+    ]
+    return [peer for peer in candidates if peer.base_url]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await ensure_indexes()
+    peers = _build_peer_specs()
+    if peers:
+        peer_schemas = await fetch_all_peer_schemas(peers)
+        log.info("Fetched OpenAPI from %d/%d peers for unified docs", len(peer_schemas), len(peers))
+        app.state.openapi_peers = peers
+        app.state.openapi_peer_schemas = peer_schemas
+    else:
+        app.state.openapi_peers = []
+        app.state.openapi_peer_schemas = {}
     yield
 
 
-app = FastAPI(title="Tabiya Classify API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Tabiya Classifier API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _unified_openapi() -> dict:
+    """Override FastAPI's app.openapi: return base schema merged with peers."""
+    if app.openapi_schema:
+        return app.openapi_schema
+    base = get_openapi(
+        title=app.title,
+        version=app.version,
+        description="Unified API documentation for all Tabiya Classifier services (v1 + v2).",
+        routes=app.routes,
+    )
+    peers = getattr(app.state, "openapi_peers", [])
+    peer_schemas = getattr(app.state, "openapi_peer_schemas", {})
+    servers = [{"url": GATEWAY_BASE_URL}] if GATEWAY_BASE_URL else None
+    app.openapi_schema = merge_schemas(base, peers, peer_schemas, servers)
+    return app.openapi_schema
+
+
+app.openapi = _unified_openapi
 
 
 # ── Auxiliary request models ───────────────────────────────────────────────
