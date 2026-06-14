@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import i18n from "@/i18n/i18n";
 
 const mockSignInWithEmail = vi.fn();
 const mockSignUpWithEmail = vi.fn();
@@ -25,12 +26,16 @@ beforeEach(() => {
 
 describe("LoginPage", () => {
   it("renders the sign-in heading by default", () => {
-    // GIVEN the LoginPage in its default state
+    // GIVEN the LoginPage in its default state and the expected heading text from i18n
+    const expectedHeadingText = i18n.t("auth.login.signInHeading");
+
     // WHEN we render it
     render(<LoginPage />);
 
     // THEN the heading shows sign-in copy and the email/password inputs are present
-    expect(screen.getByTestId(DATA_TEST_ID.HEADING)).toHaveTextContent(/sign in/i);
+    expect(screen.getByTestId(DATA_TEST_ID.HEADING)).toHaveTextContent(
+      expectedHeadingText,
+    );
     expect(screen.getByTestId(DATA_TEST_ID.EMAIL_INPUT)).toBeInTheDocument();
     expect(screen.getByTestId(DATA_TEST_ID.PASSWORD_INPUT)).toBeInTheDocument();
   });
@@ -55,9 +60,10 @@ describe("LoginPage", () => {
   });
 
   it("toggles to sign-up mode and uses signUpWithEmail on submit", async () => {
-    // GIVEN the credentials the new user will enter
+    // GIVEN the credentials the new user will enter and the expected sign-up heading
     const givenEmail = "new.user@tabiya.org";
     const givenPassword = "fresh-account-1";
+    const expectedSignUpHeadingText = i18n.t("auth.login.signUpHeading");
     mockSignUpWithEmail.mockResolvedValue(undefined);
     render(<LoginPage />);
 
@@ -74,7 +80,7 @@ describe("LoginPage", () => {
 
     // THEN the heading reflects sign-up and signUpWithEmail is called
     expect(screen.getByTestId(DATA_TEST_ID.HEADING)).toHaveTextContent(
-      /create your account/i,
+      expectedSignUpHeadingText,
     );
     expect(mockSignUpWithEmail).toHaveBeenCalledWith(givenEmail, givenPassword);
     expect(mockSignInWithEmail).not.toHaveBeenCalled();

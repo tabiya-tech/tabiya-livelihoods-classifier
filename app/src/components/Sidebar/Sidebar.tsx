@@ -24,10 +24,16 @@ export interface SidebarProps {
   groups: SidebarNavGroup[];
   /** Brand mark click handler — typically navigates to the home route. */
   onBrandClick?: () => void;
+  /** Brand product line — top half of the brand mark text. Defaults to "Tabiya". */
+  brandName?: string;
+  /** Brand product line — sub-label under the brand name. Defaults to "Classifier". */
+  brandProduct?: string;
   /** Signed-in user, shown in the footer. */
   user?: SidebarUser;
   /** Sign-out handler — when omitted, the button is hidden. */
   onSignOut?: () => void;
+  /** Sign-out button label. Defaults to "Sign out". */
+  signOutLabel?: string;
   className?: string;
 }
 
@@ -36,8 +42,11 @@ export function Sidebar({
   onNavigate,
   groups,
   onBrandClick,
+  brandName = "Tabiya",
+  brandProduct = "Classifier",
   user,
   onSignOut,
+  signOutLabel = "Sign out",
   className,
 }: SidebarProps) {
   return (
@@ -58,9 +67,9 @@ export function Sidebar({
           T
         </div>
         <div className="font-mono text-sm leading-tight">
-          Tabiya
+          {brandName}
           <span className="mt-0.5 block text-[11px] font-normal tracking-wide text-cream/55">
-            Classifier
+            {brandProduct}
           </span>
         </div>
       </button>
@@ -111,7 +120,7 @@ export function Sidebar({
               onClick={onSignOut}
               className="mt-1.5 w-full rounded border border-cream/20 px-2.5 py-1.5 font-mono text-xs text-cream/75 hover:border-cream/50 hover:text-cream"
             >
-              Sign out
+              {signOutLabel}
             </button>
           )}
         </div>

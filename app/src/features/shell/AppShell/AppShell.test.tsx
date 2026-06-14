@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import i18n from "@/i18n/i18n";
 
 const mockSignOut = vi.fn();
 const mockUseFirebaseAuth = vi.fn();
@@ -70,8 +71,8 @@ describe("AppShell", () => {
   });
 
   it("renders a Dashboard nav link in the sidebar", () => {
-    // GIVEN the expected nav link label
-    const expectedNavLinkLabel = "Dashboard";
+    // GIVEN the expected nav link label from i18n
+    const expectedNavLinkLabel = i18n.t("shell.nav.items.dashboard");
 
     // WHEN we render the shell
     renderShellAtPath(routerPaths.DASHBOARD);
@@ -83,8 +84,11 @@ describe("AppShell", () => {
   });
 
   it("displays the API healthy status pill with the version", () => {
-    // GIVEN the health hook reports healthy with a version
+    // GIVEN the health hook reports healthy with a version, and the expected label from i18n
     const givenApiVersion = "1.0.0";
+    const expectedHealthyLabel = `${i18n.t(
+      "shell.topbar.apiHealthy",
+    )} · v${givenApiVersion}`;
     mockUseApiHealth.mockReturnValue({
       status: "healthy",
       version: givenApiVersion,
@@ -96,12 +100,13 @@ describe("AppShell", () => {
 
     // THEN the health pill shows the healthy label with the given version
     expect(screen.getByTestId(DATA_TEST_ID.HEALTH_PILL)).toHaveTextContent(
-      `API healthy · v${givenApiVersion}`,
+      expectedHealthyLabel,
     );
   });
 
   it("displays a degraded label when the API reports degraded", () => {
-    // GIVEN the health hook reports degraded
+    // GIVEN the health hook reports degraded and the expected degraded label
+    const expectedDegradedLabel = i18n.t("shell.topbar.apiDegraded");
     mockUseApiHealth.mockReturnValue({
       status: "degraded",
       lastCheckedAt: null,
@@ -112,7 +117,7 @@ describe("AppShell", () => {
 
     // THEN the health pill reports degraded
     expect(screen.getByTestId(DATA_TEST_ID.HEALTH_PILL)).toHaveTextContent(
-      /degraded/i,
+      expectedDegradedLabel,
     );
   });
 

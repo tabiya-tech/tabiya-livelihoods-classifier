@@ -1,0 +1,67 @@
+{
+  "common": {
+    "buttons": {
+      "signIn": "Se connecter",
+      "signOut": "Se déconnecter",
+      "createAccount": "Créer un compte"
+    },
+    "fields": {
+      "email": "E-mail",
+      "password": "Mot de passe"
+    },
+    "loading": "Chargement",
+    "loadingSession": "Chargement de la session"
+  },
+  "auth": {
+    "login": {
+      "signInHeading": "Connexion",
+      "signUpHeading": "Créez votre compte",
+      "signInSubheading": "Bon retour parmi nous.",
+      "signUpSubheading": "Créez un compte en 30 secondes.",
+      "emailPlaceholder": "vous@tabiya.org",
+      "passwordPlaceholder": "••••••••",
+      "toggleToSignUp": "Pas de compte ? Créez-en un",
+      "toggleToSignIn": "Vous avez déjà un compte ? Connectez-vous",
+      "tagline": {
+        "eyebrow": "Du texte d'offre à ESCO",
+        "body": "Extrayez <occupations>les métiers</occupations>, <skills>les compétences</skills> et <qualifications>les qualifications</qualifications> de toute description de poste — et reliez-les à la taxonomie européenne en quelques millisecondes."
+      },
+      "errorFallback": "La connexion a échoué. Veuillez réessayer.",
+      "versionFooter": "v1.0.0 · classifier.tabiya.tech"
+    }
+  },
+  "shell": {
+    "brand": {
+      "name": "Tabiya",
+      "product": "Classifier"
+    },
+    "nav": {
+      "groups": {
+        "workspace": "Espace de travail",
+        "settings": "Paramètres"
+      },
+      "items": {
+        "classifier": "Classifier",
+        "dashboard": "Tableau de bord",
+        "history": "Historique",
+        "configuration": "Configuration",
+        "keys": "Clés",
+        "documentation": "Documentation"
+      }
+    },
+    "topbar": {
+      "apiHealthy": "API opérationnelle",
+      "apiDegraded": "API dégradée",
+      "apiOffline": "API hors ligne",
+      "apiChecking": "Vérification de l'API…"
+    },
+    "languageMenu": {
+      "selectLanguage": "Choisir la langue"
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Espace de travail · Tableau de bord",
+    "welcomeBack": "Bon retour, {{name}}",
+    "fallbackName": "vous"
+  }
+}
