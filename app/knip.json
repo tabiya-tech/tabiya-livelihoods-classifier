@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/mocks/browser.ts",
+    "src/mocks/server.ts",
+    "src/**/*.stories.tsx",
+    "src/**/*.test.{ts,tsx}"
+  ],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": [
+    "src/lib/api.ts",
+    "src/lib/firebase.ts"
+  ],
+  "ignoreDependencies": [
+    "firebase",
+    "react-router-dom",
+    "@storybook/blocks"
+  ],
+  "ignoreExportsUsedInFile": true
+}
