@@ -7,14 +7,10 @@
     "src/**/*.test.{ts,tsx}"
   ],
   "project": ["src/**/*.{ts,tsx}"],
-  "ignore": [
-    "src/lib/api.ts",
-    "src/lib/firebase.ts"
-  ],
-  "ignoreDependencies": [
-    "firebase",
-    "react-router-dom",
-    "@storybook/blocks"
-  ],
-  "ignoreExportsUsedInFile": true
+  "ignoreDependencies": ["@storybook/blocks"],
+  "ignoreExportsUsedInFile": true,
+  "rules": {
+    "exports": "warn",
+    "types": "warn"
+  }
 }
