@@ -1,4 +1,10 @@
 node_modules/
 dist/
+storybook-static/
+coverage/
+.vite/
+*.log
+
 .env
 .env.local
+.DS_Store
