@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Eyebrow } from "@/components";
 import { useFirebaseAuth } from "@/lib/auth/useFirebaseAuth";
 
@@ -9,20 +10,18 @@ export const DATA_TEST_ID = {
 };
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const { user } = useFirebaseAuth();
-  const displayName = user?.email ?? "there";
+  const displayName = user?.email ?? t("dashboard.fallbackName");
 
   return (
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
       className="mx-auto w-full max-w-5xl px-10 py-10"
     >
-      <Eyebrow>Workspace · Dashboard</Eyebrow>
-      <h1
-        data-testid={DATA_TEST_ID.WELCOME_MESSAGE}
-        className="h-page mt-2"
-      >
-        Welcome back, {displayName}
+      <Eyebrow>{t("dashboard.eyebrow")}</Eyebrow>
+      <h1 data-testid={DATA_TEST_ID.WELCOME_MESSAGE} className="h-page mt-2">
+        {t("dashboard.welcomeBack", { name: displayName })}
       </h1>
     </div>
   );
