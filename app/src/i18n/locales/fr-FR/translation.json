@@ -3,7 +3,10 @@
     "buttons": {
       "signIn": "Se connecter",
       "signOut": "Se déconnecter",
-      "createAccount": "Créer un compte"
+      "createAccount": "Créer un compte",
+      "save": "Enregistrer",
+      "discard": "Annuler les modifications",
+      "keepEditing": "Continuer la modification"
     },
     "fields": {
       "email": "E-mail",
@@ -63,5 +66,55 @@
     "eyebrow": "Espace de travail · Tableau de bord",
     "welcomeBack": "Bon retour, {{name}}",
     "fallbackName": "vous"
+  },
+  "configuration": {
+    "eyebrow": "Paramètres · Configuration du pipeline",
+    "title": "Configuration",
+    "intro": "Choisissez les modèles qui pilotent vos classifications. Les paramètres s'appliquent à chaque appel d'API et au Classifier intégré — les traitements par lots déjà lancés conservent leur configuration d'origine.",
+    "stages": {
+      "nel": {
+        "number": "01",
+        "label": "NEL",
+        "subLabel": "Liaison d'entités",
+        "panelEyebrow": "Étape 01",
+        "panelTitle": "Liaison d'entités nommées",
+        "panelIntro": "Le modèle d'embedding qui associe chaque entité détectée au concept ESCO le plus proche par similarité vectorielle. Des dimensions plus élevées améliorent le rappel sur les termes ambigus ; des dimensions plus faibles sont plus rapides et économiques.",
+        "sectionLabel": "Modèle d'embedding"
+      },
+      "taxonomy": {
+        "number": "02",
+        "label": "Taxonomie",
+        "subLabel": "Vocabulaire de référence",
+        "panelEyebrow": "Données de référence",
+        "panelTitle": "Taxonomie",
+        "panelIntro": "Le vocabulaire de référence auquel les entités sont reliées. Les versions ESCO récentes étendent la couverture ; les versions plus anciennes préservent la compatibilité avec les pipelines en aval qui ciblent des URI précises.",
+        "sectionLabel": "Taxonomie active"
+      }
+    },
+    "modelOption": {
+      "recommendedBadge": "recommandé",
+      "dimensionsSuffix": "{{dimensions}} dimensions"
+    },
+    "saveBar": {
+      "dirtyTitle": "Modifications non enregistrées",
+      "dirtyHelp": "S'appliqueront aux appels d'API et au Classifier après enregistrement.",
+      "savedTitle": "Configuration enregistrée",
+      "savedHelp": "S'applique à tous les appels d'API suivants.",
+      "savingTitle": "Enregistrement…",
+      "savingHelp": "Envoi des modifications au serveur.",
+      "savedIndicator": "Enregistré"
+    },
+    "toasts": {
+      "saveError": "Impossible d'enregistrer la configuration. Veuillez réessayer.",
+      "saveSuccess": "Configuration enregistrée"
+    },
+    "unsavedGuard": {
+      "title": "Annuler les modifications non enregistrées ?",
+      "description": "Si vous quittez cette page maintenant, les modifications apportées à votre configuration seront perdues.",
+      "confirmLabel": "Annuler les modifications"
+    },
+    "errors": {
+      "loadFailed": "Impossible de charger votre configuration. Actualisez pour réessayer."
+    }
   }
 }

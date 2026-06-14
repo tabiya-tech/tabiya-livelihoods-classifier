@@ -28,6 +28,17 @@ vi.mock("firebase/app", () => ({
   initializeApp: () => ({}),
 }));
 
+// Also stub `@/lib/firebase` directly because the real module may have been
+// cached by the test setup (which imports MSW handlers that transitively
+// load it). With the real cached `auth` constant in play, this hook's
+// `signIn`/`signOut` callbacks would receive the live Firebase auth object
+// instead of our fake. The mock below replaces the module-level constant
+// in `@/lib/firebase` with the fake auth instance our other mocks use.
+vi.mock("@/lib/firebase", () => ({
+  firebaseApp: {},
+  auth: firebaseAuthMocks.fakeAuthInstance,
+}));
+
 // Import after mocks so the module under test picks them up.
 import { useFirebaseAuth } from "./useFirebaseAuth";
 
