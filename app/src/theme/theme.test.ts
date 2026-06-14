@@ -3,33 +3,37 @@ import { colors, ENTITY_TYPES, fontFamily } from "./theme";
 
 describe("design tokens", () => {
   it("exposes navy as the primary brand color", () => {
-    // GIVEN the colors token export
+    // GIVEN the brand navy hex from the design handoff
+    const expectedBrandNavyHex = "#002147";
 
-    // WHEN we read the default navy value
-    const navyDefault = colors.navy.DEFAULT;
+    // WHEN we read the default navy value from the tokens
+    const actualNavyDefault = colors.navy.DEFAULT;
 
-    // THEN it matches the brand navy hex from the design handoff
-    expect(navyDefault).toBe("#002147");
+    // THEN the default navy matches the brand hex
+    expect(actualNavyDefault).toBe(expectedBrandNavyHex);
   });
 
   it("defines a fg/bg pair for every entity type", () => {
-    // GIVEN the set of entity types
-    // WHEN we read the colors.entity entries for each type
-    // THEN every entry has fg and bg hex values
-    for (const type of ENTITY_TYPES) {
-      const entry = colors.entity[type];
-      expect(entry.fg).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(entry.bg).toMatch(/^#[0-9a-f]{6}$/i);
+    // GIVEN a regex that matches a 6-digit hex color
+    const sixDigitHexPattern = /^#[0-9a-f]{6}$/i;
+
+    // WHEN we read each entity type's foreground/background entries
+    // THEN every entry has fg and bg as 6-digit hex values
+    for (const entityType of ENTITY_TYPES) {
+      const entityColorPair = colors.entity[entityType];
+      expect(entityColorPair.fg).toMatch(sixDigitHexPattern);
+      expect(entityColorPair.bg).toMatch(sixDigitHexPattern);
     }
   });
 
   it("declares IBM Plex Mono as the first mono fallback", () => {
-    // GIVEN the fontFamily token export
+    // GIVEN the brand voice typeface as the expected first mono fallback
+    const expectedFirstMonoFontFamily = '"IBM Plex Mono"';
 
     // WHEN we read the first item of the mono stack
-    const firstMonoFont = fontFamily.mono[0];
+    const actualFirstMonoFont = fontFamily.mono[0];
 
-    // THEN it is IBM Plex Mono (the brand voice typeface)
-    expect(firstMonoFont).toBe('"IBM Plex Mono"');
+    // THEN it matches the brand voice typeface
+    expect(actualFirstMonoFont).toBe(expectedFirstMonoFontFamily);
   });
 });
