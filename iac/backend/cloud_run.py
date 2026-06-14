@@ -27,6 +27,7 @@ def create_cloud_run_services(
     default_nel_model_id: str,
     default_taxonomy_model_id: str,
     app_origin: str,
+    gateway_base_url: str,
     vertex_api_region: str = "us-central1",
     env: str = "dev",
 ):
@@ -149,101 +150,6 @@ def create_cloud_run_services(
                 )
             ],
         ),
-    )
-
-    # ── Classify service ──────────────────────────────────────────────────────
-    classify = gcp.cloudrunv2.Service(
-        "classify-service",
-        project=project,
-        location=region,
-        name="classify-service",
-        ingress="INGRESS_TRAFFIC_ALL",  # API Gateway ESPv2 calls Cloud Run directly (not via LB), so all traffic must be allowed; IAM protects access
-        template=gcp.cloudrunv2.ServiceTemplateArgs(
-            service_account=classify_sa.email,
-            scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
-                max_instance_count=10,
-            ),
-            containers=[
-                gcp.cloudrunv2.ServiceTemplateContainerArgs(
-                    image=classify_image,
-                    ports=[gcp.cloudrunv2.ServiceTemplateContainerPortArgs(container_port=5001)],
-                    resources=gcp.cloudrunv2.ServiceTemplateContainerResourcesArgs(
-                        limits={"cpu": "2", "memory": "2Gi"},
-                        startup_cpu_boost=True,
-                    ),
-                    envs=[
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="NER_API_URL", value=ner.uri
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="NEL_API_URL", value=nel.uri
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="APPLICATION_MONGODB_URI",
-                            value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
-                                secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
-                                    secret=mongodb_uri_secret.secret_id,
-                                    version="latest",
-                                ),
-                            ),
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="MONGODB_DB_NAME", value=mongodb_db_name
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="MAX_TEXT_LENGTH", value="50000"
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="MAX_BATCH_SIZE", value="500"
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="FIREBASE_PROJECT_ID", value=firebase_project_id
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="GCP_PROJECT_ID", value=project
-                        ),
-                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="GCP_API_MANAGED_SERVICE", value=managed_service
-                        ),
-                    ],
-                    startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
-                        http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(
-                            path="/v1/health", port=5001
-                        ),
-                        initial_delay_seconds=10,
-                        period_seconds=10,
-                        failure_threshold=12,  # 2 min total
-                    ),
-                    liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
-                        http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
-                            path="/v1/health", port=5001
-                        ),
-                        initial_delay_seconds=10,
-                        period_seconds=30,
-                    ),
-                )
-            ],
-        ),
-    )
-
-    # Allow Classify SA to invoke NER and NEL internally
-    gcp.cloudrunv2.ServiceIamMember(
-        "ner-classify-invoker",
-        project=project,
-        location=region,
-        name=ner.name,
-        role="roles/run.invoker",
-        member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
-    )
-
-    gcp.cloudrunv2.ServiceIamMember(
-        "nel-classify-invoker",
-        project=project,
-        location=region,
-        name=nel.name,
-        role="roles/run.invoker",
-        member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
 
     # ── NEL v2 service ────────────────────────────────────────────────────────
@@ -412,5 +318,108 @@ def create_cloud_run_services(
         role="roles/aiplatform.user",
         member=nel_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
+
+    # ── Classify service ──────────────────────────────────────────────────────
+    # Declared last so it can reference every peer's URL for unified /docs.
+    classify = gcp.cloudrunv2.Service(
+        "classify-service",
+        project=project,
+        location=region,
+        name="classify-service",
+        ingress="INGRESS_TRAFFIC_ALL",  # API Gateway ESPv2 calls Cloud Run directly (not via LB), so all traffic must be allowed; IAM protects access
+        template=gcp.cloudrunv2.ServiceTemplateArgs(
+            service_account=classify_sa.email,
+            scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
+                min_instance_count=1,
+                max_instance_count=10,
+            ),
+            containers=[
+                gcp.cloudrunv2.ServiceTemplateContainerArgs(
+                    image=classify_image,
+                    ports=[gcp.cloudrunv2.ServiceTemplateContainerPortArgs(container_port=5001)],
+                    resources=gcp.cloudrunv2.ServiceTemplateContainerResourcesArgs(
+                        limits={"cpu": "2", "memory": "2Gi"},
+                        startup_cpu_boost=True,
+                    ),
+                    envs=[
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="NER_API_URL", value=ner.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="NEL_API_URL", value=nel.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="NEL_V2_API_URL", value=nel_v2.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="CLASSIFY_V2_API_URL", value=classify_v2.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GATEWAY_BASE_URL", value=gateway_base_url
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="APPLICATION_MONGODB_URI",
+                            value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                                secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                                    secret=mongodb_uri_secret.secret_id,
+                                    version="latest",
+                                ),
+                            ),
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="MONGODB_DB_NAME", value=mongodb_db_name
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="MAX_TEXT_LENGTH", value="50000"
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="MAX_BATCH_SIZE", value="500"
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="FIREBASE_PROJECT_ID", value=firebase_project_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GCP_PROJECT_ID", value=project
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GCP_API_MANAGED_SERVICE", value=managed_service
+                        ),
+                    ],
+                    startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(
+                            path="/v1/health", port=5001
+                        ),
+                        initial_delay_seconds=10,
+                        period_seconds=10,
+                        failure_threshold=12,  # 2 min total
+                    ),
+                    liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
+                            path="/v1/health", port=5001
+                        ),
+                        initial_delay_seconds=10,
+                        period_seconds=30,
+                    ),
+                )
+            ],
+        ),
+    )
+
+    # Classify SA needs invoker on every peer so it can fetch /openapi.json
+    # at startup (for unified /docs) and call NER+NEL for the classify pipeline.
+    for peer_name, peer_service in (
+        ("ner", ner),
+        ("nel", nel),
+        ("nel-v2", nel_v2),
+        ("classify-v2", classify_v2),
+    ):
+        gcp.cloudrunv2.ServiceIamMember(
+            f"{peer_name}-classify-invoker",
+            project=project,
+            location=region,
+            name=peer_service.name,
+            role="roles/run.invoker",
+            member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+        )
 
     return ner, nel, classify, nel_v2, classify_v2

@@ -121,6 +121,7 @@ ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     default_nel_model_id=default_nel_model_id,
     default_taxonomy_model_id=default_taxonomy_model_id,
     app_origin=app_origin,
+    gateway_base_url=f"https://{env_subdomain}",
     vertex_api_region=vertex_api_region,
     env=env,
 )

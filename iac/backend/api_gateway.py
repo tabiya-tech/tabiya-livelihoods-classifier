@@ -1,6 +1,8 @@
 """GCP API Gateway with API key and Firebase authentication.
 
 Routes:
+  /docs, /openapi.json    → unauthenticated (unified Swagger UI served by classify v1,
+                            which fetches and merges every peer's OpenAPI at startup)
   /v1/health              → unauthenticated (classify health, aggregates NER+NEL)
   /v1/ner                 → API key required
   /v1/nel                 → API key required
@@ -92,54 +94,6 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                     "summary": "Classify OpenAPI schema",
                     "operationId": "openapiSchema",
                     "x-google-backend": {"address": f"{classify_url}/openapi.json"},
-                    "responses": {"200": {"description": "OK"}},
-                }
-            },
-            "/docs/ner": {
-                "get": {
-                    "summary": "NER Swagger UI",
-                    "operationId": "nerSwaggerUI",
-                    "x-google-backend": {"address": f"{ner_url}/docs"},
-                    "responses": {"200": {"description": "OK"}},
-                }
-            },
-            "/docs/ner/openapi.json": {
-                "get": {
-                    "summary": "NER OpenAPI schema",
-                    "operationId": "nerOpenapiSchema",
-                    "x-google-backend": {"address": f"{ner_url}/openapi.json"},
-                    "responses": {"200": {"description": "OK"}},
-                }
-            },
-            "/docs/nel": {
-                "get": {
-                    "summary": "NEL Swagger UI",
-                    "operationId": "nelSwaggerUI",
-                    "x-google-backend": {"address": f"{nel_url}/docs"},
-                    "responses": {"200": {"description": "OK"}},
-                }
-            },
-            "/docs/nel/openapi.json": {
-                "get": {
-                    "summary": "NEL OpenAPI schema",
-                    "operationId": "nelOpenapiSchema",
-                    "x-google-backend": {"address": f"{nel_url}/openapi.json"},
-                    "responses": {"200": {"description": "OK"}},
-                }
-            },
-            "/docs/nel-v2": {
-                "get": {
-                    "summary": "NEL v2 Swagger UI",
-                    "operationId": "nelV2SwaggerUI",
-                    "x-google-backend": {"address": f"{nel_v2_url}/docs"},
-                    "responses": {"200": {"description": "OK"}},
-                }
-            },
-            "/docs/nel-v2/openapi.json": {
-                "get": {
-                    "summary": "NEL v2 OpenAPI schema",
-                    "operationId": "nelV2OpenapiSchema",
-                    "x-google-backend": {"address": f"{nel_v2_url}/openapi.json"},
                     "responses": {"200": {"description": "OK"}},
                 }
             },
