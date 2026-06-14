@@ -3,7 +3,10 @@
     "buttons": {
       "signIn": "Sign in",
       "signOut": "Sign out",
-      "createAccount": "Create account"
+      "createAccount": "Create account",
+      "save": "Save",
+      "discard": "Discard",
+      "keepEditing": "Keep editing"
     },
     "fields": {
       "email": "Email",
@@ -63,5 +66,55 @@
     "eyebrow": "Workspace · Dashboard",
     "welcomeBack": "Welcome back, {{name}}",
     "fallbackName": "there"
+  },
+  "configuration": {
+    "eyebrow": "Settings · Pipeline configuration",
+    "title": "Configuration",
+    "intro": "Choose the models that power your classifications. Settings apply to every API call and the in-app Classifier — existing batch jobs continue with their original config.",
+    "stages": {
+      "nel": {
+        "number": "01",
+        "label": "NEL",
+        "subLabel": "Entity linking",
+        "panelEyebrow": "Stage 01",
+        "panelTitle": "Named Entity Linking",
+        "panelIntro": "The embedding model that maps each detected span to its closest ESCO concept by vector similarity. Higher dimensions yield better recall on ambiguous terms; lower dimensions are faster and cheaper.",
+        "sectionLabel": "Embedding model"
+      },
+      "taxonomy": {
+        "number": "02",
+        "label": "Taxonomy",
+        "subLabel": "Reference vocabulary",
+        "panelEyebrow": "Reference data",
+        "panelTitle": "Taxonomy",
+        "panelIntro": "The reference vocabulary entities are linked against. Newer ESCO releases expand coverage; older releases preserve compatibility with downstream pipelines that pin specific concept URIs.",
+        "sectionLabel": "Active taxonomy"
+      }
+    },
+    "modelOption": {
+      "recommendedBadge": "recommended",
+      "dimensionsSuffix": "{{dimensions}}-dim"
+    },
+    "saveBar": {
+      "dirtyTitle": "Unsaved changes",
+      "dirtyHelp": "Will apply to API calls and Classifier runs once saved.",
+      "savedTitle": "Configuration saved",
+      "savedHelp": "Applies to all subsequent API calls.",
+      "savingTitle": "Saving…",
+      "savingHelp": "Sending changes to the backend.",
+      "savedIndicator": "Saved"
+    },
+    "toasts": {
+      "saveError": "Couldn't save configuration. Please try again.",
+      "saveSuccess": "Configuration saved"
+    },
+    "unsavedGuard": {
+      "title": "Discard unsaved changes?",
+      "description": "Leaving this page now will discard the changes you've made to your configuration.",
+      "confirmLabel": "Discard changes"
+    },
+    "errors": {
+      "loadFailed": "We couldn't load your configuration. Refresh to retry."
+    }
   }
 }
