@@ -1,3 +1,140 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    font-family: theme("fontFamily.sans");
+    background: theme("colors.cream.DEFAULT");
+    color: theme("colors.ink");
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv11";
+  }
+  a {
+    color: theme("colors.teal");
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  code,
+  pre {
+    font-family: theme("fontFamily.mono");
+  }
+}
+
+@layer components {
+  /* ── Editorial type scale ─────────────────────────────── */
+  .eyebrow {
+    font-family: theme("fontFamily.mono");
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: theme("colors.muted.2");
+    font-weight: 500;
+  }
+  .h-display {
+    font-family: theme("fontFamily.mono");
+    font-weight: 500;
+    font-size: 32px;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: theme("colors.navy.DEFAULT");
+    margin: 0;
+  }
+  .h-page {
+    font-family: theme("fontFamily.mono");
+    font-weight: 500;
+    font-size: 24px;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    color: theme("colors.navy.DEFAULT");
+    margin: 0;
+  }
+  .h-section {
+    font-family: theme("fontFamily.mono");
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: -0.005em;
+    color: theme("colors.navy.DEFAULT");
+    margin: 0;
+  }
+
+  /* ── Entity highlight span (per-type via data-type attr) ── */
+  .ent {
+    display: inline;
+    position: relative;
+    padding: 2px 4px;
+    margin: 0 -1px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .ent[data-type="occupation"] {
+    background: theme("colors.entity.occupation.bg");
+    color: theme("colors.entity.occupation.fg");
+  }
+  .ent[data-type="skill"] {
+    background: theme("colors.entity.skill.bg");
+    color: theme("colors.entity.skill.fg");
+  }
+  .ent[data-type="qualification"] {
+    background: theme("colors.entity.qualification.bg");
+    color: theme("colors.entity.qualification.fg");
+  }
+  .ent[data-type="experience"] {
+    background: theme("colors.entity.experience.bg");
+    color: theme("colors.entity.experience.fg");
+  }
+  .ent[data-type="domain"] {
+    background: theme("colors.entity.domain.bg");
+    color: theme("colors.entity.domain.fg");
+  }
+  .ent.selected {
+    box-shadow: 0 0 0 2px theme("colors.navy.DEFAULT");
+  }
+  .ent.dimmed {
+    opacity: 0.35;
+  }
+
+  /* ── Code block with token colors ─────────────────────── */
+  .code-block {
+    background: theme("colors.ink");
+    color: theme("colors.lime.DEFAULT");
+    border-radius: theme("borderRadius.md");
+    padding: 16px 18px;
+    font-family: theme("fontFamily.mono");
+    font-size: 12.5px;
+    line-height: 1.65;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0;
+    position: relative;
+  }
+  .code-block.muted {
+    background: #1a2332;
+    color: theme("colors.cream.DEFAULT");
+  }
+  .ck-key {
+    color: #9ad5ff;
+  }
+  .ck-str {
+    color: theme("colors.lime.DEFAULT");
+  }
+  .ck-num {
+    color: theme("colors.yellow");
+  }
+  .ck-com {
+    color: rgba(243, 241, 238, 0.45);
+    font-style: italic;
+  }
+}
