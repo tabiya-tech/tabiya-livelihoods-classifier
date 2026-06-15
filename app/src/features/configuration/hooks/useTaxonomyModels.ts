@@ -5,8 +5,9 @@
  * easier test seams per resource.
  */
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { listTaxonomyModels, type TaxonomyModel } from "@/lib/api";
+import { TaxonomyModelsOverrideContext } from "./configurationOverrides";
 
 export type TaxonomyModelsStatus = "loading" | "ready" | "error";
 
@@ -24,6 +25,7 @@ export interface UseTaxonomyModelsOptions {
 export function useTaxonomyModels({
   fetchModels = listTaxonomyModels,
 }: UseTaxonomyModelsOptions = {}): TaxonomyModelsSnapshot {
+  const override = useContext(TaxonomyModelsOverrideContext);
   const [snapshot, setSnapshot] = useState<TaxonomyModelsSnapshot>({
     status: "loading",
     models: [],
@@ -31,6 +33,7 @@ export function useTaxonomyModels({
   });
 
   useEffect(() => {
+    if (override) return;
     let cancelled = false;
     fetchModels()
       .then((models) => {
@@ -47,7 +50,7 @@ export function useTaxonomyModels({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [override]);
 
-  return snapshot;
+  return override ?? snapshot;
 }

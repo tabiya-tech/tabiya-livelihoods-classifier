@@ -6,6 +6,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "@/features/auth/LoginPage/LoginPage";
 import { AppShell } from "@/features/shell/AppShell/AppShell";
+import { ConfigurationPage } from "@/features/configuration/ConfigurationPage/ConfigurationPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage/DashboardPage";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicOnlyRoute } from "./PublicOnlyRoute";
@@ -31,6 +32,10 @@ export function AppRouter() {
           }
         >
           <Route path={routerPaths.DASHBOARD} element={<DashboardPage />} />
+          <Route
+            path={routerPaths.CONFIGURATION}
+            element={<ConfigurationPage />}
+          />
         </Route>
         <Route
           path="*"

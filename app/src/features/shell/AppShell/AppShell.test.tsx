@@ -21,25 +21,31 @@ import {
   TOPBAR_DATA_TEST_ID,
   NAV_LINK_DATA_TEST_ID,
 } from "@/components";
+import { NavigationGuardProvider } from "@/lib/navigationGuard";
 import { renderWithRouterOutlet } from "@/_test_utilities";
 
 const GIVEN_DASHBOARD_MARKER_TEST_ID = "given-dashboard-marker";
 const GIVEN_LOGIN_MARKER_TEST_ID = "given-login-marker";
 
 function renderShellAtPath(currentPath: string) {
-  return renderWithRouterOutlet(<AppShell />, {
-    currentPath,
-    outletPath: routerPaths.DASHBOARD,
-    outletElement: (
-      <div data-testid={GIVEN_DASHBOARD_MARKER_TEST_ID}>dashboard</div>
-    ),
-    additionalRoutes: [
-      {
-        path: routerPaths.LOGIN,
-        element: <div data-testid={GIVEN_LOGIN_MARKER_TEST_ID}>login</div>,
-      },
-    ],
-  });
+  return renderWithRouterOutlet(
+    <NavigationGuardProvider>
+      <AppShell />
+    </NavigationGuardProvider>,
+    {
+      currentPath,
+      outletPath: routerPaths.DASHBOARD,
+      outletElement: (
+        <div data-testid={GIVEN_DASHBOARD_MARKER_TEST_ID}>dashboard</div>
+      ),
+      additionalRoutes: [
+        {
+          path: routerPaths.LOGIN,
+          element: <div data-testid={GIVEN_LOGIN_MARKER_TEST_ID}>login</div>,
+        },
+      ],
+    },
+  );
 }
 
 beforeEach(() => {
@@ -70,17 +76,23 @@ describe("AppShell", () => {
     expect(screen.getByTestId(GIVEN_DASHBOARD_MARKER_TEST_ID)).toBeInTheDocument();
   });
 
-  it("renders a Dashboard nav link in the sidebar", () => {
-    // GIVEN the expected nav link label from i18n
-    const expectedNavLinkLabel = i18n.t("shell.nav.items.dashboard");
+  it("renders the Workspace and Settings nav links in the sidebar", () => {
+    // GIVEN the expected nav link labels from i18n
+    const expectedDashboardLabel = i18n.t("shell.nav.items.dashboard");
+    const expectedConfigurationLabel = i18n.t(
+      "shell.nav.items.configuration",
+    );
 
     // WHEN we render the shell
     renderShellAtPath(routerPaths.DASHBOARD);
 
-    // THEN a single nav link is rendered with that label
-    const renderedNavLinks = screen.getAllByTestId(NAV_LINK_DATA_TEST_ID.CONTAINER);
-    expect(renderedNavLinks).toHaveLength(1);
-    expect(renderedNavLinks[0]).toHaveTextContent(expectedNavLinkLabel);
+    // THEN both nav links appear in order: Dashboard, then Configuration
+    const renderedNavLinks = screen.getAllByTestId(
+      NAV_LINK_DATA_TEST_ID.CONTAINER,
+    );
+    expect(renderedNavLinks).toHaveLength(2);
+    expect(renderedNavLinks[0]).toHaveTextContent(expectedDashboardLabel);
+    expect(renderedNavLinks[1]).toHaveTextContent(expectedConfigurationLabel);
   });
 
   it("displays the API healthy status pill with the version", () => {

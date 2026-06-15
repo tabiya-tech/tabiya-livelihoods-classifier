@@ -18,6 +18,7 @@ import {
   type BreadcrumbItem,
 } from "@/components";
 import { useFirebaseAuth } from "@/lib/auth/useFirebaseAuth";
+import { useNavigationGuard } from "@/lib/navigationGuard";
 import { routerPaths } from "@/routes/routerPaths";
 import { LanguageMenu } from "@/i18n/LanguageMenu/LanguageMenu";
 import { useApiHealth, type ApiHealthStatus } from "../useApiHealth";
@@ -29,7 +30,9 @@ export const DATA_TEST_ID = {
   HEALTH_PILL: `app-shell-health-pill-${uniqueId}`,
 };
 
-function buildNavGroups(t: (key: TranslationKey, opts?: Record<string, unknown>) => string): SidebarNavGroup[] {
+function buildNavGroups(
+  t: (key: TranslationKey, opts?: Record<string, unknown>) => string,
+): SidebarNavGroup[] {
   return [
     {
       label: t("shell.nav.groups.workspace"),
@@ -41,12 +44,23 @@ function buildNavGroups(t: (key: TranslationKey, opts?: Record<string, unknown>)
         },
       ],
     },
+    {
+      label: t("shell.nav.groups.settings"),
+      items: [
+        {
+          id: "configuration",
+          label: t("shell.nav.items.configuration"),
+          icon: "config",
+        },
+      ],
+    },
   ];
 }
 
 /** Map a route path to its sidebar nav item id. Empty string when no item matches. */
 function deriveActiveNavId(pathname: string): string {
   if (pathname.startsWith(routerPaths.DASHBOARD)) return "dashboard";
+  if (pathname.startsWith(routerPaths.CONFIGURATION)) return "configuration";
   return "";
 }
 
@@ -62,6 +76,15 @@ function buildBreadcrumbsForPath(
         onClick: () => navigateTo(routerPaths.DASHBOARD),
       },
       { label: t("shell.nav.items.dashboard") },
+    ];
+  }
+  if (pathname.startsWith(routerPaths.CONFIGURATION)) {
+    return [
+      {
+        label: t("shell.nav.groups.settings"),
+        onClick: () => navigateTo(routerPaths.CONFIGURATION),
+      },
+      { label: t("shell.nav.items.configuration") },
     ];
   }
   return [{ label: t("shell.nav.groups.workspace") }];
@@ -84,6 +107,7 @@ function getStatusPillLabel(
 
 function navItemIdToRoutePath(navItemId: string): string {
   if (navItemId === "dashboard") return routerPaths.DASHBOARD;
+  if (navItemId === "configuration") return routerPaths.CONFIGURATION;
   return routerPaths.DASHBOARD;
 }
 
@@ -93,18 +117,23 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const health = useApiHealth();
+  const { requestNavigate } = useNavigationGuard();
 
   const navGroups = buildNavGroups(t);
   const activeNavId = deriveActiveNavId(location.pathname);
   const breadcrumbs = buildBreadcrumbsForPath(
     location.pathname,
-    (path) => navigate(path),
+    (path) => {
+      void requestNavigate(() => navigate(path));
+    },
     t,
   );
 
   async function handleSignOut() {
-    await signOut();
-    navigate(routerPaths.LOGIN, { replace: true });
+    await requestNavigate(async () => {
+      await signOut();
+      navigate(routerPaths.LOGIN, { replace: true });
+    });
   }
 
   return (
@@ -113,8 +142,14 @@ export function AppShell() {
         sidebar={
           <Sidebar
             activeId={activeNavId}
-            onNavigate={(navItemId) => navigate(navItemIdToRoutePath(navItemId))}
-            onBrandClick={() => navigate(routerPaths.DASHBOARD)}
+            onNavigate={(navItemId) => {
+              void requestNavigate(() =>
+                navigate(navItemIdToRoutePath(navItemId)),
+              );
+            }}
+            onBrandClick={() => {
+              void requestNavigate(() => navigate(routerPaths.DASHBOARD));
+            }}
             groups={navGroups}
             user={
               user ? { initials: user.initials, label: user.email } : undefined
