@@ -14,12 +14,13 @@
  * a toast and the user can retry.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   getV2UserConfig,
   saveV2UserConfig,
   type V2UserConfig,
 } from "@/lib/api";
+import { UserConfigurationOverrideContext } from "./configurationOverrides";
 
 export type ConfigurationLoadStatus = "loading" | "ready" | "error";
 export type ConfigurationSaveStatus =
@@ -73,6 +74,7 @@ export function useUserConfiguration({
   fetchConfig = getV2UserConfig,
   persistConfig = saveV2UserConfig,
 }: UseUserConfigurationOptions = {}): UserConfigurationState {
+  const override = useContext(UserConfigurationOverrideContext);
   const [loadStatus, setLoadStatus] =
     useState<ConfigurationLoadStatus>("loading");
   const [loadError, setLoadError] = useState<Error | null>(null);
@@ -84,6 +86,7 @@ export function useUserConfiguration({
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
+    if (override) return;
     let cancelled = false;
     fetchConfig()
       .then((config) => {
@@ -103,7 +106,7 @@ export function useUserConfiguration({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [override]);
 
   const setDraft = useCallback((patch: Partial<V2UserConfig>) => {
     setDraftState((previous) => {
@@ -143,6 +146,10 @@ export function useUserConfiguration({
   }, [draft, persistConfig]);
 
   const isDirty = useMemo(() => !configsEqual(saved, draft), [saved, draft]);
+
+  if (override) {
+    return override;
+  }
 
   return {
     loadStatus,

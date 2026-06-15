@@ -27,27 +27,28 @@ services:
   nel:
     build:
       context: .
-      dockerfile: backend/nel/Dockerfile
+      dockerfile: backend/nel_v2/Dockerfile
+      secrets:
+        - HF_TOKEN
     ports:
       - "5003:5003"
     env_file: .env
     environment:
-      # Unset uses each language's configured model (shared/languages/); the bare variable
-      # would pin every language to one.
-      - LINKER_MODEL=${LINKER_MODEL:-}
-      - LINKER_MODEL_ES=${LINKER_MODEL_ES:-}
-      - TARGET_LANGUAGE=${TARGET_LANGUAGE:-en}
-      - ENABLED_LANGUAGES=${ENABLED_LANGUAGES:-all}
-      - MAX_ENTITIES_PER_REQUEST=${MAX_ENTITIES_PER_REQUEST:-200}
-      - MAX_TOP_K=${MAX_TOP_K:-50}
-      # NEL_FILES_PATH unset: the data packs are per language under nel/nel/files/<lang>/,
-      # and setting it pins every language to one directory. Mount over that path instead
-      # if you need to supply packs from outside the image.
-      - NEL_FILES_PATH=${NEL_FILES_PATH:-}
+      - APPLICATION_MONGODB_URI=${APPLICATION_MONGODB_URI:-}
+      - APPLICATION_DATABASE_NAME=${APPLICATION_DATABASE_NAME:-classifier_application_dev}
+      - TAXONOMY_MONGODB_URI=${TAXONOMY_MONGODB_URI:-}
+      - TAXONOMY_DATABASE_NAME=${TAXONOMY_DATABASE_NAME:-classifier_taxonomy_dev}
+      - TAXONOMY_API_BASE_URL=${TAXONOMY_API_BASE_URL:-https://taxonomy.tabiya.tech}
+      - TAXONOMY_API_KEY=${TAXONOMY_API_KEY:-}
+      - DEFAULT_NEL_MODEL_ID=${DEFAULT_NEL_MODEL_ID:-all-MiniLM-L6-v2}
+      - DEFAULT_TAXONOMY_MODEL_ID=${DEFAULT_TAXONOMY_MODEL_ID:-}
+      - VERTEX_API_REGION=${VERTEX_API_REGION:-us-central1}
+      - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
     volumes:
       - model-cache:/root/.cache/huggingface
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v1/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v2/nel/health')"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -84,3 +85,7 @@ services:
 
 volumes:
   model-cache:
+
+secrets:
+  HF_TOKEN:
+    environment: HF_TOKEN
