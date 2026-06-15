@@ -1,0 +1,52 @@
+# All-in-one Classifier for Cloud Run Job
+# Runs NER + NEL + Classify APIs, then run_classifier.py. Models baked in at build.
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Build-time: HF_TOKEN for gated NER model (pass: docker build --build-arg HF_TOKEN=xxx)
+ARG HF_TOKEN
+ENV HF_TOKEN=${HF_TOKEN}
+ENV HF_HOME=/app/.cache/huggingface
+
+# Install deps (CPU-only torch to avoid huge CUDA downloads and network timeouts)
+COPY pyproject.toml poetry.lock* ./
+COPY docker/bake_models.py docker/bake_models.py
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir poetry \
+    && poetry config virtualenvs.create false \
+    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && poetry lock --no-update 2>/dev/null || poetry lock \
+    && poetry install --no-root --no-interaction --no-ansi \
+    && pip install --no-cache-dir certifi \
+    && python -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('punkt_tab', quiet=True)"
+
+# Pre-downloaded NER model (run scripts/prepare_ner_for_bake.sh first)
+COPY ner_model_cache/ /app/.cache/huggingface/
+
+# Bake NEL model at build time (NER already in image from COPY above)
+RUN python docker/bake_models.py
+
+# Application code (after deps + model bake so code edits don't reinstall everything)
+COPY app/ app/
+COPY inference/ inference/
+COPY util/ util/
+COPY run_classifier.py README.md ./
+COPY docker/entrypoint.sh docker/entrypoint.sh
+COPY docker/entrypoint-service.sh docker/entrypoint-service.sh
+
+# All-in-one: localhost URLs (all services in same container)
+ENV NER_API_URL=http://localhost:5002
+ENV NEL_API_URL=http://localhost:5003
+ENV CLASSIFY_API_URL=http://localhost:5001
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+# Default target country (override at runtime)
+ENV TARGET_COUNTRY=zambia
+
+RUN chmod +x docker/entrypoint.sh docker/entrypoint-service.sh
+
+ENTRYPOINT ["./docker/entrypoint.sh"]

@@ -119,6 +119,9 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+# Pre-downloaded NER model for Docker bake (run prepare_ner_for_bake.sh)
+ner_model_cache/
+
 # Environments
 .env
 .venv
@@ -247,3 +250,4 @@ data/
 backend/nel/nel/files/**
 !backend/nel/nel/files/*.csv
 /app/.vite/*
+.nltk_data/
