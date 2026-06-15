@@ -47,7 +47,14 @@ jobs:
         run: poetry install --no-root
 
       - name: Install dependencies
-        run: poetry install --no-interaction ${{ matrix.service == 'nel_v2' && '--extras inference' || '' }}
+        run: |
+          if [ "${{ matrix.service }}" = "nel" ]; then
+            poetry install --no-interaction --without inference
+          elif [ "${{ matrix.service }}" = "nel_v2" ]; then
+            poetry install --no-interaction --extras inference
+          else
+            poetry install --no-interaction
+          fi
         working-directory: backend/${{ matrix.service }}
 
       - name: Run tests
