@@ -7,8 +7,9 @@
  * - `status: "error"` carries the underlying error and an empty list.
  */
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { listNelModels, type NelModel } from "@/lib/api";
+import { NelModelsOverrideContext } from "./configurationOverrides";
 
 export type NelModelsStatus = "loading" | "ready" | "error";
 
@@ -26,6 +27,7 @@ export interface UseNelModelsOptions {
 export function useNelModels({
   fetchModels = listNelModels,
 }: UseNelModelsOptions = {}): NelModelsSnapshot {
+  const override = useContext(NelModelsOverrideContext);
   const [snapshot, setSnapshot] = useState<NelModelsSnapshot>({
     status: "loading",
     models: [],
@@ -33,6 +35,7 @@ export function useNelModels({
   });
 
   useEffect(() => {
+    if (override) return;
     let cancelled = false;
     fetchModels()
       .then((models) => {
@@ -51,7 +54,7 @@ export function useNelModels({
     // fetchModels is intentionally outside the dep array; it's a test seam
     // that production callers never change at runtime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [override]);
 
-  return snapshot;
+  return override ?? snapshot;
 }
