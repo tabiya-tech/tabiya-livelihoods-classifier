@@ -82,17 +82,19 @@ describe("AppShell", () => {
     const expectedConfigurationLabel = i18n.t(
       "shell.nav.items.configuration",
     );
+    const expectedKeysLabel = i18n.t("shell.nav.items.keys");
 
     // WHEN we render the shell
     renderShellAtPath(routerPaths.DASHBOARD);
 
-    // THEN both nav links appear in order: Dashboard, then Configuration
+    // THEN the nav links appear in order: Dashboard, Configuration, Keys
     const renderedNavLinks = screen.getAllByTestId(
       NAV_LINK_DATA_TEST_ID.CONTAINER,
     );
-    expect(renderedNavLinks).toHaveLength(2);
+    expect(renderedNavLinks).toHaveLength(3);
     expect(renderedNavLinks[0]).toHaveTextContent(expectedDashboardLabel);
     expect(renderedNavLinks[1]).toHaveTextContent(expectedConfigurationLabel);
+    expect(renderedNavLinks[2]).toHaveTextContent(expectedKeysLabel);
   });
 
   it("displays the API healthy status pill with the version", () => {

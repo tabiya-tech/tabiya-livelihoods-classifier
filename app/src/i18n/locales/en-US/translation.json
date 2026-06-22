@@ -6,7 +6,10 @@
       "createAccount": "Create account",
       "save": "Save",
       "discard": "Discard",
-      "keepEditing": "Keep editing"
+      "keepEditing": "Keep editing",
+      "cancel": "Cancel",
+      "copy": "Copy",
+      "copied": "Copied"
     },
     "fields": {
       "email": "Email",
@@ -115,6 +118,50 @@
     },
     "errors": {
       "loadFailed": "We couldn't load your configuration. Refresh to retry."
+    }
+  },
+  "keys": {
+    "eyebrow": "Settings · API keys",
+    "title": "API keys",
+    "intro": "Keys authenticate programmatic access to the Classifier API. The plaintext value is shown once at creation — copy it somewhere safe before you leave the page.",
+    "tabiyaSectionTitle": "Tabiya API keys",
+    "tabiyaSectionIntro": "Used with the {{header}} header against {{endpoint}}.",
+    "tabiyaSectionHeader": "x-api-key",
+    "tabiyaSectionEndpoint": "/v1/classify",
+    "createForm": {
+      "labelLabel": "Label",
+      "labelPlaceholder": "e.g. analyst-laptop",
+      "submit": "Create key",
+      "maxReachedHelp": "You've reached the limit of {{max}} keys. Revoke one to create another."
+    },
+    "table": {
+      "headerLabel": "Label",
+      "headerCreated": "Created",
+      "headerLastUsed": "Last used",
+      "headerActions": "Actions",
+      "lastUsedNever": "Never",
+      "revokeButton": "Revoke"
+    },
+    "revealBanner": {
+      "title": "Copy your new key",
+      "description": "This is the only time the plaintext value will be shown. Store it somewhere safe — you won't be able to see it again.",
+      "dismiss": "I've copied it"
+    },
+    "revokeModal": {
+      "title": "Revoke this key?",
+      "description": "Calls authenticated with “{{label}}” will start failing immediately. This cannot be undone.",
+      "confirmLabel": "Revoke key"
+    },
+    "empty": {
+      "title": "No API keys yet",
+      "description": "Create your first key to start authenticating programmatic calls to the Classifier API.",
+      "actionLabel": "Create your first key"
+    },
+    "toasts": {
+      "createError": "Couldn't create the key. Please try again.",
+      "revokeError": "Couldn't revoke the key. Please try again.",
+      "loadError": "Couldn't load your API keys.",
+      "copySuccess": "Key copied to clipboard"
     }
   }
 }
