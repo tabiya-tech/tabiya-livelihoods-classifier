@@ -94,3 +94,112 @@ export function createApiKey(label: string): Promise<CreateApiKeyResponse> {
 export function deleteApiKey(keyId: string): Promise<void> {
   return request<void>(`/v2/user/api-keys/${keyId}`, { method: "DELETE" });
 }
+
+// ── Classify (Classify v2) ─────────────────────────────────────────────────
+
+export type ClassifyEntityType = "occupation" | "skill" | "qualification";
+
+export interface ClassifyEntitySpan {
+  /** Character offset of the start of the surface form (inclusive). */
+  start: number;
+  /** Character offset of the end of the surface form (exclusive). */
+  end: number;
+}
+
+interface ClassifyEntityBase {
+  uuid: string;
+  origin_uuid: string;
+  uuid_history: string[];
+  preferred_label: string;
+  origin_uri: string;
+  alt_labels: string[];
+  description: string;
+}
+
+export interface ClassifyOccupationEntity extends ClassifyEntityBase {
+  /** ESCO occupation code. Some taxonomies omit it. */
+  esco_code?: string | null;
+}
+
+export interface ClassifySkillEntity extends ClassifyEntityBase {
+  skill_type?: string | null;
+  reuse_level?: string | null;
+}
+
+export interface ClassifyQualificationEntity extends ClassifyEntityBase {
+  eqf_level?: string | null;
+  country?: string | null;
+}
+
+export type ClassifyMatchEntity =
+  | ClassifyOccupationEntity
+  | ClassifySkillEntity
+  | ClassifyQualificationEntity;
+
+export interface ClassifyOccupationMatch {
+  entity_type: "occupation";
+  similarity_score: number;
+  entity: ClassifyOccupationEntity;
+}
+
+export interface ClassifySkillMatch {
+  entity_type: "skill";
+  similarity_score: number;
+  entity: ClassifySkillEntity;
+}
+
+export interface ClassifyQualificationMatch {
+  entity_type: "qualification";
+  similarity_score: number;
+  entity: ClassifyQualificationEntity;
+}
+
+export type ClassifyMatch =
+  | ClassifyOccupationMatch
+  | ClassifySkillMatch
+  | ClassifyQualificationMatch;
+
+export interface ClassifiedEntity {
+  entity_type: ClassifyEntityType;
+  surface_form: string;
+  span: ClassifyEntitySpan;
+  /** ESCO matches ordered by similarity_score descending. */
+  matches: ClassifyMatch[];
+}
+
+export interface ClassifyOptions {
+  /** Restrict extraction to specific entity types. Omit to extract all. */
+  extract_entities?: ClassifyEntityType[];
+  /** Max matches per entity (1–50). Default 5. */
+  top_k?: number;
+  /** Minimum cosine similarity to include (0.0–1.0). Default 0.0. */
+  min_similarity?: number;
+}
+
+export interface ClassifyRequest {
+  /** Raw job ad text. Use this OR title + description. */
+  text?: string;
+  title?: string;
+  description?: string;
+  options?: ClassifyOptions;
+}
+
+export interface ClassifyMetadata {
+  classifier_version: string;
+  ner_model: string;
+  nel_model_id: string;
+  taxonomy_model_id: string;
+  processing_time_ms: number;
+}
+
+export interface ClassifyResponse {
+  entities: ClassifiedEntity[];
+  metadata: ClassifyMetadata;
+}
+
+export function classify(payload: ClassifyRequest): Promise<ClassifyResponse> {
+  return request<ClassifyResponse>("/v2/classify", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
