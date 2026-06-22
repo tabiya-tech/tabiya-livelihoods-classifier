@@ -14,3 +14,16 @@ CORS_ALLOWED_ORIGINS: list[str] = [
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
     if origin.strip()
 ]
+
+# Application MongoDB — stores api_keys collection (and future user_configs etc.)
+APPLICATION_MONGODB_URI: str = os.getenv("APPLICATION_MONGODB_URI", "")
+APPLICATION_DATABASE_NAME: str = os.getenv("APPLICATION_DATABASE_NAME", "tabiya-classifier")
+
+# Firebase + GCP API Keys provisioning. ADC via GOOGLE_APPLICATION_CREDENTIALS.
+FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID", "")
+GCP_PROJECT_ID: str = os.getenv("GCP_PROJECT_ID", "")
+GCP_API_MANAGED_SERVICE: str = os.getenv("GCP_API_MANAGED_SERVICE", "")
+GCP_API_KEYS_PARENT_LOCATION: str = os.getenv("GCP_API_KEYS_PARENT_LOCATION", "global")
+
+# Hard upper bound on keys per user (frontend disables Create when reached).
+MAX_API_KEYS_PER_USER: int = int(os.getenv("MAX_API_KEYS_PER_USER", "5"))
