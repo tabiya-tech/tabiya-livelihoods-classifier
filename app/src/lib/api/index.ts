@@ -17,6 +17,7 @@ export {
   listApiKeys,
   createApiKey,
   deleteApiKey,
+  classify,
 } from "./v2";
 export type {
   NelModel,
@@ -25,4 +26,19 @@ export type {
   ApiKeyMetadata,
   ListApiKeysResponse,
   CreateApiKeyResponse,
+  ClassifyEntityType,
+  ClassifyEntitySpan,
+  ClassifyOccupationEntity,
+  ClassifySkillEntity,
+  ClassifyQualificationEntity,
+  ClassifyMatchEntity,
+  ClassifyOccupationMatch,
+  ClassifySkillMatch,
+  ClassifyQualificationMatch,
+  ClassifyMatch,
+  ClassifiedEntity,
+  ClassifyOptions,
+  ClassifyRequest,
+  ClassifyMetadata,
+  ClassifyResponse,
 } from "./v2";
