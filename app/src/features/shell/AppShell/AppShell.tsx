@@ -52,6 +52,11 @@ function buildNavGroups(
           label: t("shell.nav.items.configuration"),
           icon: "config",
         },
+        {
+          id: "keys",
+          label: t("shell.nav.items.keys"),
+          icon: "key",
+        },
       ],
     },
   ];
@@ -61,6 +66,7 @@ function buildNavGroups(
 function deriveActiveNavId(pathname: string): string {
   if (pathname.startsWith(routerPaths.DASHBOARD)) return "dashboard";
   if (pathname.startsWith(routerPaths.CONFIGURATION)) return "configuration";
+  if (pathname.startsWith(routerPaths.KEYS)) return "keys";
   return "";
 }
 
@@ -87,6 +93,15 @@ function buildBreadcrumbsForPath(
       { label: t("shell.nav.items.configuration") },
     ];
   }
+  if (pathname.startsWith(routerPaths.KEYS)) {
+    return [
+      {
+        label: t("shell.nav.groups.settings"),
+        onClick: () => navigateTo(routerPaths.KEYS),
+      },
+      { label: t("shell.nav.items.keys") },
+    ];
+  }
   return [{ label: t("shell.nav.groups.workspace") }];
 }
 
@@ -108,6 +123,7 @@ function getStatusPillLabel(
 function navItemIdToRoutePath(navItemId: string): string {
   if (navItemId === "dashboard") return routerPaths.DASHBOARD;
   if (navItemId === "configuration") return routerPaths.CONFIGURATION;
+  if (navItemId === "keys") return routerPaths.KEYS;
   return routerPaths.DASHBOARD;
 }
 

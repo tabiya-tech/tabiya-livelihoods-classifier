@@ -6,7 +6,10 @@
       "createAccount": "Créer un compte",
       "save": "Enregistrer",
       "discard": "Annuler les modifications",
-      "keepEditing": "Continuer la modification"
+      "keepEditing": "Continuer la modification",
+      "cancel": "Annuler",
+      "copy": "Copier",
+      "copied": "Copié"
     },
     "fields": {
       "email": "E-mail",
@@ -115,6 +118,50 @@
     },
     "errors": {
       "loadFailed": "Impossible de charger votre configuration. Actualisez pour réessayer."
+    }
+  },
+  "keys": {
+    "eyebrow": "Paramètres · Clés API",
+    "title": "Clés API",
+    "intro": "Les clés authentifient l'accès programmatique à l'API Classifier. La valeur en clair n'est affichée qu'une seule fois lors de la création — copiez-la avant de quitter la page.",
+    "tabiyaSectionTitle": "Clés API Tabiya",
+    "tabiyaSectionIntro": "À utiliser avec l'en-tête {{header}} sur {{endpoint}}.",
+    "tabiyaSectionHeader": "x-api-key",
+    "tabiyaSectionEndpoint": "/v1/classify",
+    "createForm": {
+      "labelLabel": "Libellé",
+      "labelPlaceholder": "ex. ordinateur-analyste",
+      "submit": "Créer la clé",
+      "maxReachedHelp": "Vous avez atteint la limite de {{max}} clés. Révoquez-en une pour en créer une autre."
+    },
+    "table": {
+      "headerLabel": "Libellé",
+      "headerCreated": "Créée le",
+      "headerLastUsed": "Dernière utilisation",
+      "headerActions": "Actions",
+      "lastUsedNever": "Jamais",
+      "revokeButton": "Révoquer"
+    },
+    "revealBanner": {
+      "title": "Copiez votre nouvelle clé",
+      "description": "C'est la seule fois que la valeur en clair sera affichée. Conservez-la en lieu sûr — vous ne pourrez plus la consulter.",
+      "dismiss": "Je l'ai copiée"
+    },
+    "revokeModal": {
+      "title": "Révoquer cette clé ?",
+      "description": "Les appels authentifiés avec « {{label}} » échoueront immédiatement. Cette action est irréversible.",
+      "confirmLabel": "Révoquer la clé"
+    },
+    "empty": {
+      "title": "Aucune clé API",
+      "description": "Créez votre première clé pour commencer à authentifier vos appels à l'API Classifier.",
+      "actionLabel": "Créer votre première clé"
+    },
+    "toasts": {
+      "createError": "Impossible de créer la clé. Veuillez réessayer.",
+      "revokeError": "Impossible de révoquer la clé. Veuillez réessayer.",
+      "loadError": "Impossible de charger vos clés API.",
+      "copySuccess": "Clé copiée dans le presse-papiers"
     }
   }
 }
