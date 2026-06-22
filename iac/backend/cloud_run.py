@@ -285,6 +285,21 @@ def create_cloud_run_services(
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="CORS_ALLOWED_ORIGINS", value=app_origin
                         ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="APPLICATION_MONGODB_URI", value=application_mongodb_uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="APPLICATION_DATABASE_NAME", value=mongodb_db_name
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="FIREBASE_PROJECT_ID", value=firebase_project_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GCP_PROJECT_ID", value=project
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GCP_API_MANAGED_SERVICE", value=managed_service
+                        ),
                     ],
                     startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
                         http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(

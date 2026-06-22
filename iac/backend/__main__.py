@@ -155,6 +155,14 @@ gcp.projects.IAMMember(
     member=service_accounts["classify_sa"].email.apply(lambda e: f"serviceAccount:{e}"),
 )
 
+# classify_v2 owns the /v2/user/api-keys routes and needs the same role.
+gcp.projects.IAMMember(
+    "classify-v2-sa-apikeys-admin",
+    project=project,
+    role="roles/serviceusage.apiKeysAdmin",
+    member=service_accounts["classify_v2_sa"].email.apply(lambda e: f"serviceAccount:{e}"),
+)
+
 # Allow the gateway service account to invoke all three services.
 gcp.cloudrunv2.ServiceIamMember(
     "classify-invoker",

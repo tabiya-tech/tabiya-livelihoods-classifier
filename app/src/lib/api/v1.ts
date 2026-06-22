@@ -42,33 +42,6 @@ export function saveUserConfig(config: Partial<UserConfig>): Promise<void> {
   });
 }
 
-// ── API keys ───────────────────────────────────────────────────────────────
-
-export interface ApiKey {
-  key_id: string;
-  label: string;
-  created_at: string;
-  last_used_at: string | null;
-  revoked: boolean;
-  /** Suffix shown after creation (last 4 chars of plain key). */
-  suffix?: string;
-}
-
-export function listApiKeys(): Promise<ApiKey[]> {
-  return request<ApiKey[]>("/v1/user/api-keys");
-}
-
-export function createApiKey(label: string): Promise<{ key: string; meta: ApiKey }> {
-  return request<{ key: string; meta: ApiKey }>("/v1/user/api-keys", {
-    method: "POST",
-    body: JSON.stringify({ label }),
-  });
-}
-
-export function deleteApiKey(keyId: string): Promise<void> {
-  return request<void>(`/v1/user/api-keys/${keyId}`, { method: "DELETE" });
-}
-
 // ── Usage ──────────────────────────────────────────────────────────────────
 
 export interface UsagePoint {
