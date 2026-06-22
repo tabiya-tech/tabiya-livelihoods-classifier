@@ -288,6 +288,56 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                     "responses": {"200": {"description": "OK"}},
                 }
             },
+            "/v2/user/api-keys": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUserApiKeysV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/user/api-keys"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "List API keys (v2)",
+                    "operationId": "listApiKeysV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/user/api-keys"},
+                    "responses": {"200": {"description": "API key list"}},
+                },
+                "post": {
+                    "summary": "Create an API key (v2)",
+                    "operationId": "createApiKeyV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/user/api-keys"},
+                    "responses": {"201": {"description": "Created"}},
+                },
+            },
+            "/v2/user/api-keys/{key_id}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUserApiKeyByIdV2",
+                    "parameters": [
+                        {"in": "path", "name": "key_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/user/api-keys/{{key_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "delete": {
+                    "summary": "Revoke an API key (v2)",
+                    "operationId": "deleteApiKeyV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "key_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/user/api-keys/{{key_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "Revoked"}},
+                },
+            },
             "/v2/nel": {
                 "options": {
                     "summary": "CORS preflight",
