@@ -163,5 +163,32 @@
       "loadError": "Couldn't load your API keys.",
       "copySuccess": "Key copied to clipboard"
     }
+  },
+  "classifier": {
+    "source": {
+      "placeholder": "Paste a job description here — or drop a file below.",
+      "runButton": "Classify",
+      "clearButton": "Clear"
+    },
+    "upload": {
+      "prompt": "Drop a file or click to upload",
+      "subPrompt": ".txt, .md, .json — up to 1 MB",
+      "errorTooLarge": "File is too large — {{maxKb}} KB max.",
+      "errorRead": "Couldn't read that file."
+    },
+    "pipelineParams": {
+      "topKLabel": "Matches per entity",
+      "topKHint": "1–50",
+      "minSimilarityLabel": "Minimum similarity",
+      "minSimilarityHint": "0.00–1.00 cosine score"
+    },
+    "entityTypeFilter": {
+      "ariaLabel": "Filter entities by type",
+      "types": {
+        "occupation": "Occupations",
+        "skill": "Skills",
+        "qualification": "Qualifications"
+      }
+    }
   }
 }

@@ -163,5 +163,32 @@
       "loadError": "Impossible de charger vos clés API.",
       "copySuccess": "Clé copiée dans le presse-papiers"
     }
+  },
+  "classifier": {
+    "source": {
+      "placeholder": "Collez une offre d'emploi ici — ou déposez un fichier ci-dessous.",
+      "runButton": "Classifier",
+      "clearButton": "Effacer"
+    },
+    "upload": {
+      "prompt": "Déposez un fichier ou cliquez pour téléverser",
+      "subPrompt": ".txt, .md, .json — jusqu'à 1 Mo",
+      "errorTooLarge": "Fichier trop volumineux — maximum {{maxKb}} Ko.",
+      "errorRead": "Impossible de lire ce fichier."
+    },
+    "pipelineParams": {
+      "topKLabel": "Correspondances par entité",
+      "topKHint": "1 à 50",
+      "minSimilarityLabel": "Similarité minimale",
+      "minSimilarityHint": "Score cosinus entre 0,00 et 1,00"
+    },
+    "entityTypeFilter": {
+      "ariaLabel": "Filtrer les entités par type",
+      "types": {
+        "occupation": "Métiers",
+        "skill": "Compétences",
+        "qualification": "Qualifications"
+      }
+    }
   }
 }
