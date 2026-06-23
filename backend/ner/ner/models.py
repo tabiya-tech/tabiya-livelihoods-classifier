@@ -6,6 +6,14 @@ from pydantic import BaseModel, Field
 
 
 class EntityType(str, Enum):
+    """Entity types accepted as REQUEST filters.
+
+    The model can also emit `experience` and `domain` tags, which are not
+    linkable against ESCO and so make poor request-time filters; we keep
+    the request enum narrow but allow the response to surface any string
+    the model produces (see `Entity` below).
+    """
+
     occupation = "occupation"
     skill = "skill"
     qualification = "qualification"
@@ -38,7 +46,10 @@ class EntitySpan(BaseModel):
 
 
 class Entity(BaseModel):
-    entity_type: EntityType
+    # The model emits more types than the request-side enum advertises
+    # (e.g. "experience", "domain"). We surface them verbatim as strings so
+    # the response is never silently rejected by Pydantic.
+    entity_type: str
     surface_form: str
     span: EntitySpan
 

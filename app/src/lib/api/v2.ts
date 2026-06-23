@@ -97,7 +97,24 @@ export function deleteApiKey(keyId: string): Promise<void> {
 
 // ── Classify (Classify v2) ─────────────────────────────────────────────────
 
-export type ClassifyEntityType = "occupation" | "skill" | "qualification";
+/**
+ * Entity types the NER model can emit. `occupation`, `skill`, and
+ * `qualification` are linkable against ESCO; `experience` and `domain` are
+ * recognised + displayed but never have matches (backend skips NEL for them).
+ */
+export type ClassifyEntityType =
+  | "occupation"
+  | "skill"
+  | "qualification"
+  | "experience"
+  | "domain";
+
+/** The subset of {@link ClassifyEntityType} the backend tries to link to ESCO. */
+export const LINKABLE_ENTITY_TYPES = [
+  "occupation",
+  "skill",
+  "qualification",
+] as const satisfies readonly ClassifyEntityType[];
 
 export interface ClassifyEntitySpan {
   /** Character offset of the start of the surface form (inclusive). */

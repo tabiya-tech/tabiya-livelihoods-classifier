@@ -52,9 +52,15 @@ function partitionByType(
     occupation: [],
     skill: [],
     qualification: [],
+    experience: [],
+    domain: [],
   };
   entities.forEach((entity, entityIndex) => {
     if (!visibleTypes.has(entity.entity_type)) return;
+    // Defensive: if the backend ever returns a type we don't know about,
+    // skip rather than crash. Logging would be noisy; the JSON tab still
+    // surfaces the raw entity.
+    if (!(entity.entity_type in initial)) return;
     initial[entity.entity_type].push({ entity, entityIndex });
   });
   return initial;

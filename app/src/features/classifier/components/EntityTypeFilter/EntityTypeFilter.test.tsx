@@ -8,28 +8,40 @@ const givenCounts: Record<ClassifyEntityType, number> = {
   occupation: 1,
   skill: 3,
   qualification: 1,
+  experience: 2,
+  domain: 0,
 };
 
 describe("EntityTypeFilter", () => {
-  it("renders one chip per entity type with its count", () => {
-    // GIVEN counts across all three entity types
-    const expectedChipCount = 3;
+  it("renders one chip per known entity type with its count", () => {
+    // GIVEN counts across all five known entity types
+    const expectedChipCount = 5;
 
     // WHEN we render
     render(
       <EntityTypeFilter
-        selected={new Set(["occupation", "skill", "qualification"])}
+        selected={
+          new Set<ClassifyEntityType>([
+            "occupation",
+            "skill",
+            "qualification",
+            "experience",
+            "domain",
+          ])
+        }
         counts={givenCounts}
         onChange={() => {}}
       />,
     );
 
-    // THEN three chips appear and each shows the corresponding count
+    // THEN one chip per type renders in canonical order (linkable types first)
     const renderedChips = screen.getAllByTestId(DATA_TEST_ID.CHIP);
     expect(renderedChips).toHaveLength(expectedChipCount);
     expect(renderedChips[0]).toHaveTextContent(String(givenCounts.occupation));
     expect(renderedChips[1]).toHaveTextContent(String(givenCounts.skill));
     expect(renderedChips[2]).toHaveTextContent(String(givenCounts.qualification));
+    expect(renderedChips[3]).toHaveTextContent(String(givenCounts.experience));
+    expect(renderedChips[4]).toHaveTextContent(String(givenCounts.domain));
   });
 
   it("marks chips matching the selected set with aria-checked=true", () => {
