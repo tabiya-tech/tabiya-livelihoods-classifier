@@ -165,6 +165,35 @@
     }
   },
   "classifier": {
+    "eyebrow": "Espace · Classifier",
+    "title": "Classifier",
+    "intro": "Collez une offre d'emploi et nous extrairons les métiers, compétences et qualifications — chacun relié au concept ESCO le plus proche.",
+    "activeConfig": {
+      "tag": "config active",
+      "summary": "{{nel}} · {{taxonomy}}",
+      "loading": "Chargement de la config active…",
+      "configureLink": "Configurer"
+    },
+    "placeholder": {
+      "idleTitle": "Lancez une classification pour voir les résultats",
+      "idleHelp": "Collez une offre à gauche et cliquez sur Classifier.",
+      "runningTitle": "Classification en cours…",
+      "runningHelp": "Extraction des entités et liaison à ESCO."
+    },
+    "toasts": {
+      "runError": "Impossible de classifier ce texte. Veuillez réessayer."
+    },
+    "entityDetail": {
+      "spanLabel": "Étendue {{start}}–{{end}}",
+      "matchesHeading": "{{count}} correspondances ESCO",
+      "openInTaxonomy": "Ouvrir dans la taxonomie",
+      "attrEscoCode": "ESCO {{value}}",
+      "attrSkillType": "Type {{value}}",
+      "attrReuseLevel": "Réutilisation {{value}}",
+      "attrEqfLevel": "EQF {{value}}",
+      "attrCountry": "{{value}}",
+      "attrAltLabels": "Aussi : {{value}}"
+    },
     "source": {
       "placeholder": "Collez une offre d'emploi ici — ou déposez un fichier ci-dessous.",
       "runButton": "Classifier",
@@ -189,6 +218,26 @@
         "skill": "Compétences",
         "qualification": "Qualifications"
       }
+    },
+    "results": {
+      "downloadJson": "Télécharger le JSON",
+      "downloadCsv": "Télécharger le CSV",
+      "noMatches": "Aucune correspondance au-dessus du seuil",
+      "emptyTitle": "Rien à afficher",
+      "emptyDescription": "Ajustez le filtre des types d'entités pour voir les résultats ici."
+    },
+    "resultsTabs": {
+      "ariaLabel": "Vues des résultats",
+      "entities": "Entités",
+      "table": "Tableau",
+      "json": "JSON"
+    },
+    "resultsTable": {
+      "headerType": "Type",
+      "headerSurfaceForm": "Forme de surface",
+      "headerTopMatch": "Meilleure correspondance",
+      "headerScore": "Score",
+      "openButton": "Ouvrir"
     }
   }
 }
