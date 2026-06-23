@@ -43,6 +43,7 @@ import {
 } from "../components/ResultsTabs/ResultsTabs";
 import { useClassify } from "../hooks/useClassify";
 import { useClassifierUrlState } from "../hooks/useClassifierUrlState";
+import { normalizeClassifyInput } from "../lib/normalizeClassifyInput";
 
 const uniqueId = "8d3e1b6c-4f9a-4c5d-9e2f-7a6b3d8c1e4f";
 
@@ -82,10 +83,14 @@ export function ClassifierPage() {
   const entities = response?.entities ?? null;
 
   async function handleRun() {
-    const trimmed = text.trim();
-    if (!trimmed) return;
+    // Normalise before sending so the NER model sees prose-style text. The
+    // returned entity spans are offsets into the normalised string, so we
+    // also adopt it as the text the source pane renders highlights against.
+    const normalised = normalizeClassifyInput(text);
+    if (!normalised) return;
+    if (normalised !== text) setText(normalised);
     const payload: ClassifyRequest = {
-      text: trimmed,
+      text: normalised,
       options: { top_k: topK, min_similarity: minSimilarity },
     };
     setSelectedEntityIndex(null);

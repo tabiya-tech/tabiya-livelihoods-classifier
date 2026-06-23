@@ -61,13 +61,21 @@ export interface SourcePaneProps {
 function countByType(
   entities: ClassifiedEntity[] | null,
 ): Record<ClassifyEntityType, number> {
+  // Seed every known type at zero so the chip row always renders the same
+  // set in the same order, even when the backend returns no entities of a
+  // given type.
   const counts: Record<ClassifyEntityType, number> = {
     occupation: 0,
     skill: 0,
     qualification: 0,
+    experience: 0,
+    domain: 0,
   };
   if (!entities) return counts;
-  for (const entity of entities) counts[entity.entity_type] += 1;
+  for (const entity of entities) {
+    // Defensive: a future entity type the model adds shouldn't crash the page.
+    if (entity.entity_type in counts) counts[entity.entity_type] += 1;
+  }
   return counts;
 }
 

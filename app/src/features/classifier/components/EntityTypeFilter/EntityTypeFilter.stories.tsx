@@ -9,7 +9,13 @@ const meta: Meta<typeof EntityTypeFilter> = {
   component: EntityTypeFilter,
   parameters: { layout: "padded" },
   args: {
-    counts: { occupation: 1, skill: 3, qualification: 1 },
+    counts: {
+      occupation: 1,
+      skill: 3,
+      qualification: 1,
+      experience: 2,
+      domain: 0,
+    },
     selected: new Set(ENTITY_TYPES),
     onChange: fn(),
   },

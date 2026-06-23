@@ -18,10 +18,16 @@ export const DATA_TEST_ID = {
   CHIP: `entity-type-filter-chip-${uniqueId}`,
 };
 
+/**
+ * Order matters — controls visual order of chips and grouped results.
+ * Linkable types first, then the model-only types (experience, domain).
+ */
 export const ENTITY_TYPES: readonly ClassifyEntityType[] = [
   "occupation",
   "skill",
   "qualification",
+  "experience",
+  "domain",
 ] as const;
 
 export interface EntityTypeFilterProps {

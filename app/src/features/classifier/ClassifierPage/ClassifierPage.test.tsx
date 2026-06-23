@@ -115,6 +115,28 @@ describe("ClassifierPage", () => {
     });
   });
 
+  it("normalises form-style text before sending it to the backend", async () => {
+    // GIVEN text laid out as form labels (uploads of structured .txt files)
+    const givenFormText = "Job title\nStatistician\nDepartment";
+    const expectedNormalised = "Job title Statistician Department";
+
+    // WHEN we paste it and run
+    renderPage();
+    // userEvent.type can't type a literal newline; paste into the textarea instead.
+    const textarea = screen.getByTestId(
+      SOURCE_PANE_DATA_TEST_ID.TEXTAREA,
+    );
+    textarea.focus();
+    await userEvent.paste(givenFormText);
+    await userEvent.click(screen.getByTestId(SOURCE_PANE_DATA_TEST_ID.RUN_BUTTON));
+
+    // THEN the backend receives the prose-style normalised text
+    await waitFor(() => expect(apiMocks.classify).toHaveBeenCalledTimes(1));
+    expect(apiMocks.classify.mock.calls[0][0]).toMatchObject({
+      text: expectedNormalised,
+    });
+  });
+
   it("renders the EntityHighlight + ResultsTabs once a run resolves", async () => {
     // GIVEN a successful classify
     renderPage();
