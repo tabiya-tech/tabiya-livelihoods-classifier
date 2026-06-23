@@ -42,6 +42,11 @@ function buildNavGroups(
           label: t("shell.nav.items.dashboard"),
           icon: "dashboard",
         },
+        {
+          id: "classifier",
+          label: t("shell.nav.items.classifier"),
+          icon: "classify",
+        },
       ],
     },
     {
@@ -65,6 +70,7 @@ function buildNavGroups(
 /** Map a route path to its sidebar nav item id. Empty string when no item matches. */
 function deriveActiveNavId(pathname: string): string {
   if (pathname.startsWith(routerPaths.DASHBOARD)) return "dashboard";
+  if (pathname.startsWith(routerPaths.CLASSIFIER)) return "classifier";
   if (pathname.startsWith(routerPaths.CONFIGURATION)) return "configuration";
   if (pathname.startsWith(routerPaths.KEYS)) return "keys";
   return "";
@@ -82,6 +88,15 @@ function buildBreadcrumbsForPath(
         onClick: () => navigateTo(routerPaths.DASHBOARD),
       },
       { label: t("shell.nav.items.dashboard") },
+    ];
+  }
+  if (pathname.startsWith(routerPaths.CLASSIFIER)) {
+    return [
+      {
+        label: t("shell.nav.groups.workspace"),
+        onClick: () => navigateTo(routerPaths.CLASSIFIER),
+      },
+      { label: t("shell.nav.items.classifier") },
     ];
   }
   if (pathname.startsWith(routerPaths.CONFIGURATION)) {
@@ -122,6 +137,7 @@ function getStatusPillLabel(
 
 function navItemIdToRoutePath(navItemId: string): string {
   if (navItemId === "dashboard") return routerPaths.DASHBOARD;
+  if (navItemId === "classifier") return routerPaths.CLASSIFIER;
   if (navItemId === "configuration") return routerPaths.CONFIGURATION;
   if (navItemId === "keys") return routerPaths.KEYS;
   return routerPaths.DASHBOARD;

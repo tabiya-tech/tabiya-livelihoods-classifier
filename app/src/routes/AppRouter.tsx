@@ -6,6 +6,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "@/features/auth/LoginPage/LoginPage";
 import { AppShell } from "@/features/shell/AppShell/AppShell";
+import { ClassifierPage } from "@/features/classifier/ClassifierPage/ClassifierPage";
 import { ConfigurationPage } from "@/features/configuration/ConfigurationPage/ConfigurationPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage/DashboardPage";
 import { ApiKeysPage } from "@/features/keys/ApiKeysPage/ApiKeysPage";
@@ -33,6 +34,10 @@ export function AppRouter() {
           }
         >
           <Route path={routerPaths.DASHBOARD} element={<DashboardPage />} />
+          <Route
+            path={routerPaths.CLASSIFIER}
+            element={<ClassifierPage />}
+          />
           <Route
             path={routerPaths.CONFIGURATION}
             element={<ConfigurationPage />}
