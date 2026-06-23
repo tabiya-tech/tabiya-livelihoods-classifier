@@ -79,6 +79,7 @@ describe("AppShell", () => {
   it("renders the Workspace and Settings nav links in the sidebar", () => {
     // GIVEN the expected nav link labels from i18n
     const expectedDashboardLabel = i18n.t("shell.nav.items.dashboard");
+    const expectedClassifierLabel = i18n.t("shell.nav.items.classifier");
     const expectedConfigurationLabel = i18n.t(
       "shell.nav.items.configuration",
     );
@@ -87,14 +88,15 @@ describe("AppShell", () => {
     // WHEN we render the shell
     renderShellAtPath(routerPaths.DASHBOARD);
 
-    // THEN the nav links appear in order: Dashboard, Configuration, Keys
+    // THEN the nav links appear in order: Dashboard, Classifier, Configuration, Keys
     const renderedNavLinks = screen.getAllByTestId(
       NAV_LINK_DATA_TEST_ID.CONTAINER,
     );
-    expect(renderedNavLinks).toHaveLength(3);
+    expect(renderedNavLinks).toHaveLength(4);
     expect(renderedNavLinks[0]).toHaveTextContent(expectedDashboardLabel);
-    expect(renderedNavLinks[1]).toHaveTextContent(expectedConfigurationLabel);
-    expect(renderedNavLinks[2]).toHaveTextContent(expectedKeysLabel);
+    expect(renderedNavLinks[1]).toHaveTextContent(expectedClassifierLabel);
+    expect(renderedNavLinks[2]).toHaveTextContent(expectedConfigurationLabel);
+    expect(renderedNavLinks[3]).toHaveTextContent(expectedKeysLabel);
   });
 
   it("displays the API healthy status pill with the version", () => {

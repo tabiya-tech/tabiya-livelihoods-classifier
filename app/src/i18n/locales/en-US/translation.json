@@ -165,6 +165,35 @@
     }
   },
   "classifier": {
+    "eyebrow": "Workspace · Classifier",
+    "title": "Classifier",
+    "intro": "Paste a job description and we'll extract occupations, skills, and qualifications — each linked to its closest ESCO concept.",
+    "activeConfig": {
+      "tag": "active config",
+      "summary": "{{nel}} · {{taxonomy}}",
+      "loading": "Loading active config…",
+      "configureLink": "Configure"
+    },
+    "placeholder": {
+      "idleTitle": "Run a classification to see results",
+      "idleHelp": "Paste a job description on the left and click Classify.",
+      "runningTitle": "Running classification…",
+      "runningHelp": "Extracting entities and linking to ESCO."
+    },
+    "toasts": {
+      "runError": "Couldn't classify that text. Please try again."
+    },
+    "entityDetail": {
+      "spanLabel": "Span {{start}}–{{end}}",
+      "matchesHeading": "{{count}} ESCO matches",
+      "openInTaxonomy": "Open in taxonomy",
+      "attrEscoCode": "ESCO {{value}}",
+      "attrSkillType": "Type {{value}}",
+      "attrReuseLevel": "Reuse {{value}}",
+      "attrEqfLevel": "EQF {{value}}",
+      "attrCountry": "{{value}}",
+      "attrAltLabels": "Also: {{value}}"
+    },
     "source": {
       "placeholder": "Paste a job description here — or drop a file below.",
       "runButton": "Classify",
@@ -189,6 +218,26 @@
         "skill": "Skills",
         "qualification": "Qualifications"
       }
+    },
+    "results": {
+      "downloadJson": "Download JSON",
+      "downloadCsv": "Download CSV",
+      "noMatches": "No matches above threshold",
+      "emptyTitle": "Nothing to show",
+      "emptyDescription": "Adjust the entity-type filter to see results here."
+    },
+    "resultsTabs": {
+      "ariaLabel": "Result views",
+      "entities": "Entities",
+      "table": "Table",
+      "json": "JSON"
+    },
+    "resultsTable": {
+      "headerType": "Type",
+      "headerSurfaceForm": "Surface form",
+      "headerTopMatch": "Top match",
+      "headerScore": "Score",
+      "openButton": "Open"
     }
   }
 }

@@ -1,0 +1,91 @@
+/**
+ * Grouped entity card: header (type + count) followed by a stack of rows.
+ *
+ * The page builds one of these per visible entity type. Pure presentation
+ * — selection / click handling is forwarded.
+ */
+
+import { useTranslation } from "react-i18next";
+import type { ClassifiedEntity, ClassifyEntityType } from "@/lib/api";
+import { mergeClassNames } from "@/lib/mergeClassNames";
+import { EntityRow } from "../EntityRow/EntityRow";
+import { EntitySwatch } from "../EntitySwatch/EntitySwatch";
+
+const uniqueId = "6c2e8f4d-1b7a-4d9c-8e5f-3a2d6c9b1e4f";
+
+export const DATA_TEST_ID = {
+  CONTAINER: `entity-group-card-container-${uniqueId}`,
+  HEADER: `entity-group-card-header-${uniqueId}`,
+  LABEL: `entity-group-card-label-${uniqueId}`,
+  COUNT: `entity-group-card-count-${uniqueId}`,
+  ROWS: `entity-group-card-rows-${uniqueId}`,
+};
+
+export interface EntityGroupCardEntry {
+  entity: ClassifiedEntity;
+  /** Stable index in the un-filtered entity array. */
+  entityIndex: number;
+}
+
+export interface EntityGroupCardProps {
+  entityType: ClassifyEntityType;
+  entries: EntityGroupCardEntry[];
+  selectedEntityIndex?: number | null;
+  onEntityClick?: (entity: ClassifiedEntity, entityIndex: number) => void;
+  className?: string;
+}
+
+export function EntityGroupCard({
+  entityType,
+  entries,
+  selectedEntityIndex = null,
+  onEntityClick,
+  className,
+}: EntityGroupCardProps) {
+  const { t } = useTranslation();
+  const labelKey = `classifier.entityTypeFilter.types.${entityType}` as const;
+
+  return (
+    <section
+      data-testid={DATA_TEST_ID.CONTAINER}
+      data-entity-type={entityType}
+      className={mergeClassNames(
+        "flex flex-col gap-3 rounded-md border border-line bg-cream px-4 py-3.5",
+        className,
+      )}
+    >
+      <header
+        data-testid={DATA_TEST_ID.HEADER}
+        className="flex items-baseline justify-between"
+      >
+        <span
+          data-testid={DATA_TEST_ID.LABEL}
+          className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-muted"
+        >
+          <EntitySwatch entityType={entityType} />
+          {t(labelKey)}
+        </span>
+        <span
+          data-testid={DATA_TEST_ID.COUNT}
+          className="font-mono text-[11px] text-muted-2"
+        >
+          {entries.length}
+        </span>
+      </header>
+      <div
+        data-testid={DATA_TEST_ID.ROWS}
+        className="flex flex-col gap-2"
+      >
+        {entries.map(({ entity, entityIndex }) => (
+          <EntityRow
+            key={`${entityIndex}-${entity.span.start}`}
+            entity={entity}
+            entityIndex={entityIndex}
+            isSelected={entityIndex === selectedEntityIndex}
+            onClick={onEntityClick}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
