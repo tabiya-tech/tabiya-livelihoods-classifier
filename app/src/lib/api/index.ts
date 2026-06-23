@@ -13,6 +13,7 @@ export {
   createApiKey,
   deleteApiKey,
   classify,
+  LINKABLE_ENTITY_TYPES,
 } from "./v2";
 export type {
   NelModel,

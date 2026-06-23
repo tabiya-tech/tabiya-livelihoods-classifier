@@ -216,7 +216,9 @@
       "types": {
         "occupation": "Occupations",
         "skill": "Skills",
-        "qualification": "Qualifications"
+        "qualification": "Qualifications",
+        "experience": "Experience",
+        "domain": "Domain"
       }
     },
     "results": {
