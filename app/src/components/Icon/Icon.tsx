@@ -83,6 +83,14 @@ const paths: Record<IconName, JSX.Element> = {
       stroke="none"
     />
   ),
+  pipelines: (
+    <>
+      <rect x="1.5" y="5" width="4" height="3" rx="1" />
+      <rect x="6" y="5" width="4" height="3" rx="1" />
+      <rect x="10.5" y="5" width="4" height="3" rx="1" />
+      <path d="M3.5 8v2M8 8v2M12.5 8v2M3.5 10h9" />
+    </>
+  ),
 };
 
 export function Icon({ name, size = 14, ...rest }: IconProps) {

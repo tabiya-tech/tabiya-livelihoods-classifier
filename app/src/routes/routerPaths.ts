@@ -9,6 +9,7 @@ export const routerPaths = {
   LOGIN: "/login",
   DASHBOARD: "/dashboard",
   CLASSIFIER: "/classifier",
+  PIPELINES: "/pipelines",
   CONFIGURATION: "/configuration",
   KEYS: "/keys",
 } as const;

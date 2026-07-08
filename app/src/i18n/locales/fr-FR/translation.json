@@ -52,7 +52,8 @@
         "history": "Historique",
         "configuration": "Configuration",
         "keys": "Clés",
-        "documentation": "Documentation"
+        "documentation": "Documentation",
+        "pipelines": "Pipelines"
       }
     },
     "topbar": {
@@ -240,6 +241,41 @@
       "headerTopMatch": "Meilleure correspondance",
       "headerScore": "Score",
       "openButton": "Ouvrir"
+    }
+  },
+  "pipelines": {
+    "list": {
+      "eyebrow": "Espace de travail · Pipelines",
+      "title": "Pipelines",
+      "intro": "Les pipelines définissent la séquence de plugins utilisée pour classifier le texte. Activez un pipeline pour en faire la valeur par défaut pour tous les appels d'API et le Classifier intégré.",
+      "table": {
+        "headerName": "Nom",
+        "headerActive": "Actif",
+        "headerUpdated": "Dernière mise à jour",
+        "headerActions": "Actions"
+      },
+      "badges": {
+        "default": "Par défaut",
+        "readonly": "Lecture seule"
+      },
+      "tabs": {
+        "activeBadge": "Actif"
+      },
+      "actions": {
+        "activate": "Activer",
+        "clone": "Cloner",
+        "delete": "Supprimer"
+      },
+      "empty": {
+        "title": "Aucun pipeline",
+        "description": "Votre compte ne possède aucun pipeline. Le pipeline Tabiya par défaut sera utilisé pour toutes les classifications."
+      },
+      "toasts": {
+        "activateError": "Impossible d'activer ce pipeline. Veuillez réessayer.",
+        "cloneError": "Impossible de cloner ce pipeline. Veuillez réessayer.",
+        "deleteError": "Impossible de supprimer ce pipeline. Veuillez réessayer.",
+        "loadError": "Impossible de charger vos pipelines."
+      }
     }
   }
 }
