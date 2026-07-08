@@ -3,12 +3,15 @@
 import logging
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from classify_v2.app.api_keys.routes.routes import router as api_keys_router
 from classify_v2.app.api_keys.service.gcp_key_manager import GcpKeyManager
 from classify_v2.app.classification.routes.routes import router as classify_router
+from classify_v2.app.pipelines.plugins_routes.routes import router as plugins_router
+from classify_v2.app.pipelines.registry import PluginRegistry, load_catalog
 from classify_v2.app.version.routes import router as version_router
 from classify_v2.config import (
     CORS_ALLOWED_ORIGINS,
@@ -42,7 +45,25 @@ async def lifespan(app: FastAPI):
             "GCP_PROJECT_ID and/or GCP_API_MANAGED_SERVICE are unset — "
             "/v2/user/api-keys routes will return 500 until configured",
         )
+
+    # Plugin registry: resolve URLs, fetch manifests, keep a periodic refresh.
+    # A dedicated AsyncClient is stored on app.state so the registry and the
+    # future executor share connection pooling to plugin bundles.
+    app.state.plugin_http = httpx.AsyncClient(timeout=5.0)
+    registry = PluginRegistry(
+        catalog=load_catalog(),
+        http_client=app.state.plugin_http,
+    )
+    await registry.refresh()
+    await registry.start_background_refresh()
+    app.state.plugin_registry = registry
+    loaded_count = sum(1 for plugin in registry.list_manifests() if plugin.manifest is not None)
+    _logger.info("Loaded %d plugin manifest(s)", loaded_count)
+
     yield
+
+    await registry.stop_background_refresh()
+    await app.state.plugin_http.aclose()
     _logger.info("Classify v2 shutting down")
 
 
@@ -59,3 +80,4 @@ app.add_middleware(
 app.include_router(version_router)
 app.include_router(classify_router)
 app.include_router(api_keys_router)
+app.include_router(plugins_router)

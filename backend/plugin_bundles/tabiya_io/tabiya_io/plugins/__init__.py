@@ -1,11 +1,21 @@
-"""Installed plugins for the Tabiya-IO bundle.
+"""Installed plugins for the Tabiya-IO bundle."""
 
-Populated in 11.1b: text_input (Source), results (Sink), job_scraper.
-For now the bundle boots empty so 11.1a can exercise the routing
-scaffolding in isolation.
-"""
+from __future__ import annotations
 
-from tabiya_plugin_contracts import Manifest
+from typing import Awaitable, Callable, Optional
+
+from tabiya_plugin_contracts import Manifest, Health
+
+from .results import MANIFEST as RESULTS_MANIFEST
+from .results import invoke as results_invoke
+from .text_input import MANIFEST as TEXT_INPUT_MANIFEST
+from .text_input import invoke as text_input_invoke
 
 
-INSTALLED_PLUGINS: list[tuple[Manifest, object, object | None]] = []
+HealthFn = Callable[[], Awaitable[Health]]
+
+
+INSTALLED_PLUGINS: list[tuple[Manifest, object, Optional[HealthFn]]] = [
+    (TEXT_INPUT_MANIFEST, text_input_invoke, None),
+    (RESULTS_MANIFEST, results_invoke, None),
+]
