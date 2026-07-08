@@ -57,7 +57,7 @@ export function EntityTable({
   return (
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
-      className={mergeClassNames("flex flex-col gap-3", className)}
+      className={mergeClassNames("flex min-h-0 flex-col gap-3", className)}
     >
       <div className="flex justify-end">
         <Button
@@ -71,7 +71,7 @@ export function EntityTable({
           {t("classifier.results.downloadCsv")}
         </Button>
       </div>
-      <div className="overflow-hidden rounded-md border border-line bg-paper">
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-line bg-paper">
         <Table>
           <Table.Head>
             <Table.Row>
@@ -108,7 +108,9 @@ export function EntityTable({
                     <span className="inline-flex items-center gap-2">
                       <EntitySwatch entityType={entity.entity_type} />
                       <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
-                        {entity.entity_type}
+                        {t(
+                          `classifier.entityTypeFilter.types.${entity.entity_type}`,
+                        )}
                       </span>
                     </span>
                   </Table.Cell>
