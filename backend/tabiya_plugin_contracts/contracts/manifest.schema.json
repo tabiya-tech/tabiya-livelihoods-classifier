@@ -1,0 +1,180 @@
+{
+  "$defs": {
+    "PluginCategory": {
+      "enum": [
+        "source",
+        "core",
+        "transform",
+        "sink"
+      ],
+      "title": "PluginCategory",
+      "type": "string"
+    },
+    "Slot": {
+      "description": "Manifest input_slot / output_slot descriptor.",
+      "properties": {
+        "cardinality": {
+          "default": "single",
+          "enum": [
+            "single",
+            "none"
+          ],
+          "title": "Cardinality",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SlotType"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Slot",
+      "type": "object"
+    },
+    "SlotType": {
+      "enum": [
+        "None",
+        "RawText",
+        "RawTextStream",
+        "Entities",
+        "LinkedEntities"
+      ],
+      "title": "SlotType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Static metadata returned by `GET /plugin/manifest`.\n\nThe `x-tabiya-*` extension fields are declared as explicit optionals to\nkeep the JSON Schema readable; unknown extension fields are also allowed\nso plugin authors can add their own without touching this package.",
+  "properties": {
+    "category": {
+      "$ref": "#/$defs/PluginCategory"
+    },
+    "config_schema": {
+      "additionalProperties": true,
+      "description": "Hand-rolled JSON Schema subset used by the editor's ConfigForm and by invoke-time config validation. May include the `x-source` extension field pointing at a plugin options endpoint for dynamic dropdowns.",
+      "title": "Config Schema",
+      "type": "object"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "icon": {
+      "description": "Key into the frontend's icon map.",
+      "title": "Icon",
+      "type": "string"
+    },
+    "input_slot": {
+      "$ref": "#/$defs/Slot"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "output_slot": {
+      "$ref": "#/$defs/Slot"
+    },
+    "plugin_id": {
+      "description": "Dotted, version-suffixed identifier. Example: tabiya.ner.v1",
+      "title": "Plugin Id",
+      "type": "string"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "timeout_ms": {
+      "default": 30000,
+      "description": "Per-invoke deadline enforced by the orchestrator.",
+      "title": "Timeout Ms",
+      "type": "integer"
+    },
+    "version": {
+      "description": "Semver of the plugin implementation itself.",
+      "title": "Version",
+      "type": "string"
+    },
+    "x-tabiya-batch-max": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "X-Tabiya-Batch-Max"
+    },
+    "x-tabiya-cancellable": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "X-Tabiya-Cancellable"
+    },
+    "x-tabiya-contract-version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Contract version the plugin was built against. Auto-emitted by the adapter helper.",
+      "title": "X-Tabiya-Contract-Version"
+    },
+    "x-tabiya-idempotent": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "X-Tabiya-Idempotent"
+    },
+    "x-tabiya-streams": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "X-Tabiya-Streams"
+    }
+  },
+  "required": [
+    "plugin_id",
+    "name",
+    "version",
+    "category",
+    "summary",
+    "icon",
+    "input_slot",
+    "output_slot"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

@@ -53,6 +53,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-storybook": "^0.9.0",
     "jsdom": "^25.0.1",
+    "json-schema-to-typescript": "^15.0.4",
     "knip": "^6.16.1",
     "msw": "^2.4.9",
     "msw-storybook-addon": "^2.0.4",
