@@ -201,12 +201,25 @@ export interface ClassifyRequest {
   options?: ClassifyOptions;
 }
 
+export interface PipelineStageSummary {
+  plugin_id: string;
+  category: string;
+}
+
+export interface ClassifyPipelineSummary {
+  pipeline_id: string;
+  name: string;
+  stages: PipelineStageSummary[];
+}
+
 export interface ClassifyMetadata {
   classifier_version: string;
   ner_model: string;
   nel_model_id: string;
   taxonomy_model_id: string;
   processing_time_ms: number;
+  /** Present once the backend runs classify through the pipeline executor. */
+  pipeline?: ClassifyPipelineSummary | null;
 }
 
 export interface ClassifyResponse {
@@ -216,6 +229,208 @@ export interface ClassifyResponse {
 
 export function classify(payload: ClassifyRequest): Promise<ClassifyResponse> {
   return request<ClassifyResponse>("/v2/classify", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// ── Plugins (Classify v2) ──────────────────────────────────────────────────
+
+/** Runtime status of a plugin as seen by the orchestrator. */
+export type PluginStatus = "enabled" | "degraded" | "unavailable";
+
+export type PluginCategory = "source" | "core" | "transform" | "sink";
+
+/** Extra fields the backend may attach under `x-tabiya-*`. Optional in v1. */
+export interface PluginCapabilities {
+  "x-tabiya-contract-version"?: string | null;
+  "x-tabiya-streams"?: boolean | null;
+  "x-tabiya-idempotent"?: boolean | null;
+  "x-tabiya-cancellable"?: boolean | null;
+  "x-tabiya-batch-max"?: number | null;
+}
+
+/** Palette-sized manifest projection returned by `GET /v2/plugins`. */
+export interface PluginSummary {
+  plugin_id: string;
+  name: string;
+  version: string;
+  category?: PluginCategory | null;
+  summary: string;
+  detail?: string | null;
+  icon: string;
+  status: PluginStatus;
+  coming_soon: boolean;
+  last_error?: string | null;
+}
+
+export interface ListPluginsResponse {
+  plugins: PluginSummary[];
+}
+
+export interface PluginSlot {
+  type: "None" | "RawText" | "RawTextStream" | "Entities" | "LinkedEntities";
+  cardinality?: "single" | "none";
+}
+
+/** Full plugin manifest, as returned by `GET /v2/plugins/{plugin_id}`. */
+export interface PluginManifest extends PluginCapabilities {
+  plugin_id: string;
+  name: string;
+  version: string;
+  category: PluginCategory;
+  summary: string;
+  detail?: string | null;
+  icon: string;
+  input_slot: PluginSlot;
+  output_slot: PluginSlot;
+  config_schema: Record<string, unknown>;
+  timeout_ms: number;
+}
+
+/** Response body of `GET /v2/plugins/{plugin_id}`. */
+export interface PluginDetail {
+  plugin_id: string;
+  status: PluginStatus;
+  coming_soon: boolean;
+  last_error?: string | null;
+  manifest: PluginManifest | null;
+}
+
+export interface PluginOptionItem {
+  value: string;
+  label: string;
+}
+
+export interface PluginOptionsResponse {
+  field: string;
+  options: PluginOptionItem[];
+}
+
+export function listPlugins(): Promise<ListPluginsResponse> {
+  return request<ListPluginsResponse>("/v2/plugins");
+}
+
+export function getPlugin(pluginId: string): Promise<PluginDetail> {
+  return request<PluginDetail>(`/v2/plugins/${encodeURIComponent(pluginId)}`);
+}
+
+export function getPluginOptions(
+  pluginId: string,
+  field: string,
+): Promise<PluginOptionsResponse> {
+  return request<PluginOptionsResponse>(
+    `/v2/plugins/${encodeURIComponent(pluginId)}/options/${encodeURIComponent(field)}`,
+  );
+}
+
+// ── Pipelines (Classify v2) ────────────────────────────────────────────────
+
+export interface PipelineStage {
+  plugin_id: string;
+  config: Record<string, unknown>;
+}
+
+export interface Pipeline {
+  pipeline_id: string;
+  user_id: string;
+  name: string;
+  stages: PipelineStage[];
+  is_active: boolean;
+  is_default: boolean;
+  is_readonly: boolean;
+  /** ISO-8601 UTC timestamp. */
+  created_at: string;
+  /** ISO-8601 UTC timestamp. */
+  updated_at: string;
+}
+
+export interface ListPipelinesResponse {
+  pipelines: Pipeline[];
+}
+
+export interface CreatePipelineRequest {
+  name: string;
+  stages: PipelineStage[];
+}
+
+export interface UpdatePipelineRequest {
+  name: string;
+  stages: PipelineStage[];
+}
+
+/** One issue surfaced by the backend validator (design §7). */
+export interface PipelineValidationIssue {
+  code: string;
+  message: string;
+  stage_index?: number | null;
+  plugin_id?: string | null;
+  detail?: Record<string, unknown> | null;
+}
+
+export interface ValidatePipelineRequest {
+  stages: PipelineStage[];
+}
+
+export interface ValidatePipelineResponse {
+  valid: boolean;
+  issues: PipelineValidationIssue[];
+}
+
+export function listPipelines(): Promise<ListPipelinesResponse> {
+  return request<ListPipelinesResponse>("/v2/pipelines");
+}
+
+export function getPipeline(pipelineId: string): Promise<Pipeline> {
+  return request<Pipeline>(
+    `/v2/pipelines/${encodeURIComponent(pipelineId)}`,
+  );
+}
+
+export function createPipeline(
+  payload: CreatePipelineRequest,
+): Promise<Pipeline> {
+  return request<Pipeline>("/v2/pipelines", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePipeline(
+  pipelineId: string,
+  payload: UpdatePipelineRequest,
+): Promise<Pipeline> {
+  return request<Pipeline>(
+    `/v2/pipelines/${encodeURIComponent(pipelineId)}`,
+    { method: "PUT", body: JSON.stringify(payload) },
+  );
+}
+
+export function deletePipeline(pipelineId: string): Promise<void> {
+  return request<void>(
+    `/v2/pipelines/${encodeURIComponent(pipelineId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function activatePipeline(pipelineId: string): Promise<Pipeline> {
+  return request<Pipeline>(
+    `/v2/pipelines/${encodeURIComponent(pipelineId)}/activate`,
+    { method: "POST" },
+  );
+}
+
+export function clonePipeline(pipelineId: string): Promise<Pipeline> {
+  return request<Pipeline>(
+    `/v2/pipelines/${encodeURIComponent(pipelineId)}/clone`,
+    { method: "POST" },
+  );
+}
+
+export function validatePipeline(
+  payload: ValidatePipelineRequest,
+): Promise<ValidatePipelineResponse> {
+  return request<ValidatePipelineResponse>("/v2/pipelines/validate", {
     method: "POST",
     body: JSON.stringify(payload),
   });
