@@ -1,156 +1,329 @@
-"""Tests for classify v2 service."""
+"""Tests for the plugin-based ClassifyService.
+
+The service is now a thin adapter over `PipelineExecutor`. These tests
+inject a stub executor to verify the mapping from `ExecutorResult` back
+into `ClassifyResponse` — the executor itself is covered separately.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
 
 import pytest
-import respx
-import httpx
 
-from classify_v2.app.classification.service.errors import EmbeddingsCacheNotReadyError, NERServiceError, NELServiceError
+from classify_v2.app.classification.service.errors import (
+    EmbeddingsCacheNotReadyError,
+    NELServiceError,
+    NERServiceError,
+)
 from classify_v2.app.classification.service.service import ClassifyService
 from classify_v2.app.classification.service.types import ClassifyOptions
+from classify_v2.app.pipelines.executor import (
+    ExecutorResult,
+    PluginInvocationError,
+    PluginTimeoutError,
+    PluginUpstreamUnavailableError,
+    StageOutcome,
+)
+from classify_v2.app.pipelines.executor.executor import PipelineExecutor
+from classify_v2.app.pipelines.repository import PipelineDocument, StageDocument
 
 
-_NER_URL = "http://ner-test"
-_NEL_URL = "http://nel-test"
+def _canonical_pipeline_doc() -> PipelineDocument:
+    now = datetime.now(timezone.utc)
+    return PipelineDocument(
+        pipeline_id="pipe-1",
+        user_id="uid-1",
+        name="Default Tabiya",
+        stages=[
+            StageDocument(plugin_id="tabiya.source.text.v1", config={"text": ""}),
+            StageDocument(plugin_id="tabiya.ner.v1", config={}),
+            StageDocument(
+                plugin_id="tabiya.nel.v1",
+                config={"nel_model_id": "m", "taxonomy_model_id": "t"},
+            ),
+            StageDocument(plugin_id="tabiya.sink.results.v1", config={}),
+        ],
+        is_active=True,
+        is_default=True,
+        is_readonly=True,
+        created_at=now,
+        updated_at=now,
+    )
 
-_NER_RESPONSE = {
-    "entities": [
-        {"surface_form": "Head Chef", "entity_type": "occupation", "span": {"start": 0, "end": 9}},
-        {"surface_form": "Python", "entity_type": "skill", "span": {"start": 10, "end": 16}},
-    ],
-    "metadata": {"model_name": "ner-model-v1"},
-}
 
-_NEL_RESPONSE = {
-    "linked_entities": [
-        {
-            "input_text": "Head Chef",
-            "entity_type": "occupation",
-            "matches": [
+def _canonical_executor_result(*, source_text: str = "Statistician") -> ExecutorResult:
+    return ExecutorResult(
+        pipeline_id="pipe-1",
+        pipeline_name="Default Tabiya",
+        stages=[
+            StageOutcome(
+                stage_index=0,
+                plugin_id="tabiya.source.text.v1",
+                plugin_version="0.1.0",
+                category="source",
+                duration_ms=1.0,
+                status="ok",
+            ),
+            StageOutcome(
+                stage_index=1,
+                plugin_id="tabiya.ner.v1",
+                plugin_version="0.1.0",
+                category="core",
+                duration_ms=2.0,
+                status="ok",
+                metadata={"model_name": "ner-test", "processing_time_ms": 2.0},
+            ),
+            StageOutcome(
+                stage_index=2,
+                plugin_id="tabiya.nel.v1",
+                plugin_version="0.1.0",
+                category="core",
+                duration_ms=3.0,
+                status="ok",
+                metadata={"nel_model_id": "all-MiniLM-L6-v2", "taxonomy_model_id": "tax-1"},
+            ),
+            StageOutcome(
+                stage_index=3,
+                plugin_id="tabiya.sink.results.v1",
+                plugin_version="0.1.0",
+                category="sink",
+                duration_ms=0.5,
+                status="ok",
+            ),
+        ],
+        final_output={"kind": "None"},
+        linked_entities_payload={
+            "entities": [
                 {
+                    "surface_form": source_text,
                     "entity_type": "occupation",
-                    "similarity_score": 0.92,
-                    "entity": {
-                        "uuid": "u1",
-                        "origin_uuid": "u1",
-                        "uuid_history": ["u1"],
-                        "preferred_label": "Head Chef",
-                        "origin_uri": "http://example.com",
-                        "alt_labels": [],
-                        "description": "",
-                        "esco_code": "1234.1",
-                    },
+                    "span": {"start": 0, "end": len(source_text)},
+                    "matches": [
+                        {
+                            "id": f"esco/occupation/{source_text}",
+                            "preferred_label": source_text,
+                            "score": 0.91,
+                            "uri": f"http://taxonomy.tabiya.tech/occupation/{source_text}",
+                        }
+                    ],
                 }
             ],
+            "source_text": source_text,
         },
-        {
-            "input_text": "Python",
-            "entity_type": "skill",
-            "matches": [
-                {
-                    "entity_type": "skill",
-                    "similarity_score": 0.85,
-                    "entity": {
-                        "uuid": "u2",
-                        "origin_uuid": "u2",
-                        "uuid_history": ["u2"],
-                        "preferred_label": "Python (programming language)",
-                        "origin_uri": "http://example.com/skill",
-                        "alt_labels": [],
-                        "description": "",
-                        "skill_type": "skill/competence",
-                        "reuse_level": "cross-sector",
-                    },
-                }
-            ],
-        },
-    ],
-    "metadata": {"nel_model_id": "all-MiniLM-L6-v2", "taxonomy_model_id": "tax-1", "processing_time_ms": 50.0},
-}
+    )
 
 
-class TestClassifyService:
-    @respx.mock
-    async def test_happy_path_returns_classified_entities(self):
-        # GIVEN NER and NEL both respond successfully
-        respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
-        respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json=_NEL_RESPONSE))
-        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+class _StubExecutor:
+    def __init__(self, *, result: ExecutorResult | None = None, exc: Exception | None = None) -> None:
+        self._result = result
+        self._exc = exc
+        self.last_call: dict = {}
 
-        # WHEN classify is called
-        result = await svc.classify("Head Chef Python")
+    async def run(self, **kwargs) -> ExecutorResult:
+        self.last_call = kwargs
+        if self._exc is not None:
+            raise self._exc
+        assert self._result is not None
+        return self._result
 
-        # THEN both entities are returned with their matches
-        assert len(result.entities) == 2
-        occupation = next(e for e in result.entities if e.entity_type == "occupation")
-        assert occupation.surface_form == "Head Chef"
-        assert len(occupation.matches) == 1
-        assert occupation.matches[0].entity.preferred_label == "Head Chef"
 
-    @respx.mock
-    async def test_metadata_propagated_from_nel_response(self):
-        # GIVEN NER and NEL respond with known metadata
-        respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
-        respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json=_NEL_RESPONSE))
-        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+def _service_with_stub_executor(stub: _StubExecutor) -> ClassifyService:
+    # The concrete PipelineExecutor takes registry + http_client, but the
+    # service treats it as an "async .run(...)" collaborator — we can
+    # substitute a plain stub without instantiating the real executor.
+    service = ClassifyService(executor=stub)  # type: ignore[arg-type]
+    return service
 
-        # WHEN classify is called
-        result = await svc.classify("Head Chef Python")
 
-        # THEN metadata reflects the nel model and taxonomy used
-        assert result.metadata.nel_model_id == "all-MiniLM-L6-v2"
-        assert result.metadata.taxonomy_model_id == "tax-1"
-        assert result.metadata.ner_model == "ner-model-v1"
+async def test_classify_maps_linked_entities_to_classify_response() -> None:
+    # GIVEN a canonical executor result
+    givenPipeline = _canonical_pipeline_doc()
+    givenResult = _canonical_executor_result(source_text="Statistician")
+    stub = _StubExecutor(result=givenResult)
+    service = _service_with_stub_executor(stub)
 
-    @respx.mock
-    async def test_nel_not_called_when_no_linkable_entities(self):
-        # GIVEN NER returns no linkable entity types
-        ner_response = {
-            "entities": [],
-            "metadata": {"model_name": "ner-model-v1"},
-        }
-        respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=ner_response))
-        nel_mock = respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json={"linked_entities": [], "metadata": {}}))
-        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+    # WHEN we classify
+    response = await service.classify(
+        pipeline=givenPipeline,
+        input_text="Statistician wanted",
+        options=ClassifyOptions(),
+        request_id="req-1",
+        user_id="uid-1",
+    )
 
-        # WHEN classify is called
-        result = await svc.classify("some text")
+    # THEN entities carry surface_form + matches from the linked payload
+    assert len(response.entities) == 1
+    assert response.entities[0].surface_form == "Statistician"
+    assert response.entities[0].matches[0].similarity_score == 0.91
 
-        # THEN NEL is not called and result has no entities
-        assert not nel_mock.called
-        assert result.entities == []
 
-    @respx.mock
-    async def test_raises_ner_service_error_on_ner_failure(self):
-        # GIVEN NER returns a 500
-        respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(500, text="internal error"))
-        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+async def test_classify_populates_metadata_from_stage_outcomes() -> None:
+    # GIVEN a canonical executor result
+    givenPipeline = _canonical_pipeline_doc()
+    givenResult = _canonical_executor_result()
+    stub = _StubExecutor(result=givenResult)
+    service = _service_with_stub_executor(stub)
 
-        # WHEN classify is called
-        # THEN NERServiceError is raised
-        with pytest.raises(NERServiceError):
-            await svc.classify("Head Chef")
+    # WHEN we classify
+    response = await service.classify(
+        pipeline=givenPipeline,
+        input_text="Statistician",
+        options=ClassifyOptions(),
+        request_id="req-1",
+        user_id="uid-1",
+    )
 
-    @respx.mock
-    async def test_raises_embeddings_cache_not_ready_on_503(self):
-        # GIVEN NER succeeds but NEL returns 503
-        respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
-        respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(503, json={"detail": "Embeddings not ready"}))
-        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+    # THEN ner_model + nel_model_id + taxonomy_model_id come from per-stage metadata
+    assert response.metadata.ner_model == "ner-test"
+    assert response.metadata.nel_model_id == "all-MiniLM-L6-v2"
+    assert response.metadata.taxonomy_model_id == "tax-1"
 
-        # WHEN classify is called
-        # THEN EmbeddingsCacheNotReadyError is raised
-        with pytest.raises(EmbeddingsCacheNotReadyError):
-            await svc.classify("Head Chef")
 
-    @respx.mock
-    async def test_nel_called_without_auth_header_when_no_gcp_token(self):
-        # GIVEN NER and NEL both respond successfully and no GCP metadata server
-        respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
-        nel_mock = respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json=_NEL_RESPONSE))
-        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+async def test_classify_response_includes_pipeline_summary() -> None:
+    # GIVEN a canonical executor result
+    givenPipeline = _canonical_pipeline_doc()
+    givenResult = _canonical_executor_result()
+    stub = _StubExecutor(result=givenResult)
+    service = _service_with_stub_executor(stub)
 
-        # WHEN classify is called (no GCP metadata server reachable in test)
-        await svc.classify("Head Chef")
+    # WHEN we classify
+    response = await service.classify(
+        pipeline=givenPipeline,
+        input_text="Statistician",
+        options=ClassifyOptions(),
+        request_id="req-1",
+        user_id="uid-1",
+    )
 
-        # THEN NEL is called without an Authorization header (no token available)
-        assert "authorization" not in nel_mock.calls[0].request.headers
+    # THEN metadata.pipeline lists every stage
+    expectedIds = [
+        "tabiya.source.text.v1",
+        "tabiya.ner.v1",
+        "tabiya.nel.v1",
+        "tabiya.sink.results.v1",
+    ]
+    assert response.metadata.pipeline is not None
+    assert response.metadata.pipeline.pipeline_id == "pipe-1"
+    assert response.metadata.pipeline.name == "Default Tabiya"
+    assert [stage.plugin_id for stage in response.metadata.pipeline.stages] == expectedIds
+    assert [stage.category for stage in response.metadata.pipeline.stages] == [
+        "source",
+        "core",
+        "core",
+        "sink",
+    ]
+
+
+async def test_classify_passes_source_override_with_text_key_to_executor() -> None:
+    # GIVEN a stub executor and a canonical pipeline
+    givenPipeline = _canonical_pipeline_doc()
+    stub = _StubExecutor(result=_canonical_executor_result())
+    service = _service_with_stub_executor(stub)
+    givenText = "New job ad text"
+
+    # WHEN we classify
+    await service.classify(
+        pipeline=givenPipeline,
+        input_text=givenText,
+        options=ClassifyOptions(),
+        request_id="req-1",
+        user_id="uid-1",
+    )
+
+    # THEN the executor was called with source_overrides = {"text": givenText}
+    assert stub.last_call["source_overrides"] == {"text": givenText}
+
+
+async def test_classify_wraps_upstream_unavailable_as_embeddings_cache_not_ready() -> None:
+    # GIVEN an executor that raises PluginUpstreamUnavailableError
+    givenPipeline = _canonical_pipeline_doc()
+    stub = _StubExecutor(
+        exc=PluginUpstreamUnavailableError(
+            "Embeddings cache not ready.",
+            stage_index=2,
+            plugin_id="tabiya.nel.v1",
+        )
+    )
+    service = _service_with_stub_executor(stub)
+
+    # WHEN we classify
+    # THEN we get EmbeddingsCacheNotReadyError so the route emits 503
+    with pytest.raises(EmbeddingsCacheNotReadyError):
+        await service.classify(
+            pipeline=givenPipeline,
+            input_text="Statistician",
+            options=ClassifyOptions(),
+            request_id="req-1",
+            user_id="uid-1",
+        )
+
+
+async def test_classify_wraps_plugin_timeout_as_nel_service_error() -> None:
+    # GIVEN an executor that raises PluginTimeoutError
+    givenPipeline = _canonical_pipeline_doc()
+    stub = _StubExecutor(
+        exc=PluginTimeoutError(
+            "Plugin timed out.",
+            stage_index=1,
+            plugin_id="tabiya.ner.v1",
+        )
+    )
+    service = _service_with_stub_executor(stub)
+
+    # WHEN we classify
+    # THEN NELServiceError so the route emits 504
+    with pytest.raises(NELServiceError):
+        await service.classify(
+            pipeline=givenPipeline,
+            input_text="Statistician",
+            options=ClassifyOptions(),
+            request_id="req-1",
+            user_id="uid-1",
+        )
+
+
+async def test_classify_wraps_plugin_invocation_error_as_ner_service_error() -> None:
+    # GIVEN an executor that raises PluginInvocationError
+    givenPipeline = _canonical_pipeline_doc()
+    stub = _StubExecutor(
+        exc=PluginInvocationError(
+            "Plugin returned 500.",
+            stage_index=1,
+            plugin_id="tabiya.ner.v1",
+        )
+    )
+    service = _service_with_stub_executor(stub)
+
+    # WHEN we classify
+    # THEN NERServiceError so the route emits 502
+    with pytest.raises(NERServiceError):
+        await service.classify(
+            pipeline=givenPipeline,
+            input_text="Statistician",
+            options=ClassifyOptions(),
+            request_id="req-1",
+            user_id="uid-1",
+        )
+
+
+async def test_classify_returns_empty_entities_when_pipeline_had_no_nel_stage() -> None:
+    # GIVEN an executor result without a LinkedEntities payload (e.g. a
+    # source-only pipeline that a future test might build)
+    givenPipeline = _canonical_pipeline_doc()
+    givenResult = _canonical_executor_result()
+    givenResult.linked_entities_payload = None
+    stub = _StubExecutor(result=givenResult)
+    service = _service_with_stub_executor(stub)
+
+    # WHEN we classify
+    response = await service.classify(
+        pipeline=givenPipeline,
+        input_text="Statistician",
+        options=ClassifyOptions(),
+        request_id="req-1",
+        user_id="uid-1",
+    )
+
+    # THEN entities is empty rather than crashing
+    assert response.entities == []
