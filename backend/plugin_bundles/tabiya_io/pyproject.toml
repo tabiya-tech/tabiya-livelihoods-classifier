@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "tabiya-io-bundle"
+version = "0.1.0"
+description = "Tabiya-IO plugin bundle: hosts text_input, results, and job_scraper (once available) plugins under a single Cloud Run service. See tmp/step-11-design.md §9."
+authors = ["Tabiya <tabiya@tabiya.org>"]
+packages = [{ include = "tabiya_io" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.111.0"
+uvicorn = { version = "^0.30.0", extras = ["standard"] }
+python-dotenv = "^1.0.1"
+tabiya-plugin-contracts = { path = "../../tabiya_plugin_contracts", develop = true }
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+httpx = "^0.27.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
