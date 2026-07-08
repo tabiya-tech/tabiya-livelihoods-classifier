@@ -1,0 +1,35 @@
+{
+  "$defs": {
+    "HealthStatus": {
+      "enum": [
+        "ok",
+        "degraded",
+        "down"
+      ],
+      "title": "HealthStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "status": {
+      "$ref": "#/$defs/HealthStatus"
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "Health",
+  "type": "object"
+}
