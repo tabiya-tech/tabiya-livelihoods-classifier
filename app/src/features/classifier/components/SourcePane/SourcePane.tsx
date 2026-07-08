@@ -124,12 +124,16 @@ export function SourcePane({
   return (
     <section
       data-testid={DATA_TEST_ID.CONTAINER}
-      className={mergeClassNames("flex flex-col gap-4", className)}
+      className={mergeClassNames("flex min-h-0 flex-col gap-4", className)}
     >
+      {activeConfigSlot && (
+        <div data-testid={DATA_TEST_ID.CONFIG_CHIP}>{activeConfigSlot}</div>
+      )}
+
       {showHighlight ? (
         <div
           data-testid={DATA_TEST_ID.HIGHLIGHT}
-          className="rounded-md border border-line bg-paper px-4 py-3 min-h-[200px]"
+          className="min-h-0 flex-1 overflow-y-auto rounded-md border border-line bg-paper px-4 py-3"
         >
           <EntityHighlight
             text={text}
@@ -147,7 +151,7 @@ export function SourcePane({
         <Textarea
           data-testid={DATA_TEST_ID.TEXTAREA}
           mono
-          rows={10}
+          className="min-h-0 flex-1 resize-none"
           placeholder={t("classifier.source.placeholder")}
           value={text}
           disabled={isRunning}
@@ -181,10 +185,6 @@ export function SourcePane({
           onChange={onSelectedEntityTypesChange}
           disabled={isRunning}
         />
-      )}
-
-      {activeConfigSlot && (
-        <div data-testid={DATA_TEST_ID.CONFIG_CHIP}>{activeConfigSlot}</div>
       )}
 
       <div className="flex items-center gap-2">

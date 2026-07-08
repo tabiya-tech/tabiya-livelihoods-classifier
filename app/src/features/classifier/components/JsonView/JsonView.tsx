@@ -50,7 +50,7 @@ export function JsonView({
   return (
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
-      className={mergeClassNames("flex flex-col gap-2", className)}
+      className={mergeClassNames("flex min-h-0 flex-col gap-2", className)}
     >
       <div className="flex justify-end">
         <Button
@@ -65,7 +65,7 @@ export function JsonView({
       </div>
       <pre
         data-testid={DATA_TEST_ID.PRE}
-        className="overflow-auto rounded-md border border-line bg-ink p-4 font-mono text-[12px] leading-relaxed text-lime"
+        className="m-0 min-h-0 flex-1 overflow-auto rounded-md border border-line bg-ink p-4 font-mono text-[12px] leading-relaxed text-lime"
       >
         {json}
       </pre>
