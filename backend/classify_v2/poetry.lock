@@ -1655,6 +1655,23 @@ anyio = ">=3.4.0,<5"
 full = ["httpx (>=0.22.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.7)", "pyyaml"]
 
 [[package]]
+name = "tabiya-plugin-contracts"
+version = "0.1.0"
+description = "Shared plugin contract types (Manifest, InvokeRequest, InvokeResponse, ErrorEnvelope, Health, slot payloads) for the Tabiya classifier pipeline architecture. Source-of-truth for both Python bundles and TypeScript frontend clients."
+optional = false
+python-versions = "^3.10"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+pydantic = "^2.6"
+
+[package.source]
+type = "directory"
+url = "../tabiya_plugin_contracts"
+
+[[package]]
 name = "tomli"
 version = "2.4.1"
 description = "A lil' TOML parser"
@@ -2062,4 +2079,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "2c8e26deb36630b115e16d17e7f3a08d0f8703e2dd1a391c7a6323a75dbf060f"
+content-hash = "51dfbe99b57ad2c20057d98a1534603269e58f1b734206e3a0f563b1834cbe5f"

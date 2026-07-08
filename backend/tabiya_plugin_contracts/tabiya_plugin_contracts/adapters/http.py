@@ -43,6 +43,32 @@ from ..version import CONTRACT_VERSION
 log = logging.getLogger("tabiya-plugin-adapter")
 
 
+def _jsonable_validation_errors(exc: ValidationError) -> list[dict]:
+    """Return ValidationError.errors() with non-JSON-safe values scrubbed.
+
+    Pydantic embeds raw exceptions inside the `ctx` field for
+    `value_error`-style validators, which the default JSON encoder can't
+    handle. We surface `str(exc)` in their place so the envelope's
+    `detail.errors` remains machine-readable.
+    """
+
+    cleaned: list[dict] = []
+    for entry in exc.errors():
+        entry_copy = dict(entry)
+        ctx = entry_copy.get("ctx")
+        if isinstance(ctx, dict):
+            cleaned_ctx = {}
+            for key, value in ctx.items():
+                cleaned_ctx[key] = value if _is_json_safe(value) else str(value)
+            entry_copy["ctx"] = cleaned_ctx
+        cleaned.append(entry_copy)
+    return cleaned
+
+
+def _is_json_safe(value: object) -> bool:
+    return isinstance(value, (str, int, float, bool, type(None), list, dict, tuple))
+
+
 class PluginError(Exception):
     """Base class for plugin errors mapped to the ErrorCode taxonomy."""
 
@@ -136,7 +162,10 @@ def make_http_adapter(
             invoke_request = InvokeRequest.model_validate(raw_body)
         except ValidationError as exc:
             return _error_response(
-                BadInputError("Invoke request envelope failed validation.", detail={"errors": exc.errors()})
+                BadInputError(
+                    "Invoke request envelope failed validation.",
+                    detail={"errors": _jsonable_validation_errors(exc)},
+                )
             )
 
         # Parse the typed input payload against the manifest's input slot.
@@ -146,7 +175,7 @@ def make_http_adapter(
             return _error_response(
                 BadInputError(
                     f"Input payload does not match slot type {manifest.input_slot.type.value}.",
-                    detail={"errors": exc.errors()},
+                    detail={"errors": _jsonable_validation_errors(exc)},
                 )
             )
 
@@ -182,7 +211,7 @@ def make_http_adapter(
             envelope = ErrorEnvelope(
                 code=ErrorCode.PLUGIN_INTERNAL,
                 message=f"Plugin returned payload that does not match slot type {manifest.output_slot.type.value}.",
-                detail={"errors": exc.errors()},
+                detail={"errors": _jsonable_validation_errors(exc)},
             )
             return JSONResponse(status_code=500, content=envelope.model_dump())
 
@@ -198,5 +227,12 @@ __all__ = [
     "PluginError",
     "UnavailableError",
     "UpstreamUnavailableError",
+    "jsonable_validation_errors",
     "make_http_adapter",
 ]
+
+
+# Public alias so plugin authors can sanitise ValidationError before
+# stuffing it into ConfigInvalidError.detail, without importing the
+# underscore-prefixed private helper.
+jsonable_validation_errors = _jsonable_validation_errors
