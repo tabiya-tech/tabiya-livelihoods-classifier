@@ -10,6 +10,7 @@ import { ClassifierPage } from "@/features/classifier/ClassifierPage/ClassifierP
 import { ConfigurationPage } from "@/features/configuration/ConfigurationPage/ConfigurationPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage/DashboardPage";
 import { ApiKeysPage } from "@/features/keys/ApiKeysPage/ApiKeysPage";
+import { PipelinesPage } from "@/features/pipelines/PipelinesPage/PipelinesPage";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicOnlyRoute } from "./PublicOnlyRoute";
 import { routerPaths } from "./routerPaths";
@@ -37,6 +38,10 @@ export function AppRouter() {
           <Route
             path={routerPaths.CLASSIFIER}
             element={<ClassifierPage />}
+          />
+          <Route
+            path={routerPaths.PIPELINES}
+            element={<PipelinesPage />}
           />
           <Route
             path={routerPaths.CONFIGURATION}

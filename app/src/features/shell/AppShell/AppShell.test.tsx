@@ -80,6 +80,7 @@ describe("AppShell", () => {
     // GIVEN the expected nav link labels from i18n
     const expectedDashboardLabel = i18n.t("shell.nav.items.dashboard");
     const expectedClassifierLabel = i18n.t("shell.nav.items.classifier");
+    const expectedPipelinesLabel = i18n.t("shell.nav.items.pipelines");
     const expectedConfigurationLabel = i18n.t(
       "shell.nav.items.configuration",
     );
@@ -88,15 +89,18 @@ describe("AppShell", () => {
     // WHEN we render the shell
     renderShellAtPath(routerPaths.DASHBOARD);
 
-    // THEN the nav links appear in order: Dashboard, Classifier, Configuration, Keys
+    // THEN the nav links appear in order:
+    // Dashboard, Classifier, Pipelines, Configuration, Keys
     const renderedNavLinks = screen.getAllByTestId(
       NAV_LINK_DATA_TEST_ID.CONTAINER,
     );
-    expect(renderedNavLinks).toHaveLength(4);
+    const expectedNavLinkCount = 5;
+    expect(renderedNavLinks).toHaveLength(expectedNavLinkCount);
     expect(renderedNavLinks[0]).toHaveTextContent(expectedDashboardLabel);
     expect(renderedNavLinks[1]).toHaveTextContent(expectedClassifierLabel);
-    expect(renderedNavLinks[2]).toHaveTextContent(expectedConfigurationLabel);
-    expect(renderedNavLinks[3]).toHaveTextContent(expectedKeysLabel);
+    expect(renderedNavLinks[2]).toHaveTextContent(expectedPipelinesLabel);
+    expect(renderedNavLinks[3]).toHaveTextContent(expectedConfigurationLabel);
+    expect(renderedNavLinks[4]).toHaveTextContent(expectedKeysLabel);
   });
 
   it("displays the API healthy status pill with the version", () => {

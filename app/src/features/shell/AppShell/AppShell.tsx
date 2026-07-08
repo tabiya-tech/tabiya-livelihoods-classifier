@@ -47,6 +47,11 @@ function buildNavGroups(
           label: t("shell.nav.items.classifier"),
           icon: "classify",
         },
+        {
+          id: "pipelines",
+          label: t("shell.nav.items.pipelines"),
+          icon: "pipelines",
+        },
       ],
     },
     {
@@ -71,6 +76,7 @@ function buildNavGroups(
 function deriveActiveNavId(pathname: string): string {
   if (pathname.startsWith(routerPaths.DASHBOARD)) return "dashboard";
   if (pathname.startsWith(routerPaths.CLASSIFIER)) return "classifier";
+  if (pathname.startsWith(routerPaths.PIPELINES)) return "pipelines";
   if (pathname.startsWith(routerPaths.CONFIGURATION)) return "configuration";
   if (pathname.startsWith(routerPaths.KEYS)) return "keys";
   return "";
@@ -97,6 +103,15 @@ function buildBreadcrumbsForPath(
         onClick: () => navigateTo(routerPaths.CLASSIFIER),
       },
       { label: t("shell.nav.items.classifier") },
+    ];
+  }
+  if (pathname.startsWith(routerPaths.PIPELINES)) {
+    return [
+      {
+        label: t("shell.nav.groups.workspace"),
+        onClick: () => navigateTo(routerPaths.PIPELINES),
+      },
+      { label: t("shell.nav.items.pipelines") },
     ];
   }
   if (pathname.startsWith(routerPaths.CONFIGURATION)) {
@@ -138,6 +153,7 @@ function getStatusPillLabel(
 function navItemIdToRoutePath(navItemId: string): string {
   if (navItemId === "dashboard") return routerPaths.DASHBOARD;
   if (navItemId === "classifier") return routerPaths.CLASSIFIER;
+  if (navItemId === "pipelines") return routerPaths.PIPELINES;
   if (navItemId === "configuration") return routerPaths.CONFIGURATION;
   if (navItemId === "keys") return routerPaths.KEYS;
   return routerPaths.DASHBOARD;

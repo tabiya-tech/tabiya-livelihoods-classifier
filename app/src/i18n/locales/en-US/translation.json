@@ -52,7 +52,8 @@
         "history": "History",
         "configuration": "Configuration",
         "keys": "Keys",
-        "documentation": "Documentation"
+        "documentation": "Documentation",
+        "pipelines": "Pipelines"
       }
     },
     "topbar": {
@@ -240,6 +241,41 @@
       "headerTopMatch": "Top match",
       "headerScore": "Score",
       "openButton": "Open"
+    }
+  },
+  "pipelines": {
+    "list": {
+      "eyebrow": "Workspace · Pipelines",
+      "title": "Pipelines",
+      "intro": "Pipelines define the sequence of plugins used to classify text. Activate a pipeline to make it the default for all API calls and the in-app Classifier.",
+      "table": {
+        "headerName": "Name",
+        "headerActive": "Active",
+        "headerUpdated": "Last updated",
+        "headerActions": "Actions"
+      },
+      "badges": {
+        "default": "Default",
+        "readonly": "Read-only"
+      },
+      "tabs": {
+        "activeBadge": "Active"
+      },
+      "actions": {
+        "activate": "Activate",
+        "clone": "Clone",
+        "delete": "Delete"
+      },
+      "empty": {
+        "title": "No pipelines yet",
+        "description": "Your account has no pipelines. The default Tabiya pipeline will be used for all classifications."
+      },
+      "toasts": {
+        "activateError": "Couldn't activate that pipeline. Please try again.",
+        "cloneError": "Couldn't clone that pipeline. Please try again.",
+        "deleteError": "Couldn't delete that pipeline. Please try again.",
+        "loadError": "Couldn't load your pipelines."
+      }
     }
   }
 }
