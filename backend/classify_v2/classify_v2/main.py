@@ -12,7 +12,11 @@ from classify_v2.app.api_keys.service.gcp_key_manager import GcpKeyManager
 from classify_v2.app.classification.routes.routes import router as classify_router
 from classify_v2.app.pipelines.plugins_routes.routes import router as plugins_router
 from classify_v2.app.pipelines.registry import PluginRegistry, load_catalog
+from classify_v2.app.pipelines.repository import PipelineRepository
+from classify_v2.app.pipelines.routes.routes import router as pipelines_router
+from classify_v2.app.server_dependencies.db_dependencies import ClassifyDBProvider
 from classify_v2.app.version.routes import router as version_router
+from classify_v2.config import APPLICATION_MONGODB_URI
 from classify_v2.config import (
     CORS_ALLOWED_ORIGINS,
     GCP_API_KEYS_PARENT_LOCATION,
@@ -60,6 +64,16 @@ async def lifespan(app: FastAPI):
     loaded_count = sum(1 for plugin in registry.list_manifests() if plugin.manifest is not None)
     _logger.info("Loaded %d plugin manifest(s)", loaded_count)
 
+    # Pipelines collection: ensure indexes at startup. Skipped when the
+    # application MongoDB isn't configured (local smoke tests, docs builds).
+    if APPLICATION_MONGODB_URI:
+        try:
+            app_db = await ClassifyDBProvider.get_application_db()
+            await PipelineRepository(app_db).ensure_indexes()
+            _logger.info("Pipelines collection indexes ensured")
+        except Exception:
+            _logger.exception("Failed to ensure pipelines indexes")
+
     yield
 
     await registry.stop_background_refresh()
@@ -81,3 +95,4 @@ app.include_router(version_router)
 app.include_router(classify_router)
 app.include_router(api_keys_router)
 app.include_router(plugins_router)
+app.include_router(pipelines_router)
