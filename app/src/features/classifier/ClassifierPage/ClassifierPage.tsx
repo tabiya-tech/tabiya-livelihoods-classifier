@@ -145,7 +145,7 @@ export function ClassifierPage() {
   return (
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
-      className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-8 py-10"
+      className="mx-auto flex h-full min-h-0 w-full max-w-[1400px] flex-col gap-6 overflow-hidden px-8 py-8"
     >
       <header className="flex flex-col gap-2">
         <span data-testid={DATA_TEST_ID.EYEBROW} className="eyebrow">
@@ -162,8 +162,9 @@ export function ClassifierPage() {
         </p>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <div className="grid min-h-0 flex-1 gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <SourcePane
+          className="min-h-0"
           text={text}
           onTextChange={setText}
           entities={entities}
@@ -184,9 +185,10 @@ export function ClassifierPage() {
           activeConfigSlot={activeConfigChip}
         />
 
-        <aside className="flex flex-col gap-4">
+        <aside className="flex min-h-0 flex-col gap-4">
           {response ? (
             <ResultsTabs
+              className="min-h-0 flex-1"
               response={response}
               selectedEntityTypes={selectedEntityTypes}
               activeTabId={activeTabId}
@@ -218,7 +220,7 @@ function PlaceholderPanel({ isRunning }: PlaceholderPanelProps) {
   return (
     <div
       className={mergeClassNames(
-        "flex min-h-[300px] flex-col items-center justify-center gap-2",
+        "flex min-h-0 flex-1 flex-col items-center justify-center gap-2",
         "rounded-md border border-dashed border-line bg-paper px-8 py-12 text-center",
       )}
     >

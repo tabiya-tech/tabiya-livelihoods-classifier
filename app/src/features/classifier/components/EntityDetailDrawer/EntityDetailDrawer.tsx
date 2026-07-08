@@ -131,12 +131,12 @@ function MatchCard({ match }: MatchCardProps) {
   return (
     <article
       data-testid={DATA_TEST_ID.MATCH_ROW}
-      className="flex flex-col gap-2 rounded-md border border-line bg-paper px-3.5 py-3"
+      className="flex min-w-0 flex-col gap-2 overflow-hidden rounded-md border border-line bg-paper px-3.5 py-3"
     >
       <header className="flex items-baseline justify-between gap-3">
         <span
           data-testid={DATA_TEST_ID.MATCH_LABEL}
-          className="font-mono text-[13px] font-medium text-navy"
+          className="min-w-0 break-words font-mono text-[13px] font-medium text-navy"
         >
           {match.entity.preferred_label}
         </span>
@@ -218,21 +218,29 @@ function MatchAttributes({ match }: MatchCardProps) {
       });
     }
   }
-  if (match.entity.alt_labels.length > 0) {
-    tags.push({
-      label: t("classifier.entityDetail.attrAltLabels", {
-        value: match.entity.alt_labels.slice(0, 3).join(", "),
-      }),
-    });
-  }
-  if (tags.length === 0) return null;
+  const altLabelsPreview =
+    match.entity.alt_labels.length > 0
+      ? match.entity.alt_labels.slice(0, 3).join(", ")
+      : null;
+  if (tags.length === 0 && altLabelsPreview === null) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {tags.map((tag) => (
-        <Tag key={tag.label} size="sm">
-          {tag.label}
-        </Tag>
-      ))}
+    <div className="flex min-w-0 flex-col gap-1.5">
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <Tag key={tag.label} size="sm">
+              {tag.label}
+            </Tag>
+          ))}
+        </div>
+      )}
+      {altLabelsPreview !== null && (
+        <p className="m-0 break-words font-mono text-[11px] leading-relaxed text-muted-2">
+          {t("classifier.entityDetail.attrAltLabels", {
+            value: altLabelsPreview,
+          })}
+        </p>
+      )}
     </div>
   );
 }

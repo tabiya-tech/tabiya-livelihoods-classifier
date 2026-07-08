@@ -111,7 +111,7 @@ export function ResultsTabs({
   return (
     <section
       data-testid={DATA_TEST_ID.CONTAINER}
-      className={mergeClassNames("flex flex-col gap-4", className)}
+      className={mergeClassNames("flex min-h-0 flex-col gap-4", className)}
     >
       <Tabs
         items={tabItems}
@@ -124,7 +124,7 @@ export function ResultsTabs({
         <div
           data-testid={DATA_TEST_ID.PANEL_ENTITIES}
           role="tabpanel"
-          className="flex flex-col gap-3"
+          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
         >
           {hasVisibleEntities ? (
             ENTITY_TYPES.filter((type) => grouped[type].length > 0).map(
@@ -145,9 +145,14 @@ export function ResultsTabs({
       )}
 
       {activeTabId === "table" && (
-        <div data-testid={DATA_TEST_ID.PANEL_TABLE} role="tabpanel">
+        <div
+          data-testid={DATA_TEST_ID.PANEL_TABLE}
+          role="tabpanel"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           {hasVisibleEntities ? (
             <EntityTable
+              className="min-h-0 flex-1"
               entities={visibleEntities}
               selectedEntityIndex={selectedEntityIndex}
               onEntityClick={onEntityClick}
@@ -159,8 +164,12 @@ export function ResultsTabs({
       )}
 
       {activeTabId === "json" && (
-        <div data-testid={DATA_TEST_ID.PANEL_JSON} role="tabpanel">
-          <JsonView value={response} />
+        <div
+          data-testid={DATA_TEST_ID.PANEL_JSON}
+          role="tabpanel"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <JsonView className="min-h-0 flex-1" value={response} />
         </div>
       )}
     </section>

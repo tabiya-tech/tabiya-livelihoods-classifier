@@ -29,14 +29,17 @@ export function AppLayout({
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
       className={mergeClassNames(
-        "grid min-h-screen grid-cols-[232px_1fr] bg-cream",
+        "grid h-screen grid-cols-[232px_1fr] bg-cream",
         className,
       )}
     >
       {sidebar}
-      <div className="flex min-h-screen flex-col">
+      <div className="flex h-screen min-h-0 flex-col">
         {topbar}
-        <main data-testid={DATA_TEST_ID.MAIN} className="flex-1">
+        <main
+          data-testid={DATA_TEST_ID.MAIN}
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+        >
           {children}
         </main>
       </div>
