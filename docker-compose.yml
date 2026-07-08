@@ -54,6 +54,40 @@ services:
       retries: 5
       start_period: 60s
 
+  tabiya_core_bundle:
+    build:
+      context: .
+      dockerfile: backend/plugin_bundles/tabiya_core/Dockerfile
+    ports:
+      - "5010:5010"
+    env_file: .env
+    environment:
+      - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5010/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  tabiya_io_bundle:
+    build:
+      context: .
+      dockerfile: backend/plugin_bundles/tabiya_io/Dockerfile
+    ports:
+      - "5011:5011"
+    env_file: .env
+    environment:
+      - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5011/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
   classify:
     build:
       context: .
