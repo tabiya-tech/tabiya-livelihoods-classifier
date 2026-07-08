@@ -11,6 +11,13 @@ NEL_V2_API_URL: str = os.getenv("NEL_V2_API_URL", "http://localhost:5003")
 # frontend as UNAVAILABLE per design §10.
 TABIYA_CORE_BUNDLE_URL: str = os.getenv("TABIYA_CORE_BUNDLE_URL", "")
 TABIYA_IO_BUNDLE_URL: str = os.getenv("TABIYA_IO_BUNDLE_URL", "")
+
+# Defaults used when seeding the Default Tabiya pipeline for a fresh user.
+# Both must be set for lazy seeding to activate; leaving them empty means
+# a fresh user's `GET /v2/pipelines` returns an empty list until an admin
+# configures them (or the user creates their own pipeline).
+DEFAULT_NEL_MODEL_ID: str = os.getenv("DEFAULT_NEL_MODEL_ID", "")
+DEFAULT_TAXONOMY_MODEL_ID: str = os.getenv("DEFAULT_TAXONOMY_MODEL_ID", "")
 CLASSIFIER_VERSION: str = os.getenv("CLASSIFIER_VERSION", "2.0.0")
 MAX_TEXT_LENGTH: int = int(os.getenv("MAX_TEXT_LENGTH", "50000"))
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
