@@ -175,18 +175,26 @@ interface PluginRowProps {
 function PluginRow({ plugin }: PluginRowProps) {
   const isDisabled = plugin.coming_soon;
 
+  function handleDragStart(event: React.DragEvent<HTMLDivElement>) {
+    event.dataTransfer.setData(
+      "application/pipeline-plugin",
+      JSON.stringify({ pluginId: plugin.plugin_id, pluginSummary: plugin }),
+    );
+  }
+
   return (
     <div
       data-testid={DATA_TEST_ID.PLUGIN_ROW}
       data-plugin-id={plugin.plugin_id}
-      draggable={false}
+      draggable={!isDisabled}
+      onDragStart={isDisabled ? undefined : handleDragStart}
       style={{
         padding: "8px",
         borderRadius: "6px",
         border: "1px solid #e0ddd9",
         backgroundColor: isDisabled ? "#f3f1ee" : "#faf9f6",
         opacity: isDisabled ? 0.6 : 1,
-        cursor: "default",
+        cursor: isDisabled ? "default" : "grab",
         display: "flex",
         flexDirection: "column",
         gap: "2px",

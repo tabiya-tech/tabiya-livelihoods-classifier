@@ -74,6 +74,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   };
 });
 
+import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "@/components";
 import { DATA_TEST_ID, PipelinesPage } from "./PipelinesPage";
 import { DATA_TEST_ID as PIPELINES_TABLE_DATA_TEST_ID } from "../components/PipelinesTable/PipelinesTable";
@@ -104,9 +105,11 @@ const givenEditablePipeline = {
 
 function renderPipelinesPage() {
   return render(
-    <ToastProvider>
-      <PipelinesPage />
-    </ToastProvider>,
+    <MemoryRouter>
+      <ToastProvider>
+        <PipelinesPage />
+      </ToastProvider>
+    </MemoryRouter>,
   );
 }
 

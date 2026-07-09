@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "@storybook/test";
 import { ReactFlowProvider } from "reactflow";
 import {
   fixtureDefaultTabiyaPipeline,
@@ -79,5 +80,16 @@ export const InvalidChainWithMismatch: Story = {
         plugin_id: fixtureNelManifest.plugin_id,
       },
     ],
+  },
+};
+
+export const EditMode: Story = {
+  args: {
+    pipeline: fixtureRecruiterTuningPipeline,
+    manifests: fixturePluginManifests,
+    editMode: true,
+    onStagesChange: fn(),
+    onConnectRejected: fn(),
+    onNodeSelect: fn(),
   },
 };

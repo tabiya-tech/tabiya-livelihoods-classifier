@@ -248,6 +248,7 @@
       "eyebrow": "Espace de travail · Pipelines",
       "title": "Pipelines",
       "intro": "Les pipelines définissent la séquence de plugins utilisée pour classifier le texte. Activez un pipeline pour en faire la valeur par défaut pour tous les appels d'API et le Classifier intégré.",
+      "newButton": "Nouveau pipeline",
       "table": {
         "headerName": "Nom",
         "headerActive": "Actif",
@@ -263,6 +264,7 @@
       },
       "actions": {
         "activate": "Activer",
+        "edit": "Modifier",
         "clone": "Cloner",
         "delete": "Supprimer"
       },
@@ -275,6 +277,45 @@
         "cloneError": "Impossible de cloner ce pipeline. Veuillez réessayer.",
         "deleteError": "Impossible de supprimer ce pipeline. Veuillez réessayer.",
         "loadError": "Impossible de charger vos pipelines."
+      }
+    },
+    "editor": {
+      "eyebrow": "Espace de travail · Éditeur de pipeline",
+      "title": {
+        "new": "Nouveau pipeline",
+        "edit": "Modifier le pipeline"
+      },
+      "saveBar": {
+        "saveButton": "Enregistrer",
+        "cancelButton": "Annuler",
+        "validating": "Vérification…",
+        "valid": "Valide",
+        "issuesCount": "{{count}} problème",
+        "issuesCount_plural": "{{count}} problèmes"
+      },
+      "drawer": {
+        "deleteButton": "Supprimer l'étape",
+        "closeButton": "Fermer",
+        "slots": {
+          "input": "Entrée",
+          "output": "Sortie"
+        }
+      },
+      "errors": {
+        "title": "Erreurs de validation",
+        "slotMismatch": "Types de slots incompatibles — impossible de connecter ces étapes."
+      },
+      "emptyPrompt": "Faites glisser des plugins depuis la palette pour commencer à construire votre pipeline.",
+      "toasts": {
+        "slotMismatch": "Types de slots incompatibles.",
+        "saveError": "Impossible d'enregistrer le pipeline. Veuillez réessayer.",
+        "loadError": "Impossible de charger le pipeline."
+      },
+      "unsavedGuard": {
+        "title": "Annuler les modifications ?",
+        "description": "Quitter cette page annulera les modifications apportées au pipeline.",
+        "discard": "Annuler les modifications",
+        "keepEditing": "Continuer la modification"
       }
     }
   }
