@@ -21,7 +21,7 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, status
 
 _logger = logging.getLogger(__name__)
 
@@ -30,13 +30,33 @@ def _is_local() -> bool:
     return os.getenv("TARGET_ENVIRONMENT_TYPE", "").lower() == "local"
 
 
+def _audience_from_request(request: Request) -> Optional[str]:
+    """Derive the expected token audience from the incoming request's own URL.
+
+    A Cloud Run identity token's audience is the receiving service's base URL
+    (scheme + host, no path). Cloud Run sets `X-Forwarded-Proto` and the
+    `Host` header to the service's own hostname, so the audience the caller
+    minted for us is reconstructable here. This lets a bundle validate tokens
+    without being told its own URL via env var — which would be a Pulumi
+    self-reference cycle at deploy time.
+    """
+
+    host = request.headers.get("host")
+    if not host:
+        return None
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme or "https")
+    return f"{proto}://{host}"
+
+
 async def require_identity_token(
+    request: Request,
     authorization: Optional[str] = Header(default=None),
 ) -> None:
     """FastAPI dependency: reject requests without a valid GCP identity token.
 
-    No-op when `TARGET_ENVIRONMENT_TYPE=local`. In production, the audience
-    is read from `PLUGIN_BUNDLE_AUDIENCE` (the bundle's own Cloud Run URL).
+    No-op when `TARGET_ENVIRONMENT_TYPE=local`. In production, the audience is
+    read from `PLUGIN_BUNDLE_AUDIENCE` when set; otherwise it is derived from
+    the request's own base URL (the bundle's Cloud Run hostname).
     """
 
     if _is_local():
@@ -49,11 +69,11 @@ async def require_identity_token(
             detail="Missing bearer token.",
         )
     token = authorization[len("bearer ") :].strip()
-    audience = os.getenv("PLUGIN_BUNDLE_AUDIENCE")
+    audience = os.getenv("PLUGIN_BUNDLE_AUDIENCE") or _audience_from_request(request)
     if not audience:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="PLUGIN_BUNDLE_AUDIENCE not configured.",
+            detail="PLUGIN_BUNDLE_AUDIENCE not configured and request audience not derivable.",
         )
 
     try:

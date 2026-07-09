@@ -103,6 +103,65 @@ describe("PluginPalette", () => {
     expect(comingSoonPills).toHaveLength(0);
   });
 
+  it("marks an unavailable plugin non-draggable with an Unavailable pill", () => {
+    // GIVEN an enabled-schema plugin whose bundle is unreachable
+    const givenUnavailablePlugin: PluginSummary = {
+      plugin_id: "tabiya.ner.v1",
+      name: "Tabiya NER",
+      version: "0.1.0",
+      category: "core",
+      summary: "Named-entity recognition.",
+      detail: null,
+      icon: "ner",
+      status: "unavailable",
+      coming_soon: false,
+      last_error: "env var TABIYA_CORE_BUNDLE_URL is unset",
+    };
+    const expectedDraggable = "false";
+    const snapshotWithUnavailable = {
+      ...givenReadySnapshot,
+      plugins: [givenUnavailablePlugin],
+    };
+
+    // WHEN we render
+    renderWithOverride(snapshotWithUnavailable);
+
+    // THEN the row shows the Unavailable pill and is not draggable
+    const unavailablePills = screen.getAllByTestId(DATA_TEST_ID.UNAVAILABLE_PILL);
+    expect(unavailablePills).toHaveLength(1);
+    const row = screen.getByTestId(DATA_TEST_ID.PLUGIN_ROW);
+    expect(row.getAttribute("draggable")).toBe(expectedDraggable);
+  });
+
+  it("keeps a degraded plugin draggable (cached manifest still usable)", () => {
+    // GIVEN a degraded plugin (health poll failed but manifest is cached)
+    const givenDegradedPlugin: PluginSummary = {
+      plugin_id: "tabiya.nel.v1",
+      name: "Tabiya NEL",
+      version: "0.1.0",
+      category: "core",
+      summary: "Links entities to the taxonomy.",
+      detail: null,
+      icon: "nel",
+      status: "degraded",
+      coming_soon: false,
+      last_error: null,
+    };
+    const expectedDraggable = "true";
+    const snapshotWithDegraded = {
+      ...givenReadySnapshot,
+      plugins: [givenDegradedPlugin],
+    };
+
+    // WHEN we render
+    renderWithOverride(snapshotWithDegraded);
+
+    // THEN no Unavailable pill appears and the row stays draggable
+    expect(screen.queryAllByTestId(DATA_TEST_ID.UNAVAILABLE_PILL)).toHaveLength(0);
+    const row = screen.getByTestId(DATA_TEST_ID.PLUGIN_ROW);
+    expect(row.getAttribute("draggable")).toBe(expectedDraggable);
+  });
+
   it("renders the plugin name and summary in each row", () => {
     // GIVEN one known plugin
     const givenPlugin: PluginSummary = fixturePluginSummaries[0];

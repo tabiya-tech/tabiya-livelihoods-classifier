@@ -11,6 +11,10 @@ fastapi = "^0.111.0"
 uvicorn = { version = "^0.30.0", extras = ["standard"] }
 python-dotenv = "^1.0.1"
 httpx = "^0.27.0"
+# Verifies the GCP identity token the orchestrator attaches when this bundle
+# runs as a private Cloud Run service (see adapters/auth.py). Pinned to match
+# classify_v2's transitive google-auth so the token contract stays consistent.
+google-auth = "^2.55.0"
 tabiya-plugin-contracts = { path = "../../tabiya_plugin_contracts", develop = true }
 
 [tool.poetry.group.dev.dependencies]

@@ -5,6 +5,12 @@ coverage/
 .vite/
 *.log
 
+# Yarn Berry / PnP artifacts — this app uses classic Yarn 1.x (matches CI).
+# Ignore these so a stray `yarn` (Berry) run can't re-commit a v2 lockfile or
+# PnP files and break `yarn install --frozen-lockfile` on the classic CI runner.
+.yarn/
+.pnp.*
+
 .env
 .env.local
 .DS_Store

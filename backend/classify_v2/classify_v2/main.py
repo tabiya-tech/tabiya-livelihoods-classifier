@@ -11,6 +11,7 @@ from classify_v2.app.api_keys.routes.routes import router as api_keys_router
 from classify_v2.app.api_keys.service.gcp_key_manager import GcpKeyManager
 from classify_v2.app.classification.routes.routes import router as classify_router
 from classify_v2.app.pipelines.plugins_routes.routes import router as plugins_router
+from classify_v2.app.pipelines.executor import GcpIdentityTokenProvider
 from classify_v2.app.pipelines.registry import PluginRegistry, load_catalog
 from classify_v2.app.pipelines.repository import PipelineRepository
 from classify_v2.app.pipelines.routes.routes import router as pipelines_router
@@ -23,6 +24,7 @@ from classify_v2.config import (
     GCP_API_MANAGED_SERVICE,
     GCP_PROJECT_ID,
     LOG_LEVEL,
+    TARGET_ENVIRONMENT_TYPE,
 )
 
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
@@ -54,9 +56,17 @@ async def lifespan(app: FastAPI):
     # A dedicated AsyncClient is stored on app.state so the registry and the
     # future executor share connection pooling to plugin bundles.
     app.state.plugin_http = httpx.AsyncClient(timeout=5.0)
+    # Against private Cloud Run bundles the manifest fetch needs a GCP identity
+    # token; local mode bypasses bundle auth, so no provider is attached.
+    plugin_identity_provider = (
+        None
+        if TARGET_ENVIRONMENT_TYPE.lower() == "local"
+        else GcpIdentityTokenProvider()
+    )
     registry = PluginRegistry(
         catalog=load_catalog(),
         http_client=app.state.plugin_http,
+        identity_token_provider=plugin_identity_provider,
     )
     await registry.refresh()
     await registry.start_background_refresh()

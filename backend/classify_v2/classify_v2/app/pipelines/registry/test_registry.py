@@ -38,6 +38,7 @@ class _FakeHttp:
         self._responses: dict[str, Callable[[], httpx.Response]] = {}
         self._exceptions: dict[str, Exception] = {}
         self.calls: list[str] = []
+        self.headers_by_url: dict[str, dict[str, str]] = {}
 
     def on(self, url: str, response: httpx.Response) -> "_FakeHttp":
         self._responses[url] = lambda: response
@@ -51,8 +52,14 @@ class _FakeHttp:
         self._exceptions[url] = exc
         return self
 
-    async def get(self, url: str, timeout: float | None = None) -> httpx.Response:
+    async def get(
+        self,
+        url: str,
+        timeout: float | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
         self.calls.append(url)
+        self.headers_by_url[url] = dict(headers or {})
         if url in self._exceptions:
             raise self._exceptions[url]
         if url in self._responses:
@@ -195,6 +202,65 @@ async def test_refresh_marks_reachable_plugin_enabled() -> None:
     assert entry.manifest.plugin_id == "tabiya.ner.v1"
     assert entry.resolved_url == f"{givenBase}/plugin/tabiya.ner.v1"
     assert fake_http.calls == [givenManifestUrl]
+
+
+async def test_refresh_attaches_identity_token_to_manifest_fetch() -> None:
+    # GIVEN a reachable bundle and an identity provider that mints a token
+    givenBase = "http://tabiya-core:5010"
+    givenManifestUrl = f"{givenBase}/plugin/tabiya.ner.v1/manifest"
+    givenToken = "eyJ.header.sig"
+    expectedAuthHeader = f"Bearer {givenToken}"
+    fake_http = _FakeHttp().on(givenManifestUrl, _valid_manifest_response())
+
+    class _FakeIdentity:
+        async def get_id_token(self, url: str) -> str:
+            return givenToken
+
+    givenCatalog = [
+        CatalogEntry(
+            plugin_id="tabiya.ner.v1",
+            url_env="TABIYA_CORE_BUNDLE_URL",
+            path="/plugin/tabiya.ner.v1",
+        )
+    ]
+    registry = PluginRegistry(
+        givenCatalog,
+        http_client=fake_http,
+        env={"TABIYA_CORE_BUNDLE_URL": givenBase},
+        identity_token_provider=_FakeIdentity(),
+    )
+
+    # WHEN we refresh
+    await registry.refresh()
+
+    # THEN the manifest fetch carried the bearer token
+    assert fake_http.headers_by_url[givenManifestUrl].get("Authorization") == expectedAuthHeader
+
+
+async def test_refresh_sends_no_auth_header_without_provider() -> None:
+    # GIVEN a reachable bundle and NO identity provider (local mode)
+    givenBase = "http://tabiya-core:5010"
+    givenManifestUrl = f"{givenBase}/plugin/tabiya.ner.v1/manifest"
+    expectedAuthHeader = None
+    fake_http = _FakeHttp().on(givenManifestUrl, _valid_manifest_response())
+    givenCatalog = [
+        CatalogEntry(
+            plugin_id="tabiya.ner.v1",
+            url_env="TABIYA_CORE_BUNDLE_URL",
+            path="/plugin/tabiya.ner.v1",
+        )
+    ]
+    registry = PluginRegistry(
+        givenCatalog,
+        http_client=fake_http,
+        env={"TABIYA_CORE_BUNDLE_URL": givenBase},
+    )
+
+    # WHEN we refresh
+    await registry.refresh()
+
+    # THEN no Authorization header was attached
+    assert fake_http.headers_by_url[givenManifestUrl].get("Authorization") is expectedAuthHeader
 
 
 async def test_refresh_marks_unreachable_plugin_unavailable() -> None:

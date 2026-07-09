@@ -22,6 +22,8 @@ import logging
 import httpx
 from tabiya_plugin_contracts import Match
 
+from tabiya_core.identity import bearer_headers
+
 from .core import EmbeddingsCacheNotReady
 
 
@@ -77,7 +79,9 @@ class HttpEntityLinker:
             taxonomy_model_id,
             len(entities),
         )
-        response = await self._http_client.post(endpoint_url, json=request_body)
+        # Private Cloud Run: attach a GCP identity token (no-op off-GCP).
+        headers = bearer_headers(self._base_url)
+        response = await self._http_client.post(endpoint_url, json=request_body, headers=headers)
 
         if response.status_code == 503:
             raise EmbeddingsCacheNotReady(

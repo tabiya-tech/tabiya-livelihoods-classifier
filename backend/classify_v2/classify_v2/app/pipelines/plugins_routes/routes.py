@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import os
 import urllib.parse
 from typing import Any
 
@@ -27,6 +28,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from classify_v2.app.auth.firebase import get_firebase_uid
+from classify_v2.app.pipelines.executor import GcpIdentityTokenProvider
 from classify_v2.app.pipelines.plugins_routes._types import (
     ListPluginsResponse,
     PluginDetail,
@@ -40,8 +42,13 @@ from classify_v2.app.pipelines.registry import (
     PluginUnreachableError,
     ResolvedPlugin,
 )
+from classify_v2.config import NEL_V2_API_URL
 
 _logger = logging.getLogger(__name__)
+
+# x-source paths under this prefix resolve to the NEL v2 service rather than
+# to classify_v2's own base URL — classify_v2 does not serve /v2/nel/*.
+_NEL_V2_PATH_PREFIX = "/v2/nel/"
 
 router = APIRouter(prefix="/v2/plugins", tags=["plugins"])
 
@@ -154,9 +161,10 @@ def _is_private_host(host: str) -> bool:
 def _resolve_options_url(request: Request, x_source: str) -> str:
     """Turn a relative x-source (`/v2/nel/models`) into an absolute URL.
 
-    Absolute URLs pass through after a private-IP check. Relative paths
-    resolve against this request's own base_url so that `/v2/nel/*` routes
-    proxy to sibling services in the same deployment.
+    Absolute URLs pass through after a private-IP check. Relative `/v2/nel/*`
+    paths resolve against the NEL v2 service (`NEL_V2_API_URL`) — classify_v2
+    does not serve those routes itself. Any other relative path resolves
+    against this request's own base_url.
     """
 
     if x_source.startswith(("http://", "https://")):
@@ -170,10 +178,33 @@ def _resolve_options_url(request: Request, x_source: str) -> str:
                 ),
             )
         return x_source
-    base = str(request.base_url).rstrip("/")
     if not x_source.startswith("/"):
         x_source = "/" + x_source
+    if x_source.startswith(_NEL_V2_PATH_PREFIX):
+        return f"{NEL_V2_API_URL.rstrip('/')}{x_source}"
+    base = str(request.base_url).rstrip("/")
     return f"{base}{x_source}"
+
+
+async def _options_auth_headers(upstream_url: str) -> dict[str, str]:
+    """Attach a GCP identity token when proxying to the private NEL v2 service.
+
+    Only the NEL v2 host is a private Cloud Run peer that requires a token;
+    other (public / gateway) targets need none. No-op in local mode.
+    """
+
+    # Read live (not the import-time config constant) so tests that set the
+    # env var via monkeypatch behave deterministically regardless of import order.
+    if os.getenv("TARGET_ENVIRONMENT_TYPE", "").lower() == "local":
+        return {}
+    if not upstream_url.startswith(NEL_V2_API_URL.rstrip("/")):
+        return {}
+    try:
+        token = await GcpIdentityTokenProvider().get_id_token(upstream_url)
+    except Exception:  # noqa: BLE001 — auth is best-effort; a 401 upstream surfaces as 502
+        _logger.debug("Identity token unavailable for %s", upstream_url, exc_info=True)
+        return {}
+    return {"Authorization": f"Bearer {token}"} if token else {}
 
 
 def _coerce_options_payload(payload: Any) -> list[PluginOptionItem]:
@@ -261,8 +292,9 @@ async def get_plugin_options(
         )
 
     upstream_url = _resolve_options_url(request, x_source)
+    headers = await _options_auth_headers(upstream_url)
     try:
-        upstream_response = await http.get(upstream_url, timeout=5.0)
+        upstream_response = await http.get(upstream_url, timeout=5.0, headers=headers)
     except httpx.RequestError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

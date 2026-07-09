@@ -21,4 +21,6 @@ RUN poetry config virtualenvs.create false \
 
 EXPOSE 5011
 
-CMD ["uvicorn", "tabiya_io.main:app", "--host", "0.0.0.0", "--port", "5011"]
+# Invoke via `python -m uvicorn` so startup does not depend on the `uvicorn`
+# console script being on PATH (it isn't reliably under poetry's system install).
+CMD ["python", "-m", "uvicorn", "tabiya_io.main:app", "--host", "0.0.0.0", "--port", "5011"]
