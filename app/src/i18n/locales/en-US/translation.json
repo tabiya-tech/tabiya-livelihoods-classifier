@@ -175,6 +175,12 @@
       "loading": "Loading active config…",
       "configureLink": "Configure"
     },
+    "pipelineSelector": {
+      "loading": "Loading pipelines…",
+      "editLink": "Edit in Pipelines",
+      "activeBadge": "Active",
+      "ariaLabel": "Select pipeline"
+    },
     "placeholder": {
       "idleTitle": "Run a classification to see results",
       "idleHelp": "Paste a job description on the left and click Classify.",
@@ -316,6 +322,29 @@
         "description": "Leaving this page now will discard your pipeline changes.",
         "discard": "Discard changes",
         "keepEditing": "Keep editing"
+      },
+      "runPreview": {
+        "playButton": "Play preview",
+        "resetButton": "Reset",
+        "status": {
+          "idle": "Ready",
+          "playing": "Playing",
+          "done": "Done"
+        }
+      }
+    },
+    "library": {
+      "eyebrow": "Workspace · Plugin library",
+      "title": "Plugin library",
+      "intro": "Browse the plugins available in this deployment. Click a plugin to see its config schema and slot types.",
+      "detail": {
+        "emptyPrompt": "Select a plugin from the list to see its schema.",
+        "slotsHeading": "Slots",
+        "slotInput": "Input",
+        "slotOutput": "Output",
+        "schemaHeading": "Config schema",
+        "capabilitiesHeading": "Capabilities",
+        "timeoutLabel": "Timeout"
       }
     }
   }

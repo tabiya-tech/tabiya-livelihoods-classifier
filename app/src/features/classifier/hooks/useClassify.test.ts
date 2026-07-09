@@ -107,6 +107,26 @@ describe("useClassify", () => {
     expect(result.current.status).toBe("done");
   });
 
+  it("forwards the pipelineId argument as payload.pipeline_id when the caller supplied it", async () => {
+    // GIVEN a backend spy and a caller who passes a pipeline id
+    const givenPipelineId = "pipeline-recruiter-tuning";
+    const givenPayload = { text: "senior analyst" };
+    const expectedPayload = {
+      text: "senior analyst",
+      pipeline_id: givenPipelineId,
+    };
+    const classifyImpl = vi.fn(async () => givenResponse);
+
+    // WHEN run is called with a pipeline id
+    const { result } = renderHook(() => useClassify({ classifyImpl }));
+    await act(async () => {
+      await result.current.run(givenPayload, givenPipelineId);
+    });
+
+    // THEN the backend received the payload with pipeline_id merged in
+    expect(classifyImpl).toHaveBeenCalledWith(expectedPayload);
+  });
+
   it("reset clears state and ignores any still-in-flight runs", async () => {
     // GIVEN a backend that never resolves until we say so
     let resolveLater: (value: ClassifyResponse) => void = () => undefined;
