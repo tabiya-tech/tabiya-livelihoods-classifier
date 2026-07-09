@@ -11,6 +11,7 @@ export const routerPaths = {
   CLASSIFIER: "/classifier",
   PIPELINES: "/pipelines",
   PIPELINE_NEW: "/pipelines/new",
+  PIPELINE_LIBRARY: "/pipelines/library",
   PIPELINE_EDIT: "/pipelines/:pipelineId",
   CONFIGURATION: "/configuration",
   KEYS: "/keys",
