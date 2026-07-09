@@ -18,6 +18,8 @@ import logging
 import httpx
 from tabiya_plugin_contracts import Entity, EntitySpan
 
+from tabiya_core.identity import bearer_headers
+
 
 log = logging.getLogger("tabiya-core-bundle.ner.http-extractor")
 
@@ -60,7 +62,9 @@ class HttpEntityExtractor:
             model_id,
             len(text),
         )
-        response = self._http_client.post(endpoint_url, json=request_body)
+        # Private Cloud Run: attach a GCP identity token (no-op off-GCP).
+        headers = bearer_headers(self._base_url)
+        response = self._http_client.post(endpoint_url, json=request_body, headers=headers)
         response.raise_for_status()
         payload = response.json()
 

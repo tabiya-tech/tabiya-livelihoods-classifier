@@ -11,10 +11,9 @@ Three auth paths (same as nel-v2):
 import base64
 import json
 import logging
+import os
 
 from fastapi import HTTPException, Request, status
-
-from classify_v2.config import TARGET_ENVIRONMENT_TYPE
 
 _logger = logging.getLogger(__name__)
 
@@ -39,8 +38,12 @@ def get_firebase_uid(request: Request) -> str:
 
     Local mode skips auth and returns a fixed uid. In production the gateway
     has already authenticated the request and forwarded the claims.
+
+    Reads TARGET_ENVIRONMENT_TYPE live (not an import-time constant) so tests
+    that set it via monkeypatch behave deterministically regardless of module
+    import order.
     """
-    if TARGET_ENVIRONMENT_TYPE == "local":
+    if os.getenv("TARGET_ENVIRONMENT_TYPE", "") == "local":
         _logger.warning("AUTH BYPASS ACTIVE — TARGET_ENVIRONMENT_TYPE=local, returning fixed uid '%s'", _LOCAL_UID)
         return _LOCAL_UID
 

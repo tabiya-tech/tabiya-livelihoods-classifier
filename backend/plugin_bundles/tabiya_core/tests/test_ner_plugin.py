@@ -87,8 +87,10 @@ def test_manifest_config_schema_advertises_x_source_for_model_id() -> None:
     # WHEN we look up the model_id field
     modelIdField = givenSchema["properties"]["model_id"]
 
-    # THEN it points at the options endpoint for dynamic dropdowns
-    expectedXSource = "/v2/plugins/tabiya.ner.v1/options/model_id"
+    # THEN it points at the NEL v2 model list (resolved by classify_v2's
+    # options proxy). It must NOT point back at the /v2/plugins/.../options
+    # endpoint that reads this field — that would recurse infinitely.
+    expectedXSource = "/v2/nel/models"
     assert modelIdField["x-source"] == expectedXSource
 
 

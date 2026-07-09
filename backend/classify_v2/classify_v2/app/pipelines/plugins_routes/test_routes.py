@@ -17,6 +17,7 @@ from tabiya_plugin_contracts import (
 )
 
 from classify_v2.app.pipelines.plugins_routes.routes import (
+    NEL_V2_API_URL,
     get_plugin_http,
     get_plugin_registry,
     router as plugins_router,
@@ -26,6 +27,10 @@ from classify_v2.app.pipelines.registry import (
     PluginRegistry,
     PluginStatus,
 )
+
+# `/v2/nel/*` x-source paths resolve to the NEL v2 service, not the request
+# base URL. Tests register upstream responses at this absolute URL.
+NEL_MODELS_URL = f"{NEL_V2_API_URL.rstrip('/')}/v2/nel/models"
 
 
 class _FakeHttp:
@@ -44,7 +49,12 @@ class _FakeHttp:
         self._exceptions[url] = exc
         return self
 
-    async def get(self, url: str, timeout: float | None = None) -> httpx.Response:
+    async def get(
+        self,
+        url: str,
+        timeout: float | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
         self.calls.append(url)
         if url in self._exceptions:
             raise self._exceptions[url]
@@ -290,7 +300,7 @@ async def test_options_proxies_upstream_and_returns_normalised_items(monkeypatch
     )
     # And that endpoint returns nel-shaped model list
     fake_http.on(
-        f"http://testserver{xSource}",
+        NEL_MODELS_URL,
         httpx.Response(
             200,
             json=[
@@ -320,6 +330,36 @@ async def test_options_proxies_upstream_and_returns_normalised_items(monkeypatch
         {"value": "model-1", "label": "All MiniLM"},
         {"value": "model-2", "label": "Sentence-BERT"},
     ]
+
+
+async def test_options_resolves_nel_path_to_nel_v2_service_not_base_url(monkeypatch) -> None:
+    # GIVEN a NEL-style x-source (relative /v2/nel/* path)
+    givenXSource = "/v2/nel/models"
+    # AND classify_v2 does NOT serve /v2/nel/* — it must target the NEL v2 service
+    expectedFetchUrl = NEL_MODELS_URL
+    unexpectedBaseUrlFetch = f"http://testserver{givenXSource}"
+    fake_http = _FakeHttp()
+    fake_http.on(
+        f"{CORE_URL}/plugin/tabiya.ner.v1/manifest",
+        httpx.Response(200, json=_ner_manifest_dict(x_source=givenXSource)),
+    )
+    fake_http.on(expectedFetchUrl, httpx.Response(200, json=[{"id": "m1", "name": "M1"}]))
+    givenCatalog = [
+        CatalogEntry(
+            plugin_id="tabiya.ner.v1",
+            url_env="TABIYA_CORE_BUNDLE_URL",
+            path="/plugin/tabiya.ner.v1",
+        )
+    ]
+    client, _ = await _build_client(givenCatalog, _env_with_bundles(), fake_http, monkeypatch)
+
+    # WHEN we hit the options endpoint
+    response = client.get("/v2/plugins/tabiya.ner.v1/options/model_id")
+
+    # THEN the upstream fetch went to the NEL v2 service, not the request base URL
+    assert response.status_code == 200
+    assert expectedFetchUrl in fake_http.calls
+    assert unexpectedBaseUrlFetch not in fake_http.calls
 
 
 async def test_options_accepts_already_shaped_value_label_payload(monkeypatch) -> None:
@@ -414,7 +454,7 @@ async def test_options_maps_upstream_5xx_to_502(monkeypatch) -> None:
         f"{CORE_URL}/plugin/tabiya.ner.v1/manifest",
         httpx.Response(200, json=_ner_manifest_dict(x_source=xSource)),
     )
-    fake_http.on(f"http://testserver{xSource}", httpx.Response(500))
+    fake_http.on(NEL_MODELS_URL, httpx.Response(500))
     givenCatalog = [
         CatalogEntry(
             plugin_id="tabiya.ner.v1",
@@ -441,7 +481,7 @@ async def test_options_maps_upstream_transport_error_to_502(monkeypatch) -> None
         f"{CORE_URL}/plugin/tabiya.ner.v1/manifest",
         httpx.Response(200, json=_ner_manifest_dict(x_source=xSource)),
     )
-    fake_http.raise_on(f"http://testserver{xSource}", httpx.ConnectError("boom"))
+    fake_http.raise_on(NEL_MODELS_URL, httpx.ConnectError("boom"))
     givenCatalog = [
         CatalogEntry(
             plugin_id="tabiya.ner.v1",
@@ -468,7 +508,7 @@ async def test_options_maps_string_list_upstream_to_value_equals_label(monkeypat
         httpx.Response(200, json=_ner_manifest_dict(x_source=xSource)),
     )
     fake_http.on(
-        f"http://testserver{xSource}",
+        NEL_MODELS_URL,
         httpx.Response(200, json=["alpha", "beta"]),
     )
     givenCatalog = [

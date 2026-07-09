@@ -11,6 +11,7 @@ export const DATA_TEST_ID = {
   CATEGORY_BADGE: `plugin-palette-category-badge-${uniqueId}`,
   PLUGIN_ROW: `plugin-palette-plugin-row-${uniqueId}`,
   COMING_SOON_PILL: `plugin-palette-coming-soon-pill-${uniqueId}`,
+  UNAVAILABLE_PILL: `plugin-palette-unavailable-pill-${uniqueId}`,
 };
 
 const CATEGORY_ORDER: Array<PluginCategory | "other"> = [
@@ -187,7 +188,13 @@ interface PluginRowProps {
 }
 
 function PluginRow({ plugin, onClick }: PluginRowProps) {
-  const isDisabled = plugin.coming_soon;
+  // A plugin can't be added to a pipeline when it's a "coming soon" placeholder
+  // or when its bundle is unreachable (status "unavailable" — no URL or the
+  // manifest fetch failed). "degraded" plugins keep a cached manifest and stay
+  // usable, so they remain draggable.
+  const isComingSoon = plugin.coming_soon;
+  const isUnavailable = !isComingSoon && plugin.status === "unavailable";
+  const isDisabled = isComingSoon || isUnavailable;
   const isClickable = !isDisabled && Boolean(onClick);
 
   function handleDragStart(event: React.DragEvent<HTMLDivElement>) {
@@ -255,7 +262,7 @@ function PluginRow({ plugin, onClick }: PluginRowProps) {
           {plugin.name}
         </span>
 
-        {isDisabled && (
+        {isComingSoon && (
           <span
             data-testid={DATA_TEST_ID.COMING_SOON_PILL}
             style={{
@@ -271,6 +278,26 @@ function PluginRow({ plugin, onClick }: PluginRowProps) {
             }}
           >
             Soon
+          </span>
+        )}
+
+        {isUnavailable && (
+          <span
+            data-testid={DATA_TEST_ID.UNAVAILABLE_PILL}
+            title={plugin.last_error ?? "Plugin bundle is unreachable"}
+            style={{
+              fontSize: "9px",
+              fontWeight: 600,
+              padding: "1px 5px",
+              borderRadius: "8px",
+              backgroundColor: "#f6dcdc",
+              color: "#b91c1c",
+              letterSpacing: "0.03em",
+              textTransform: "uppercase",
+              flexShrink: 0,
+            }}
+          >
+            Unavailable
           </span>
         )}
       </div>
