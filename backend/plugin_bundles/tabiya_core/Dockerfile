@@ -8,8 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip install --no-cache-dir poetry==1.8.3
 
-# Copy shared contracts package first (local path dependency)
-COPY backend/tabiya_plugin_contracts /app/tabiya_plugin_contracts
+# Copy shared contracts package first (local path dependency).
+# Must land at /tabiya_plugin_contracts so that the relative path
+# "../../tabiya_plugin_contracts" from /app/tabiya_core resolves correctly.
+COPY backend/tabiya_plugin_contracts /tabiya_plugin_contracts
 
 # Copy the bundle
 COPY backend/plugin_bundles/tabiya_core /app/tabiya_core
