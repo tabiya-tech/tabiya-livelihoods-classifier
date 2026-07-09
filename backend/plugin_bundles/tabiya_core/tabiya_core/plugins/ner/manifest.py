@@ -32,7 +32,10 @@ MANIFEST = Manifest(
                 "type": "string",
                 "title": "Model",
                 "default": "tabiya/roberta-base-job-ner",
-                "x-source": "/v2/plugins/tabiya.ner.v1/options/model_id",
+                # Resolved by classify_v2's options proxy against the NEL v2
+                # service (which currently owns the model list). Must NOT point
+                # back at /v2/plugins/.../options — that recurses infinitely.
+                "x-source": "/v2/nel/models",
             },
             "entity_types": {
                 "type": "array",

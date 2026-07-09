@@ -50,8 +50,25 @@ def create_artifact_registry(project: str, region: str):
         display_name="Classify v2 Cloud Run Service Account",
     )
 
+    # Plugin bundles (Step 11 §9): one Cloud Run service per plugin category.
+    tabiya_core_sa = gcp.serviceaccount.Account(
+        "tabiya-core-sa",
+        project=project,
+        account_id="tabiya-core-bundle",
+        display_name="Tabiya-Core Plugin Bundle Service Account",
+    )
+
+    tabiya_io_sa = gcp.serviceaccount.Account(
+        "tabiya-io-sa",
+        project=project,
+        account_id="tabiya-io-bundle",
+        display_name="Tabiya-IO Plugin Bundle Service Account",
+    )
+
     # Grant each SA read access to the Artifact Registry
-    for i, sa in enumerate([ner_sa, nel_sa, classify_sa, nel_v2_sa, classify_v2_sa]):
+    for i, sa in enumerate(
+        [ner_sa, nel_sa, classify_sa, nel_v2_sa, classify_v2_sa, tabiya_core_sa, tabiya_io_sa]
+    ):
         gcp.artifactregistry.RepositoryIamMember(
             f"registry-reader-{i}",
             project=project,
@@ -89,6 +106,15 @@ def create_artifact_registry(project: str, region: str):
         member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
 
+    # Classify v2 reads the app MongoDB URI (pipelines + api_keys collections).
+    gcp.secretmanager.SecretIamMember(
+        "classify-v2-sa-mongodb-uri-accessor",
+        project=project,
+        secret_id="tabiya-classifier-mongodb-uri",
+        role="roles/secretmanager.secretAccessor",
+        member=classify_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
     # NEL v2 needs both the app MongoDB URI and the taxonomy MongoDB URI
     gcp.secretmanager.SecretIamMember(
         "nel-v2-sa-mongodb-uri-accessor",
@@ -115,4 +141,6 @@ def create_artifact_registry(project: str, region: str):
         "classify_sa": classify_sa,
         "nel_v2_sa": nel_v2_sa,
         "classify_v2_sa": classify_v2_sa,
+        "tabiya_core_sa": tabiya_core_sa,
+        "tabiya_io_sa": tabiya_io_sa,
     }

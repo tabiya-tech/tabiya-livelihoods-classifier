@@ -22,7 +22,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Any, Optional, Protocol
 
 import httpx
 from pydantic import ValidationError
@@ -46,7 +46,12 @@ class IHttpClient(Protocol):
     passed at PluginRegistry construction.
     """
 
-    async def get(self, url: str, timeout: float | None = None) -> httpx.Response: ...
+    async def get(
+        self,
+        url: str,
+        timeout: float | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response: ...
 
 
 def load_catalog(path: Path = DEFAULT_CATALOG_PATH) -> list[CatalogEntry]:
@@ -82,12 +87,16 @@ class PluginRegistry:
         env: Optional[dict[str, str]] = None,
         fetch_timeout_seconds: float = DEFAULT_FETCH_TIMEOUT_SECONDS,
         refresh_interval_seconds: float = DEFAULT_REFRESH_INTERVAL_SECONDS,
+        identity_token_provider: Optional[Any] = None,
     ) -> None:
         self._catalog = catalog
         self._http = http_client
         self._env = dict(env) if env is not None else dict(os.environ)
         self._fetch_timeout = fetch_timeout_seconds
         self._refresh_interval = refresh_interval_seconds
+        # Attaches a GCP identity token to manifest fetches so a private
+        # Cloud Run bundle accepts them. None in local mode / tests → no header.
+        self._identity = identity_token_provider
         self._plugins: dict[str, ResolvedPlugin] = {
             entry.plugin_id: ResolvedPlugin(
                 plugin_id=entry.plugin_id,
@@ -105,6 +114,22 @@ class PluginRegistry:
         if not base:
             return None
         return base + entry.path
+
+    async def _auth_headers(self, url: str) -> dict[str, str]:
+        """Attach a GCP identity token for `url` when a provider is set.
+
+        No-op (empty dict) in local mode / tests, where the bundles bypass
+        auth and no provider is configured.
+        """
+
+        if self._identity is None:
+            return {}
+        try:
+            token = await self._identity.get_id_token(url)
+        except Exception:  # noqa: BLE001 — auth is best-effort at manifest-fetch time
+            _logger.debug("Identity token unavailable for %s", url, exc_info=True)
+            return {}
+        return {"Authorization": f"Bearer {token}"} if token else {}
 
     async def refresh(self) -> None:
         """Re-resolve every URL and re-fetch every manifest once.
@@ -151,8 +176,11 @@ class PluginRegistry:
             return
 
         manifest_url = f"{url}/manifest"
+        headers = await self._auth_headers(url)
         try:
-            response = await self._http.get(manifest_url, timeout=self._fetch_timeout)
+            response = await self._http.get(
+                manifest_url, timeout=self._fetch_timeout, headers=headers
+            )
         except (httpx.RequestError, asyncio.TimeoutError) as exc:
             self._plugins[plugin_id] = current.model_copy(
                 update={

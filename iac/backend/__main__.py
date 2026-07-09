@@ -17,6 +17,8 @@ Required Pulumi config:
   tabiya-classifier-backend:classifyImage         — Classify Docker image URI (injected by CI)
   tabiya-classifier-backend:nelV2Image            — NEL v2 Docker image URI (injected by CI)
   tabiya-classifier-backend:classifyV2Image       — Classify v2 Docker image URI (injected by CI)
+  tabiya-classifier-backend:tabiyaCoreImage       — Tabiya-Core plugin bundle image URI (injected by CI)
+  tabiya-classifier-backend:tabiyaIoImage         — Tabiya-IO plugin bundle image URI (injected by CI)
   tabiya-classifier-backend:taxonomyMongoDbName   — MongoDB database name for taxonomy/embeddings Atlas cluster
   tabiya-classifier-backend:taxonomyApiBaseUrl    — Base URL for the taxonomy REST API
   tabiya-classifier-backend:defaultNELModelId     — Default NEL model ID (e.g. all-MiniLM-L6-v2)
@@ -51,6 +53,8 @@ nel_image = config.require("nelImage")
 classify_image = config.require("classifyImage")
 nel_v2_image = config.require("nelV2Image")
 classify_v2_image = config.require("classifyV2Image")
+tabiya_core_image = config.require("tabiyaCoreImage")
+tabiya_io_image = config.require("tabiyaIoImage")
 taxonomy_mongodb_db_name = config.require("taxonomyMongoDbName")
 taxonomy_api_base_url = config.require("taxonomyApiBaseUrl")
 default_nel_model_id = config.get("defaultNELModelId") or "all-MiniLM-L6-v2"
@@ -101,7 +105,7 @@ gcp.projects.Service(
 )
 
 # ── Cloud Run Services ─────────────────────────────────────────────────────
-ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
+ner, nel, classify, nel_v2, classify_v2, tabiya_core, tabiya_io = create_cloud_run_services(
     project=project,
     region=region,
     service_accounts=service_accounts,
@@ -110,6 +114,8 @@ ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     classify_image=classify_image,
     nel_v2_image=nel_v2_image,
     classify_v2_image=classify_v2_image,
+    tabiya_core_image=tabiya_core_image,
+    tabiya_io_image=tabiya_io_image,
     hf_token_secret=secrets["hf_token"],
     mongodb_uri_secret=secrets["mongodb_uri"],
     taxonomy_mongodb_uri_secret=secrets["taxonomy_mongodb_uri"],
@@ -130,6 +136,8 @@ pulumi.export("nelUrl", nel.uri)
 pulumi.export("classifyUrl", classify.uri)
 pulumi.export("nelV2Url", nel_v2.uri)
 pulumi.export("classifyV2Url", classify_v2.uri)
+pulumi.export("tabiyaCoreUrl", tabiya_core.uri)
+pulumi.export("tabiyaIoUrl", tabiya_io.uri)
 
 # ── API Gateway (config + gateway, uses Cloud Run URLs) ────────────────────
 _api_config, gateway, gateway_sa = create_api_gateway(

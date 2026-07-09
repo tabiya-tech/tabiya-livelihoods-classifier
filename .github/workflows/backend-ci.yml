@@ -21,16 +21,31 @@ jobs:
       matrix:
         include:
           - service: shared
+            path: backend/shared
             needs_shared: false
           - service: ner
+            path: backend/ner
             needs_shared: false
           - service: nel
+            path: backend/nel
             needs_shared: true
           - service: classify
+            path: backend/classify
             needs_shared: false
           - service: nel_v2
+            path: backend/nel_v2
             needs_shared: true
           - service: classify_v2
+            path: backend/classify_v2
+            needs_shared: false
+          - service: tabiya_plugin_contracts
+            path: backend/tabiya_plugin_contracts
+            needs_shared: false
+          - service: tabiya_core
+            path: backend/plugin_bundles/tabiya_core
+            needs_shared: false
+          - service: tabiya_io
+            path: backend/plugin_bundles/tabiya_io
             needs_shared: false
     steps:
       - uses: actions/checkout@v4
@@ -52,11 +67,11 @@ jobs:
         # `shared` is a library, not a service: install it without its own root package
         # so its language-registry tests run without pulling a service's deps.
         run: poetry install --no-interaction ${{ matrix.service == 'nel_v2' && '--extras inference' || '' }} ${{ matrix.service == 'shared' && '--no-root' || '' }}
-        working-directory: backend/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
 
       - name: Run tests
         run: poetry run pytest
-        working-directory: backend/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
 
   build-and-push:
     name: Build & push ${{ matrix.service }}
@@ -66,7 +81,21 @@ jobs:
     environment: ${{ inputs.stack }}
     strategy:
       matrix:
-        service: [ner, nel, classify, nel_v2, classify_v2]
+        include:
+          - service: ner
+            dockerfile: backend/ner/Dockerfile
+          - service: nel
+            dockerfile: backend/nel/Dockerfile
+          - service: classify
+            dockerfile: backend/classify/Dockerfile
+          - service: nel_v2
+            dockerfile: backend/nel_v2/Dockerfile
+          - service: classify_v2
+            dockerfile: backend/classify_v2/Dockerfile
+          - service: tabiya_core
+            dockerfile: backend/plugin_bundles/tabiya_core/Dockerfile
+          - service: tabiya_io
+            dockerfile: backend/plugin_bundles/tabiya_io/Dockerfile
     permissions:
       contents: read
       id-token: write
@@ -89,7 +118,7 @@ jobs:
           REGISTRY="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/tabiya-classifier"
           echo "${{ secrets.HF_TOKEN }}" > /tmp/hf_token
           docker build \
-            -f backend/${{ matrix.service }}/Dockerfile \
+            -f ${{ matrix.dockerfile }} \
             --secret id=HF_TOKEN,src=/tmp/hf_token \
             -t ${REGISTRY}/${{ matrix.service }}:${{ github.sha }} \
             -t ${REGISTRY}/${{ matrix.service }}:latest \

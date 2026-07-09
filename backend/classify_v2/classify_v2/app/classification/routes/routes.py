@@ -22,7 +22,10 @@ from classify_v2.app.classification.service.types import (
     ClassifyRequest,
     ClassifyResponse,
 )
-from classify_v2.app.pipelines.executor import PipelineExecutor
+from classify_v2.app.pipelines.executor import (
+    GcpIdentityTokenProvider,
+    PipelineExecutor,
+)
 from classify_v2.app.pipelines.plugins_routes.routes import (
     get_plugin_http,
     get_plugin_registry,
@@ -40,7 +43,7 @@ from classify_v2.app.pipelines.service import (
 )
 from classify_v2.app.pipelines.service.service import DefaultTabiyaConfig
 from classify_v2.app.server_dependencies.db_dependencies import ClassifyDBProvider
-from classify_v2.config import MAX_TEXT_LENGTH
+from classify_v2.config import MAX_TEXT_LENGTH, TARGET_ENVIRONMENT_TYPE
 
 _logger = logging.getLogger(__name__)
 
@@ -66,7 +69,19 @@ async def _get_pipeline_service(
 def _get_classify_service(request: Request) -> IClassifyService:
     registry: PluginRegistry = request.app.state.plugin_registry
     http_client = request.app.state.plugin_http
-    executor = PipelineExecutor(registry=registry, http_client=http_client)
+    # In local mode the bundles bypass auth, so no token is minted. Against
+    # real (private) Cloud Run bundles we attach a GCP identity token — Cloud
+    # Run IAM requires one, and the bundle also validates its audience (§8).
+    identity_token_provider = (
+        None
+        if TARGET_ENVIRONMENT_TYPE.lower() == "local"
+        else GcpIdentityTokenProvider()
+    )
+    executor = PipelineExecutor(
+        registry=registry,
+        http_client=http_client,
+        identity_token_provider=identity_token_provider,
+    )
     return ClassifyService(executor=executor)
 
 
