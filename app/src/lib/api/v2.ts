@@ -246,7 +246,7 @@ export type PluginStatus = "enabled" | "degraded" | "unavailable";
 
 export type PluginCategory = "source" | "core" | "transform" | "sink";
 
-/** Extra fields the backend may attach under `x-tabiya-*`. Optional in v1. */
+/** Extra fields the backend may attach under `x-tabiya-*`. */
 export interface PluginCapabilities {
   "x-tabiya-contract-version"?: string | null;
   "x-tabiya-streams"?: boolean | null;

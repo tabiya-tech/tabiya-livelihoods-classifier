@@ -15,7 +15,9 @@ _logger = logging.getLogger(__name__)
 
 
 def _create_application_db(mongodb_uri: str, db_name: str) -> AsyncIOMotorDatabase:
-    return AsyncIOMotorClient(mongodb_uri, tlsAllowInvalidCertificates=True).get_database(db_name)
+    from classify_v2.config import TARGET_ENVIRONMENT_TYPE
+    tls_allow_invalid = TARGET_ENVIRONMENT_TYPE == "local"
+    return AsyncIOMotorClient(mongodb_uri, tlsAllowInvalidCertificates=tls_allow_invalid).get_database(db_name)
 
 
 class ClassifyDBProvider:

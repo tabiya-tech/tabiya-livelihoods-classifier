@@ -41,6 +41,7 @@ def get_firebase_uid(request: Request) -> str:
     has already authenticated the request and forwarded the claims.
     """
     if TARGET_ENVIRONMENT_TYPE == "local":
+        _logger.warning("AUTH BYPASS ACTIVE — TARGET_ENVIRONMENT_TYPE=local, returning fixed uid '%s'", _LOCAL_UID)
         return _LOCAL_UID
 
     try:

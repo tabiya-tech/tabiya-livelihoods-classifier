@@ -259,14 +259,38 @@ async def test_classify_wraps_upstream_unavailable_as_embeddings_cache_not_ready
         )
 
 
-async def test_classify_wraps_plugin_timeout_as_nel_service_error() -> None:
-    # GIVEN an executor that raises PluginTimeoutError
+async def test_classify_wraps_ner_plugin_timeout_as_ner_service_error() -> None:
+    # GIVEN an executor that raises PluginTimeoutError for the NER plugin
     givenPipeline = _canonical_pipeline_doc()
     stub = _StubExecutor(
         exc=PluginTimeoutError(
             "Plugin timed out.",
             stage_index=1,
             plugin_id="tabiya.ner.v1",
+        )
+    )
+    service = _service_with_stub_executor(stub)
+
+    # WHEN we classify
+    # THEN NERServiceError (not NELServiceError) so monitoring sees the right stage
+    with pytest.raises(NERServiceError):
+        await service.classify(
+            pipeline=givenPipeline,
+            input_text="Statistician",
+            options=ClassifyOptions(),
+            request_id="req-1",
+            user_id="uid-1",
+        )
+
+
+async def test_classify_wraps_nel_plugin_timeout_as_nel_service_error() -> None:
+    # GIVEN an executor that raises PluginTimeoutError for a NEL plugin
+    givenPipeline = _canonical_pipeline_doc()
+    stub = _StubExecutor(
+        exc=PluginTimeoutError(
+            "Plugin timed out.",
+            stage_index=2,
+            plugin_id="tabiya.nel.v1",
         )
     )
     service = _service_with_stub_executor(stub)

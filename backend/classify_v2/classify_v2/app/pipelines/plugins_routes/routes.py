@@ -18,7 +18,9 @@ to know about the shape of every plugin's options space.
 
 from __future__ import annotations
 
+import ipaddress
 import logging
+import urllib.parse
 from typing import Any
 
 import httpx
@@ -131,16 +133,42 @@ def _find_x_source(manifest: Any, field: str) -> str | None:
     return x_source if isinstance(x_source, str) and x_source else None
 
 
+def _is_private_host(host: str) -> bool:
+    """Return True if `host` resolves to a loopback or RFC-1918 address.
+
+    We check the literal hostname only (no DNS resolution) so that
+    cloud metadata endpoints like `169.254.169.254` are blocked without
+    a network round-trip.
+    """
+    try:
+        addr = ipaddress.ip_address(host)
+        return addr.is_private or addr.is_loopback or addr.is_link_local
+    except ValueError:
+        # Not a bare IP — allow it (hostname like `nel-service.internal` is
+        # fine; DNS-rebinding is an accepted residual risk here because
+        # x-source values come from operator-configured plugin bundles, not
+        # from end-user input).
+        return False
+
+
 def _resolve_options_url(request: Request, x_source: str) -> str:
     """Turn a relative x-source (`/v2/nel/models`) into an absolute URL.
 
-    Absolute URLs (http:// or https://) pass through unchanged. Relative
-    paths resolve against this request's own base_url — meaning the
-    options endpoint most commonly proxies to sibling classify_v2 routes
-    such as `/v2/nel/*`.
+    Absolute URLs pass through after a private-IP check. Relative paths
+    resolve against this request's own base_url so that `/v2/nel/*` routes
+    proxy to sibling services in the same deployment.
     """
 
     if x_source.startswith(("http://", "https://")):
+        parsed = urllib.parse.urlparse(x_source)
+        if _is_private_host(parsed.hostname or ""):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Plugin x-source URL '{x_source}' targets a private or "
+                    "loopback address, which is not permitted."
+                ),
+            )
         return x_source
     base = str(request.base_url).rstrip("/")
     if not x_source.startswith("/"):

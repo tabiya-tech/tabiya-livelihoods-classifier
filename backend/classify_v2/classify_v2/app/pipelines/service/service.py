@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+from pymongo.errors import DuplicateKeyError
 
 from classify_v2.app.pipelines.registry import PluginRegistry
 from classify_v2.app.pipelines.repository import (
@@ -235,7 +236,19 @@ class PipelineService(IPipelineService):
             created_at=now,
             updated_at=now,
         )
-        await self._repository.insert(seed_doc)
+        try:
+            await self._repository.insert(seed_doc)
+        except DuplicateKeyError:
+            # A concurrent request seeded the default first. Re-fetch and return it.
+            _logger.info(
+                "ensure_default: concurrent insert detected for user=%s, re-fetching",
+                user_id,
+            )
+            existing = await self._repository.list_for_user(user_id)
+            for pipeline in existing:
+                if pipeline.is_default:
+                    return pipeline
+            raise
         _logger.info(
             "Seeded Default Tabiya pipeline for user=%s (active=%s)",
             user_id,

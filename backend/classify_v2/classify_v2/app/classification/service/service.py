@@ -89,7 +89,12 @@ class ClassifyService(IClassifyService):
             # Preserve pre-plugin classify behaviour: cache-not-ready → 503
             raise EmbeddingsCacheNotReadyError(str(exc)) from exc
         except PluginTimeoutError as exc:
-            raise NELServiceError(f"Plugin timeout: {exc}") from exc
+            # Route to the correct error type based on which plugin timed out.
+            # NER plugin ids contain "ner"; everything else (NEL, source, sink)
+            # maps to NELServiceError as the representative downstream error.
+            if "ner" in exc.plugin_id.lower():
+                raise NERServiceError(f"NER plugin timeout (stage {exc.stage_index}, plugin {exc.plugin_id}): {exc}") from exc
+            raise NELServiceError(f"Plugin timeout (stage {exc.stage_index}, plugin {exc.plugin_id}): {exc}") from exc
         except PluginInvocationError as exc:
             raise NERServiceError(f"Plugin invocation failed: {exc}") from exc
 

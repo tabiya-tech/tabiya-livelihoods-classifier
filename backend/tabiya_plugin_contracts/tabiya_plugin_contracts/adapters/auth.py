@@ -16,10 +16,14 @@ adapter grabs it lazily on the first request.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 from typing import Optional
 
 from fastapi import Header, HTTPException, status
+
+_logger = logging.getLogger(__name__)
 
 
 def _is_local() -> bool:
@@ -36,6 +40,7 @@ async def require_identity_token(
     """
 
     if _is_local():
+        _logger.warning("AUTH BYPASS ACTIVE — TARGET_ENVIRONMENT_TYPE=local, all identity token checks are skipped")
         return
 
     if not authorization or not authorization.lower().startswith("bearer "):
@@ -61,7 +66,9 @@ async def require_identity_token(
         ) from exc
 
     try:
-        id_token.verify_oauth2_token(token, google_requests.Request(), audience=audience)
+        await asyncio.to_thread(
+            id_token.verify_oauth2_token, token, google_requests.Request(), audience
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -1,8 +1,8 @@
 export { ApiError, API_BASE_URL, NEL_V2_API_BASE_URL, request } from "./fetcher";
 export type { RequestContext, RequestOptions } from "./fetcher";
 
-export { getHealth } from "./v1";
-export type { HealthResponse } from "./v1";
+export { getHealth } from "./health";
+export type { HealthResponse } from "./health";
 
 export {
   getV2UserConfig,
