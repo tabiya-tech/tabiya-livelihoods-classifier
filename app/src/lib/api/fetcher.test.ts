@@ -35,7 +35,7 @@ describe("fetcher.request", () => {
     const fetchImpl = buildSequentialFetch([buildJsonResponse(givenResponseBody)]);
 
     // WHEN we call request with that context
-    const actualResponseBody = await request<typeof givenResponseBody>("/v1/example", {
+    const actualResponseBody = await request<typeof givenResponseBody>("/v2/example", {
       context: { getIdToken, fetchImpl },
     });
 
@@ -63,7 +63,7 @@ describe("fetcher.request", () => {
     ]);
 
     // WHEN we call request
-    const actualResponseBody = await request<typeof givenResponseBody>("/v1/example", {
+    const actualResponseBody = await request<typeof givenResponseBody>("/v2/example", {
       context: { getIdToken, fetchImpl },
     });
 
@@ -86,7 +86,7 @@ describe("fetcher.request", () => {
     ]);
 
     // WHEN we call request
-    const requestPromise = request<unknown>("/v1/example", {
+    const requestPromise = request<unknown>("/v2/example", {
       context: { getIdToken, fetchImpl },
     });
 
@@ -101,7 +101,7 @@ describe("fetcher.request", () => {
     const fetchImpl = buildSequentialFetch([buildEmptyResponse(500)]);
 
     // WHEN we call request
-    const requestPromise = request<unknown>("/v1/example", {
+    const requestPromise = request<unknown>("/v2/example", {
       context: { getIdToken, fetchImpl },
     });
 
@@ -117,7 +117,7 @@ describe("fetcher.request", () => {
     const fetchImpl = buildSequentialFetch([buildEmptyResponse(204)]);
 
     // WHEN we call request
-    const actualResponseBody = await request<void>("/v1/no-body", {
+    const actualResponseBody = await request<void>("/v2/no-body", {
       context: { getIdToken, fetchImpl },
     });
 

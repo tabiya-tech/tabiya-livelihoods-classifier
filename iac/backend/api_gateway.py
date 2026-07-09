@@ -338,6 +338,226 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                     "responses": {"204": {"description": "Revoked"}},
                 },
             },
+            # ── Pipelines routes ──────────────────────────────────────────
+            "/v2/pipelines": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelinesV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "List pipelines",
+                    "operationId": "listPipelinesV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines"},
+                    "responses": {"200": {"description": "Pipeline list"}},
+                },
+                "post": {
+                    "summary": "Create a pipeline",
+                    "operationId": "createPipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines"},
+                    "responses": {"201": {"description": "Created"}},
+                },
+            },
+            "/v2/pipelines/validate": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelinesValidateV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines/validate"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "post": {
+                    "summary": "Validate a pipeline",
+                    "operationId": "validatePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines/validate"},
+                    "responses": {"200": {"description": "Validation result"}},
+                },
+            },
+            "/v2/pipelines/{pipeline_id}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelineByIdV2",
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get a pipeline",
+                    "operationId": "getPipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Pipeline"}},
+                },
+                "put": {
+                    "summary": "Update a pipeline",
+                    "operationId": "updatePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True},
+                        {"in": "body", "name": "body", "schema": {"type": "object"}},
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Updated"}},
+                },
+                "delete": {
+                    "summary": "Delete a pipeline",
+                    "operationId": "deletePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "Deleted"}},
+                },
+            },
+            "/v2/pipelines/{pipeline_id}/activate": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelineActivateV2",
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}/activate",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "post": {
+                    "summary": "Activate a pipeline",
+                    "operationId": "activatePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}/activate",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Activated"}},
+                },
+            },
+            "/v2/pipelines/{pipeline_id}/clone": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelineCloneV2",
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}/clone",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "post": {
+                    "summary": "Clone a pipeline",
+                    "operationId": "clonePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}/clone",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"201": {"description": "Cloned"}},
+                },
+            },
+            # ── Plugins routes ────────────────────────────────────────────
+            "/v2/plugins": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPluginsV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/plugins"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "List plugins",
+                    "operationId": "listPluginsV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/plugins"},
+                    "responses": {"200": {"description": "Plugin list"}},
+                },
+            },
+            "/v2/plugins/{plugin_id}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPluginByIdV2",
+                    "parameters": [
+                        {"in": "path", "name": "plugin_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/plugins/{{plugin_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get plugin detail",
+                    "operationId": "getPluginV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "plugin_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/plugins/{{plugin_id}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Plugin detail"}},
+                },
+            },
+            "/v2/plugins/{plugin_id}/options/{field}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPluginOptionsV2",
+                    "parameters": [
+                        {"in": "path", "name": "plugin_id", "type": "string", "required": True},
+                        {"in": "path", "name": "field", "type": "string", "required": True},
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/plugins/{{plugin_id}}/options/{{field}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get plugin field options",
+                    "operationId": "getPluginOptionsV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "plugin_id", "type": "string", "required": True},
+                        {"in": "path", "name": "field", "type": "string", "required": True},
+                    ],
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/plugins/{{plugin_id}}/options/{{field}}",
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Plugin options"}},
+                },
+            },
             "/v2/nel": {
                 "options": {
                     "summary": "CORS preflight",
