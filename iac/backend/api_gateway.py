@@ -9,7 +9,7 @@ Routes:
   /v1/classify            → API key required
   /v1/classify/batch      → API key required
   /v1/batch/**            → API key required
-  /v2/classify            → API key required
+  /v2/classify            → Firebase Bearer OR API key (dashboard + programmatic)
   /v2/nel                 → API key required
   /v1/user/**             → Firebase Bearer token required
   /v2/nel/user/**         → Firebase Bearer token required
@@ -274,7 +274,10 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                 "post": {
                     "summary": "Classify a job description (v2 — full taxonomy schema)",
                     "operationId": "classifyV2",
-                    "security": [{"api_key": []}],
+                    # Accept EITHER a Firebase JWT (dashboard users) OR an API key
+                    # (programmatic callers). The web app is Firebase-authed, so it
+                    # sends a Bearer token; api_key stays valid for scripted access.
+                    "security": [{"firebase": []}, {"api_key": []}],
                     "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
                     "x-google-backend": {"address": f"{classify_v2_url}/v2/classify"},
                     "responses": {"200": {"description": "Classification result"}},
