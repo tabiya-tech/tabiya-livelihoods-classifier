@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ReactFlowProvider } from "reactflow";
 import i18n from "@/i18n/i18n";
 import { ToastProvider } from "@/components";
+import { NavigationGuardProvider } from "@/lib/navigationGuard";
 import type { ListPluginsResponse, Pipeline, PluginDetail } from "@/lib/api";
 import {
   fixtureRecruiterTuningPipeline,
@@ -42,39 +43,38 @@ vi.mock("@/lib/api", async (importOriginal) => {
   };
 });
 
-// Mock react-router-dom hooks so we can:
-//  1. Assert navigate calls without triggering the data-router AbortSignal/undici
-//     conflict that occurs when the router actually navigates in jsdom+MSW.
-//  2. Provide useBlocker without requiring a data router context.
+// Mock useNavigate so we can assert navigate calls without triggering the
+// data-router AbortSignal/undici conflict that occurs when the router actually
+// navigates in jsdom+MSW. The unsaved-changes guard uses the app's
+// NavigationGuardProvider (below), not react-router's useBlocker.
 const navigateMock = vi.fn();
 vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return {
     ...actual,
     useNavigate: () => navigateMock,
-    // useBlocker needs a data router; stub it as "never blocked" for all tests.
-    // Tests that want to assert the guard itself can override via a separate mock.
-    useBlocker: () => ({ state: "unblocked", proceed: vi.fn(), reset: vi.fn() }),
   };
 });
 
 /**
- * Renders the PipelineEditorPage inside a MemoryRouter.
- * useNavigate and useBlocker are mocked at the module level so this works
- * without a data router, and navigate calls can be asserted via navigateMock.
+ * Renders the PipelineEditorPage inside a MemoryRouter + NavigationGuardProvider
+ * (the editor's unsaved-changes guard reads from that provider). useNavigate is
+ * mocked at the module level so navigate calls can be asserted via navigateMock.
  */
 function renderEditorAtPath(initialPath: string) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <ToastProvider>
-        <ReactFlowProvider>
-          <Routes>
-            <Route path="/pipelines/new" element={<PipelineEditorPage />} />
-            <Route path="/pipelines/:pipelineId" element={<PipelineEditorPage />} />
-            <Route path="/pipelines" element={<div data-testid="pipelines-page">Pipelines</div>} />
-          </Routes>
-        </ReactFlowProvider>
-      </ToastProvider>
+      <NavigationGuardProvider>
+        <ToastProvider>
+          <ReactFlowProvider>
+            <Routes>
+              <Route path="/pipelines/new" element={<PipelineEditorPage />} />
+              <Route path="/pipelines/:pipelineId" element={<PipelineEditorPage />} />
+              <Route path="/pipelines" element={<div data-testid="pipelines-page">Pipelines</div>} />
+            </Routes>
+          </ReactFlowProvider>
+        </ToastProvider>
+      </NavigationGuardProvider>
     </MemoryRouter>,
   );
 }
