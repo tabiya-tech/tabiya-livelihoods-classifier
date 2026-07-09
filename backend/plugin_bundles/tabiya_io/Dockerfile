@@ -8,7 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip install --no-cache-dir poetry==1.8.3
 
-COPY backend/tabiya_plugin_contracts /app/tabiya_plugin_contracts
+# Must land at /tabiya_plugin_contracts so that the relative path
+# "../../tabiya_plugin_contracts" from /app/tabiya_io resolves correctly.
+COPY backend/tabiya_plugin_contracts /tabiya_plugin_contracts
 
 COPY backend/plugin_bundles/tabiya_io /app/tabiya_io
 
