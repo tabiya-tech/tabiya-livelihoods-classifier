@@ -64,6 +64,16 @@ services:
     environment:
       - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      # The NER plugin's HTTP extractor delegates to the legacy `/v1/ner`
+      # service. The NEL plugin's HTTP linker delegates to `/v1/nel`.
+      # Values are hard-coded to the docker-compose service hostnames
+      # rather than pulling from `.env` — the `.env` values assume a host
+      # process, but inside this container `localhost` refers to the
+      # bundle itself, not to the legacy services.
+      # If either legacy service is not running the bundle still boots;
+      # the plugin's health endpoint just reports `down`.
+      - NER_API_URL=http://ner:5002
+      - NEL_V1_API_URL=http://nel:5003
     healthcheck:
       # Probes one plugin's health endpoint so the bundle only reports healthy
       # once at least one plugin surface is reachable through the dispatcher.

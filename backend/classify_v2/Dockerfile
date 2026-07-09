@@ -8,6 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip install --no-cache-dir poetry==1.8.3
 
+# Copy shared contracts package first (local path dependency referenced
+# from classify_v2/pyproject.toml as `../tabiya_plugin_contracts`).
+COPY backend/tabiya_plugin_contracts /app/tabiya_plugin_contracts
+
 # Copy classify v2 service
 COPY backend/classify_v2 /app/classify_v2
 
