@@ -11,6 +11,7 @@ import { ConfigurationPage } from "@/features/configuration/ConfigurationPage/Co
 import { DashboardPage } from "@/features/dashboard/DashboardPage/DashboardPage";
 import { ApiKeysPage } from "@/features/keys/ApiKeysPage/ApiKeysPage";
 import { PipelinesPage } from "@/features/pipelines/PipelinesPage/PipelinesPage";
+import { PipelineEditorPage } from "@/features/pipelines/PipelineEditorPage/PipelineEditorPage";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicOnlyRoute } from "./PublicOnlyRoute";
 import { routerPaths } from "./routerPaths";
@@ -42,6 +43,14 @@ export function AppRouter() {
           <Route
             path={routerPaths.PIPELINES}
             element={<PipelinesPage />}
+          />
+          <Route
+            path={routerPaths.PIPELINE_NEW}
+            element={<PipelineEditorPage />}
+          />
+          <Route
+            path={routerPaths.PIPELINE_EDIT}
+            element={<PipelineEditorPage />}
           />
           <Route
             path={routerPaths.CONFIGURATION}

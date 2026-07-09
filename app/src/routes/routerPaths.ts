@@ -10,6 +10,8 @@ export const routerPaths = {
   DASHBOARD: "/dashboard",
   CLASSIFIER: "/classifier",
   PIPELINES: "/pipelines",
+  PIPELINE_NEW: "/pipelines/new",
+  PIPELINE_EDIT: "/pipelines/:pipelineId",
   CONFIGURATION: "/configuration",
   KEYS: "/keys",
 } as const;

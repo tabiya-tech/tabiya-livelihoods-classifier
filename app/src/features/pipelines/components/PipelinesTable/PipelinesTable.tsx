@@ -22,6 +22,7 @@ export const DATA_TEST_ID = {
   ACTIVE_BADGE: `pipelines-table-active-badge-${uniqueId}`,
   ACTIVE_TOGGLE: `pipelines-table-active-toggle-${uniqueId}`,
   UPDATED_CELL: `pipelines-table-updated-cell-${uniqueId}`,
+  EDIT_BUTTON: `pipelines-table-edit-button-${uniqueId}`,
   CLONE_BUTTON: `pipelines-table-clone-button-${uniqueId}`,
   DELETE_BUTTON: `pipelines-table-delete-button-${uniqueId}`,
 };
@@ -31,6 +32,7 @@ export interface PipelinesTableProps {
   /** pipeline_id whose request is in-flight, or null. */
   pendingId: string | null;
   onActivate: (pipelineId: string) => void;
+  onEdit?: (pipelineId: string) => void;
   onClone: (pipelineId: string) => void;
   onDelete: (pipelineId: string) => void;
   className?: string;
@@ -48,6 +50,7 @@ export function PipelinesTable({
   pipelines,
   pendingId,
   onActivate,
+  onEdit,
   onClone,
   onDelete,
   className,
@@ -127,6 +130,17 @@ export function PipelinesTable({
                 </Table.Cell>
                 <Table.Cell className="text-right">
                   <span className="flex items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={isPending}
+                      onClick={() => onEdit?.(pipeline.pipeline_id)}
+                      data-testid={DATA_TEST_ID.EDIT_BUTTON}
+                      data-pipeline-id={pipeline.pipeline_id}
+                      leading={<Icon name="config" size={12} />}
+                    >
+                      {t("pipelines.list.actions.edit")}
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"

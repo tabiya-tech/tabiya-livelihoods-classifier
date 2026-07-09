@@ -248,6 +248,7 @@
       "eyebrow": "Workspace · Pipelines",
       "title": "Pipelines",
       "intro": "Pipelines define the sequence of plugins used to classify text. Activate a pipeline to make it the default for all API calls and the in-app Classifier.",
+      "newButton": "New pipeline",
       "table": {
         "headerName": "Name",
         "headerActive": "Active",
@@ -263,6 +264,7 @@
       },
       "actions": {
         "activate": "Activate",
+        "edit": "Edit",
         "clone": "Clone",
         "delete": "Delete"
       },
@@ -275,6 +277,45 @@
         "cloneError": "Couldn't clone that pipeline. Please try again.",
         "deleteError": "Couldn't delete that pipeline. Please try again.",
         "loadError": "Couldn't load your pipelines."
+      }
+    },
+    "editor": {
+      "eyebrow": "Workspace · Pipeline editor",
+      "title": {
+        "new": "New pipeline",
+        "edit": "Edit pipeline"
+      },
+      "saveBar": {
+        "saveButton": "Save",
+        "cancelButton": "Cancel",
+        "validating": "Checking…",
+        "valid": "Valid",
+        "issuesCount": "{{count}} issue",
+        "issuesCount_plural": "{{count}} issues"
+      },
+      "drawer": {
+        "deleteButton": "Delete stage",
+        "closeButton": "Close",
+        "slots": {
+          "input": "In",
+          "output": "Out"
+        }
+      },
+      "errors": {
+        "title": "Validation errors",
+        "slotMismatch": "Incompatible slot types — cannot connect these stages."
+      },
+      "emptyPrompt": "Drag plugins from the palette to start building your pipeline.",
+      "toasts": {
+        "slotMismatch": "Incompatible slot types.",
+        "saveError": "Couldn't save the pipeline. Please try again.",
+        "loadError": "Couldn't load the pipeline."
+      },
+      "unsavedGuard": {
+        "title": "Discard unsaved changes?",
+        "description": "Leaving this page now will discard your pipeline changes.",
+        "discard": "Discard changes",
+        "keepEditing": "Keep editing"
       }
     }
   }

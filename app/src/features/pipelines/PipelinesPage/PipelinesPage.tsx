@@ -9,7 +9,9 @@
  */
 
 import { useTranslation } from "react-i18next";
-import { EmptyState, Spinner, useToast } from "@/components";
+import { useNavigate } from "react-router-dom";
+import { Button, EmptyState, Spinner, useToast } from "@/components";
+import { routerPaths } from "@/routes/routerPaths";
 import { PipelinesTable } from "../components/PipelinesTable/PipelinesTable";
 import { useActivatePipeline } from "../hooks/useActivatePipeline";
 import { useClonePipeline } from "../hooks/useClonePipeline";
@@ -31,6 +33,7 @@ export const DATA_TEST_ID = {
 export function PipelinesPage() {
   const { t } = useTranslation();
   const toast = useToast();
+  const navigate = useNavigate();
 
   const pipelinesList = usePipelinesList();
   const activatePipeline = useActivatePipeline({
@@ -94,9 +97,17 @@ export function PipelinesPage() {
         <span data-testid={DATA_TEST_ID.EYEBROW} className="eyebrow">
           {t("pipelines.list.eyebrow")}
         </span>
-        <h1 data-testid={DATA_TEST_ID.TITLE} className="h-page m-0">
-          {t("pipelines.list.title")}
-        </h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 data-testid={DATA_TEST_ID.TITLE} className="h-page m-0">
+            {t("pipelines.list.title")}
+          </h1>
+          <Button
+            variant="primary"
+            onClick={() => navigate(routerPaths.PIPELINE_NEW)}
+          >
+            {t("pipelines.list.newButton")}
+          </Button>
+        </div>
         <p
           data-testid={DATA_TEST_ID.INTRO}
           className="m-0 max-w-[680px] text-sm leading-relaxed text-muted"
@@ -137,6 +148,9 @@ export function PipelinesPage() {
           pendingId={pendingId}
           onActivate={(pipelineId) => {
             void handleActivate(pipelineId);
+          }}
+          onEdit={(pipelineId) => {
+            navigate(`/pipelines/${pipelineId}`);
           }}
           onClone={(pipelineId) => {
             void handleClone(pipelineId);
