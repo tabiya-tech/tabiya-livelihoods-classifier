@@ -4,34 +4,26 @@ import { fn } from "@storybook/test";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "@/components";
 import { fixtureClassifyResponse } from "@/mocks/fixtures/classify";
+import {
+  fixtureDefaultTabiyaPipeline,
+  fixtureRecruiterTuningPipeline,
+} from "@/mocks/fixtures/pipelines";
 import type { ClassifyRequest, ClassifyResponse } from "@/lib/api";
-import { ConfigurationOverridesProvider } from "../../configuration/hooks/configurationOverrides";
-import type { UserConfigurationState } from "../../configuration/hooks/useUserConfiguration";
 import { ClassifierOverridesProvider } from "../hooks/classifierOverrides";
+import { ClassifierPipelineOverridesProvider } from "../hooks/classifierPipelineOverrides";
 import type {
   ClassifyState,
   ClassifyStatus,
 } from "../hooks/useClassify";
+import type { ActivePipelineSnapshot } from "../hooks/useActivePipeline";
 import { ClassifierPage } from "./ClassifierPage";
 
-const readyConfiguration: UserConfigurationState = {
-  loadStatus: "ready",
-  loadError: null,
-  saveStatus: "idle",
-  saveError: null,
-  saved: {
-    nel_model_id: "all-MiniLM-L6-v2",
-    taxonomy_model_id: "esco-1.1.1",
-  },
-  draft: {
-    nel_model_id: "all-MiniLM-L6-v2",
-    taxonomy_model_id: "esco-1.1.1",
-  },
-  isDirty: false,
-  savedAt: null,
-  setDraft: () => undefined,
-  discard: () => undefined,
-  save: async () => undefined,
+const readyActivePipelineSnapshot: ActivePipelineSnapshot = {
+  status: "ready",
+  pipelines: [fixtureDefaultTabiyaPipeline, fixtureRecruiterTuningPipeline],
+  activePipeline: fixtureDefaultTabiyaPipeline,
+  error: null,
+  setActivePipeline: async () => undefined,
 };
 
 interface HarnessProps {
@@ -81,11 +73,13 @@ function ClassifierHarness({
   };
 
   return (
-    <ConfigurationOverridesProvider userConfiguration={readyConfiguration}>
+    <ClassifierPipelineOverridesProvider
+      activePipeline={readyActivePipelineSnapshot}
+    >
       <ClassifierOverridesProvider classify={value}>
         {children}
       </ClassifierOverridesProvider>
-    </ConfigurationOverridesProvider>
+    </ClassifierPipelineOverridesProvider>
   );
 }
 

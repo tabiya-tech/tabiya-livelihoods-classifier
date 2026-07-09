@@ -61,9 +61,18 @@ function groupPluginsByCategory(
 
 export interface PluginPaletteProps {
   className?: string;
+  /**
+   * Optional click handler. When set, non-`coming_soon` plugin rows behave
+   * like buttons and fire this callback with the plugin_id. Existing drag
+   * behavior stays intact.
+   */
+  onPluginClick?: (pluginId: string) => void;
 }
 
-export function PluginPalette({ className }: PluginPaletteProps) {
+export function PluginPalette({
+  className,
+  onPluginClick,
+}: PluginPaletteProps) {
   const { status, plugins, error } = usePluginCatalog();
 
   if (status === "loading") {
@@ -157,7 +166,11 @@ export function PluginPalette({ className }: PluginPaletteProps) {
                 }}
               >
                 {categoryPlugins.map((plugin) => (
-                  <PluginRow key={plugin.plugin_id} plugin={plugin} />
+                  <PluginRow
+                    key={plugin.plugin_id}
+                    plugin={plugin}
+                    onClick={onPluginClick}
+                  />
                 ))}
               </div>
             </section>
@@ -170,10 +183,12 @@ export function PluginPalette({ className }: PluginPaletteProps) {
 
 interface PluginRowProps {
   plugin: PluginSummary;
+  onClick?: (pluginId: string) => void;
 }
 
-function PluginRow({ plugin }: PluginRowProps) {
+function PluginRow({ plugin, onClick }: PluginRowProps) {
   const isDisabled = plugin.coming_soon;
+  const isClickable = !isDisabled && Boolean(onClick);
 
   function handleDragStart(event: React.DragEvent<HTMLDivElement>) {
     event.dataTransfer.setData(
@@ -182,19 +197,36 @@ function PluginRow({ plugin }: PluginRowProps) {
     );
   }
 
+  function handleClick() {
+    if (isDisabled || !onClick) return;
+    onClick(plugin.plugin_id);
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!isClickable) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick?.(plugin.plugin_id);
+    }
+  }
+
   return (
     <div
       data-testid={DATA_TEST_ID.PLUGIN_ROW}
       data-plugin-id={plugin.plugin_id}
       draggable={!isDisabled}
       onDragStart={isDisabled ? undefined : handleDragStart}
+      onClick={isClickable ? handleClick : undefined}
+      onKeyDown={isClickable ? handleKeyDown : undefined}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
       style={{
         padding: "8px",
         borderRadius: "6px",
         border: "1px solid #e0ddd9",
         backgroundColor: isDisabled ? "#f3f1ee" : "#faf9f6",
         opacity: isDisabled ? 0.6 : 1,
-        cursor: isDisabled ? "default" : "grab",
+        cursor: isDisabled ? "default" : isClickable ? "pointer" : "grab",
         display: "flex",
         flexDirection: "column",
         gap: "2px",

@@ -23,8 +23,18 @@ export interface ClassifyState {
   response: ClassifyResponse | null;
   /** The most recent error, if any. */
   error: Error | null;
-  /** Fire a classify run. Resolves with the response or rejects on failure. */
-  run: (payload: ClassifyRequest) => Promise<ClassifyResponse>;
+  /**
+   * Fire a classify run. Resolves with the response or rejects on failure.
+   *
+   * Callers may pass a `pipelineId` — the hook merges it into the payload
+   * as `pipeline_id`. Left alone, the backend uses the caller's active
+   * pipeline. If the payload already carries a `pipeline_id`, the caller's
+   * explicit value wins.
+   */
+  run: (
+    payload: ClassifyRequest,
+    pipelineId?: string,
+  ) => Promise<ClassifyResponse>;
   /** Drop state back to idle, clearing any prior response/error. */
   reset: () => void;
 }
@@ -48,12 +58,19 @@ export function useClassify({
   const runGenerationRef = useRef(0);
 
   const run = useCallback(
-    async (payload: ClassifyRequest) => {
+    async (payload: ClassifyRequest, pipelineId?: string) => {
       const myGeneration = ++runGenerationRef.current;
       setStatus("running");
       setError(null);
+      // Merge in pipeline_id only when the caller passed one AND the payload
+      // does not already carry an explicit value. This keeps callers that
+      // already build the full payload themselves in control.
+      const payloadWithPipeline: ClassifyRequest =
+        pipelineId != null && payload.pipeline_id == null
+          ? { ...payload, pipeline_id: pipelineId }
+          : payload;
       try {
-        const result = await classifyImpl(payload);
+        const result = await classifyImpl(payloadWithPipeline);
         if (myGeneration === runGenerationRef.current) {
           setResponse(result);
           setStatus("done");

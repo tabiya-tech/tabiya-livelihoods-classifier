@@ -198,6 +198,11 @@ export interface ClassifyRequest {
   text?: string;
   title?: string;
   description?: string;
+  /**
+   * Optional pipeline_id — forwards which pipeline the executor should use.
+   * When omitted, the backend falls back to the caller's active pipeline.
+   */
+  pipeline_id?: string;
   options?: ClassifyOptions;
 }
 

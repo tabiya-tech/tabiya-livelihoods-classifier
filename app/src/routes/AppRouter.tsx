@@ -12,6 +12,7 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage/DashboardPage"
 import { ApiKeysPage } from "@/features/keys/ApiKeysPage/ApiKeysPage";
 import { PipelinesPage } from "@/features/pipelines/PipelinesPage/PipelinesPage";
 import { PipelineEditorPage } from "@/features/pipelines/PipelineEditorPage/PipelineEditorPage";
+import { PipelineLibraryPage } from "@/features/pipelines/PipelineLibraryPage/PipelineLibraryPage";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicOnlyRoute } from "./PublicOnlyRoute";
 import { routerPaths } from "./routerPaths";
@@ -47,6 +48,12 @@ export function AppRouter() {
           <Route
             path={routerPaths.PIPELINE_NEW}
             element={<PipelineEditorPage />}
+          />
+          {/* PIPELINE_LIBRARY must appear before PIPELINE_EDIT — otherwise
+              the :pipelineId param would match "library". */}
+          <Route
+            path={routerPaths.PIPELINE_LIBRARY}
+            element={<PipelineLibraryPage />}
           />
           <Route
             path={routerPaths.PIPELINE_EDIT}

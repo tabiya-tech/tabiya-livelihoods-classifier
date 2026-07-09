@@ -13,6 +13,10 @@ import type { ClonePipelineState } from "./useClonePipeline";
 import type { DeletePipelineState } from "./useDeletePipeline";
 import type { PluginOptionsState } from "./usePluginOptions";
 import type { ValidatePipelineState } from "./useValidatePipeline";
+import {
+  PluginDetailOverrideContext,
+  type PluginDetailSnapshot,
+} from "./usePluginDetail";
 
 export const PipelinesListOverrideContext =
   createContext<PipelinesListSnapshot | null>(null);
@@ -27,6 +31,11 @@ export const PluginOptionsOverrideContext =
 export const ValidatePipelineOverrideContext =
   createContext<ValidatePipelineState | null>(null);
 
+// Re-exported so pages that only need the detail override don't need to
+// pull in the hook module directly.
+export { PluginDetailOverrideContext };
+export type { PluginDetailSnapshot };
+
 export interface PipelinesOverridesProviderProps {
   pipelinesList?: PipelinesListSnapshot;
   activatePipeline?: ActivatePipelineState;
@@ -34,6 +43,7 @@ export interface PipelinesOverridesProviderProps {
   deletePipeline?: DeletePipelineState;
   pluginOptions?: PluginOptionsState;
   validatePipeline?: ValidatePipelineState;
+  pluginDetail?: PluginDetailSnapshot;
   children: ReactNode;
 }
 
@@ -44,6 +54,7 @@ export function PipelinesOverridesProvider({
   deletePipeline,
   pluginOptions,
   validatePipeline,
+  pluginDetail,
   children,
 }: PipelinesOverridesProviderProps) {
   return (
@@ -55,7 +66,11 @@ export function PipelinesOverridesProvider({
               <ValidatePipelineOverrideContext.Provider
                 value={validatePipeline ?? null}
               >
-                {children}
+                <PluginDetailOverrideContext.Provider
+                  value={pluginDetail ?? null}
+                >
+                  {children}
+                </PluginDetailOverrideContext.Provider>
               </ValidatePipelineOverrideContext.Provider>
             </PluginOptionsOverrideContext.Provider>
           </DeletePipelineOverrideContext.Provider>

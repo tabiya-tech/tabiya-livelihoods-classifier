@@ -175,6 +175,12 @@
       "loading": "Chargement de la config active…",
       "configureLink": "Configurer"
     },
+    "pipelineSelector": {
+      "loading": "Chargement des pipelines…",
+      "editLink": "Modifier dans Pipelines",
+      "activeBadge": "Actif",
+      "ariaLabel": "Sélectionner un pipeline"
+    },
     "placeholder": {
       "idleTitle": "Lancez une classification pour voir les résultats",
       "idleHelp": "Collez une offre à gauche et cliquez sur Classifier.",
@@ -316,6 +322,29 @@
         "description": "Quitter cette page annulera les modifications apportées au pipeline.",
         "discard": "Annuler les modifications",
         "keepEditing": "Continuer la modification"
+      },
+      "runPreview": {
+        "playButton": "Lire l'aperçu",
+        "resetButton": "Réinitialiser",
+        "status": {
+          "idle": "Prêt",
+          "playing": "En cours",
+          "done": "Terminé"
+        }
+      }
+    },
+    "library": {
+      "eyebrow": "Espace de travail · Bibliothèque de plugins",
+      "title": "Bibliothèque de plugins",
+      "intro": "Parcourez les plugins disponibles dans ce déploiement. Cliquez sur un plugin pour voir son schéma de configuration et ses types de slots.",
+      "detail": {
+        "emptyPrompt": "Sélectionnez un plugin dans la liste pour voir son schéma.",
+        "slotsHeading": "Slots",
+        "slotInput": "Entrée",
+        "slotOutput": "Sortie",
+        "schemaHeading": "Schéma de configuration",
+        "capabilitiesHeading": "Fonctionnalités",
+        "timeoutLabel": "Délai d'attente"
       }
     }
   }

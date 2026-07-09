@@ -2,12 +2,63 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import type { Pipeline } from "@/lib/api";
 
 // Mock the API layer at the module boundary so we don't need MSW for this
-// page-level test. Two endpoints to stub:
+// page-level test. Endpoints to stub:
 //   - classify (the page's primary mutation)
-//   - getV2UserConfig (called by the active-config chip indirectly)
+//   - listPipelines + activatePipeline (called by the pipeline selector chip)
+//   - getV2UserConfig (called by the active-config chip indirectly — kept
+//     for backwards-compatible mocking even after removing the chip)
+const fixtureDefaultPipelineForTest: Pipeline = {
+  pipeline_id: "pipeline-default",
+  user_id: "local-user",
+  name: "Default Tabiya",
+  stages: [],
+  is_active: true,
+  is_default: true,
+  is_readonly: true,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+};
+
+const fixtureRecruiterPipelineForTest: Pipeline = {
+  pipeline_id: "pipeline-recruiter",
+  user_id: "local-user",
+  name: "Recruiter tuning",
+  stages: [],
+  is_active: false,
+  is_default: false,
+  is_readonly: false,
+  created_at: "2026-02-01T00:00:00.000Z",
+  updated_at: "2026-02-01T00:00:00.000Z",
+};
+
 const apiMocks = vi.hoisted(() => {
+  // Explicit `stages: [] as unknown[]` so TS doesn't infer `never[]` and
+  // break assignability with the real Pipeline["stages"] shape below.
+  const defaultPipeline = {
+    pipeline_id: "pipeline-default",
+    user_id: "local-user",
+    name: "Default Tabiya",
+    stages: [] as unknown[],
+    is_active: true,
+    is_default: true,
+    is_readonly: true,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  };
+  const recruiterPipeline = {
+    pipeline_id: "pipeline-recruiter",
+    user_id: "local-user",
+    name: "Recruiter tuning",
+    stages: [] as unknown[],
+    is_active: false,
+    is_default: false,
+    is_readonly: false,
+    created_at: "2026-02-01T00:00:00.000Z",
+    updated_at: "2026-02-01T00:00:00.000Z",
+  };
   return {
     classify: vi.fn(),
     getV2UserConfig: vi.fn(async () => ({
@@ -17,6 +68,10 @@ const apiMocks = vi.hoisted(() => {
     saveV2UserConfig: vi.fn(),
     listNelModels: vi.fn(async () => []),
     listTaxonomyModels: vi.fn(async () => []),
+    listPipelines: vi.fn(async () => ({
+      pipelines: [defaultPipeline, recruiterPipeline],
+    })),
+    activatePipeline: vi.fn(async () => recruiterPipeline),
   };
 });
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -28,6 +83,8 @@ vi.mock("@/lib/api", async (importOriginal) => {
     saveV2UserConfig: apiMocks.saveV2UserConfig,
     listNelModels: apiMocks.listNelModels,
     listTaxonomyModels: apiMocks.listTaxonomyModels,
+    listPipelines: apiMocks.listPipelines,
+    activatePipeline: apiMocks.activatePipeline,
   };
 });
 
@@ -46,6 +103,9 @@ import {
 import {
   DATA_TEST_ID as ENTITY_HIGHLIGHT_DATA_TEST_ID,
 } from "../components/EntityHighlight/EntityHighlight";
+import {
+  DATA_TEST_ID as PIPELINE_SELECTOR_DATA_TEST_ID,
+} from "../components/PipelineSelectorChip/PipelineSelectorChip";
 import { DRAWER_DATA_TEST_ID } from "@/components";
 
 function renderPage(initialUrl = "/classifier") {
@@ -63,6 +123,18 @@ describe("ClassifierPage", () => {
     apiMocks.classify.mockReset();
     apiMocks.classify.mockResolvedValue(fixtureClassifyResponse);
     apiMocks.getV2UserConfig.mockClear();
+    apiMocks.listPipelines.mockClear();
+    apiMocks.listPipelines.mockResolvedValue({
+      pipelines: [
+        fixtureDefaultPipelineForTest,
+        fixtureRecruiterPipelineForTest,
+      ],
+    });
+    apiMocks.activatePipeline.mockReset();
+    apiMocks.activatePipeline.mockResolvedValue({
+      ...fixtureRecruiterPipelineForTest,
+      is_active: true,
+    });
   });
 
   it("renders the title, intro, and an idle placeholder before any run", () => {
@@ -96,21 +168,27 @@ describe("ClassifierPage", () => {
     expect(runButton).toBeEnabled();
   });
 
-  it("calls /v2/classify with the URL-synced params on Run", async () => {
-    // GIVEN a URL with non-default params
+  it("calls /v2/classify with the URL-synced params and the active pipeline id on Run", async () => {
+    // GIVEN a URL with non-default params and a loaded active pipeline
+    const givenText = "needs data scientist";
+    const expectedActivePipelineId = fixtureDefaultPipelineForTest.pipeline_id;
     renderPage("/classifier?top_k=7&min_sim=0.5");
+    // Wait for the pipeline list to resolve so the active pipeline id lands
+    // in state before the user hits Run.
+    await waitFor(() => expect(apiMocks.listPipelines).toHaveBeenCalled());
     await userEvent.type(
       screen.getByTestId(SOURCE_PANE_DATA_TEST_ID.TEXTAREA),
-      "needs data scientist",
+      givenText,
     );
 
     // WHEN we click Run
     await userEvent.click(screen.getByTestId(SOURCE_PANE_DATA_TEST_ID.RUN_BUTTON));
 
-    // THEN classify was called with the parsed URL params
+    // THEN classify was called with the parsed URL params AND the active pipeline id
     await waitFor(() => expect(apiMocks.classify).toHaveBeenCalledTimes(1));
     expect(apiMocks.classify).toHaveBeenCalledWith({
-      text: "needs data scientist",
+      text: givenText,
+      pipeline_id: expectedActivePipelineId,
       options: { top_k: 7, min_similarity: 0.5 },
     });
   });
@@ -201,6 +279,33 @@ describe("ClassifierPage", () => {
     });
     expect(screen.getByTestId(SOURCE_PANE_DATA_TEST_ID.TEXTAREA)).toHaveValue(
       "",
+    );
+  });
+
+  it("calls activatePipeline when the user picks a different pipeline in the chip", async () => {
+    // GIVEN a loaded classifier page and the recruiter pipeline as the target
+    const targetPipelineId = fixtureRecruiterPipelineForTest.pipeline_id;
+    renderPage();
+    await waitFor(() => expect(apiMocks.listPipelines).toHaveBeenCalled());
+
+    // WHEN the user opens the pipeline chip and picks the recruiter row
+    const trigger = await waitFor(() =>
+      screen.getByTestId(PIPELINE_SELECTOR_DATA_TEST_ID.TRIGGER),
+    );
+    await userEvent.click(trigger);
+    const rows = screen.getAllByTestId(
+      PIPELINE_SELECTOR_DATA_TEST_ID.PIPELINE_ROW,
+    );
+    const targetRow = rows.find(
+      (element) =>
+        element.getAttribute("data-pipeline-id") === targetPipelineId,
+    );
+    if (!targetRow) throw new Error("target pipeline row not found");
+    await userEvent.click(targetRow);
+
+    // THEN activatePipeline was called with the target id
+    await waitFor(() =>
+      expect(apiMocks.activatePipeline).toHaveBeenCalledWith(targetPipelineId),
     );
   });
 

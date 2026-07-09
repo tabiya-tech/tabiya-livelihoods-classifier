@@ -21,18 +21,16 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Icon, Tag, useToast } from "@/components";
+import { Icon, useToast } from "@/components";
 import type {
   ClassifiedEntity,
   ClassifyEntityType,
   ClassifyRequest,
 } from "@/lib/api";
-import { routerPaths } from "@/routes/routerPaths";
 import { mergeClassNames } from "@/lib/mergeClassNames";
-import { useUserConfiguration } from "../../configuration/hooks/useUserConfiguration";
 import { EntityDetailDrawer } from "../components/EntityDetailDrawer/EntityDetailDrawer";
+import { PipelineSelectorChip } from "../components/PipelineSelectorChip/PipelineSelectorChip";
 import {
   ENTITY_TYPES,
   SourcePane,
@@ -41,6 +39,7 @@ import {
   ResultsTabs,
   type ResultsTabId,
 } from "../components/ResultsTabs/ResultsTabs";
+import { useActivePipeline } from "../hooks/useActivePipeline";
 import { useClassify } from "../hooks/useClassify";
 import { useClassifierUrlState } from "../hooks/useClassifierUrlState";
 import { normalizeClassifyInput } from "../lib/normalizeClassifyInput";
@@ -52,8 +51,7 @@ export const DATA_TEST_ID = {
   EYEBROW: `classifier-page-eyebrow-${uniqueId}`,
   TITLE: `classifier-page-title-${uniqueId}`,
   INTRO: `classifier-page-intro-${uniqueId}`,
-  CONFIG_CHIP: `classifier-page-config-chip-${uniqueId}`,
-  CONFIG_LINK: `classifier-page-config-link-${uniqueId}`,
+  PIPELINE_SELECTOR_SLOT: `classifier-page-pipeline-selector-slot-${uniqueId}`,
 };
 
 export function ClassifierPage() {
@@ -76,7 +74,7 @@ export function ClassifierPage() {
 
   // ── Backend hooks ────────────────────────────────────────────────────
   const classifyState = useClassify();
-  const configuration = useUserConfiguration();
+  const activePipelineState = useActivePipeline();
 
   const isRunning = classifyState.status === "running";
   const response = classifyState.response;
@@ -91,11 +89,23 @@ export function ClassifierPage() {
     if (normalised !== text) setText(normalised);
     const payload: ClassifyRequest = {
       text: normalised,
+      pipeline_id: activePipelineState.activePipeline?.pipeline_id,
       options: { top_k: topK, min_similarity: minSimilarity },
     };
     setSelectedEntityIndex(null);
     try {
       await classifyState.run(payload);
+    } catch {
+      toast.show({
+        message: t("classifier.toasts.runError"),
+        tone: "error",
+      });
+    }
+  }
+
+  async function handlePipelineChange(pipelineId: string) {
+    try {
+      await activePipelineState.setActivePipeline(pipelineId);
     } catch {
       toast.show({
         message: t("classifier.toasts.runError"),
@@ -137,9 +147,27 @@ export function ClassifierPage() {
 
   const canRun = text.trim().length > 0;
 
-  const activeConfigChip = useMemo(
-    () => <ActiveConfigChip configuration={configuration} />,
-    [configuration],
+  const pipelineSelectorSlot = useMemo(
+    () => (
+      <div data-testid={DATA_TEST_ID.PIPELINE_SELECTOR_SLOT}>
+        <PipelineSelectorChip
+          pipelines={activePipelineState.pipelines}
+          selectedPipelineId={
+            activePipelineState.activePipeline?.pipeline_id ?? null
+          }
+          onPipelineChange={(pipelineId) => {
+            void handlePipelineChange(pipelineId);
+          }}
+          isLoading={activePipelineState.status === "loading"}
+        />
+      </div>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      activePipelineState.pipelines,
+      activePipelineState.activePipeline,
+      activePipelineState.status,
+    ],
   );
 
   return (
@@ -182,7 +210,7 @@ export function ClassifierPage() {
           onClear={handleClear}
           selectedEntityIndex={selectedEntityIndex}
           onEntitySelect={handleEntitySelect}
-          activeConfigSlot={activeConfigChip}
+          activeConfigSlot={pipelineSelectorSlot}
         />
 
         <aside className="flex min-h-0 flex-col gap-4">
@@ -239,42 +267,3 @@ function PlaceholderPanel({ isRunning }: PlaceholderPanelProps) {
   );
 }
 
-interface ActiveConfigChipProps {
-  configuration: ReturnType<typeof useUserConfiguration>;
-}
-
-function ActiveConfigChip({ configuration }: ActiveConfigChipProps) {
-  const { t } = useTranslation();
-
-  const summary = (() => {
-    if (configuration.loadStatus !== "ready" || !configuration.saved) {
-      return t("classifier.activeConfig.loading");
-    }
-    return t("classifier.activeConfig.summary", {
-      nel: configuration.saved.nel_model_id,
-      taxonomy: configuration.saved.taxonomy_model_id,
-    });
-  })();
-
-  return (
-    <div
-      data-testid={DATA_TEST_ID.CONFIG_CHIP}
-      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-paper px-3.5 py-2"
-    >
-      <span className="inline-flex items-center gap-2 font-mono text-[11px] text-muted">
-        <Tag size="sm">
-          {t("classifier.activeConfig.tag")}
-        </Tag>
-        {summary}
-      </span>
-      <Link
-        data-testid={DATA_TEST_ID.CONFIG_LINK}
-        to={routerPaths.CONFIGURATION}
-        className="inline-flex items-center gap-1 font-mono text-[11px] text-navy underline decoration-line-strong underline-offset-2 hover:decoration-navy"
-      >
-        {t("classifier.activeConfig.configureLink")}
-        <Icon name="arrowRight" size={12} />
-      </Link>
-    </div>
-  );
-}
