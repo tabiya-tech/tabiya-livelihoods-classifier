@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useBlocker } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ReactFlowProvider } from "reactflow";
 import { useTranslation } from "react-i18next";
 import { Spinner, useToast } from "@/components";
@@ -24,6 +24,7 @@ import type { PipelineStage } from "@/lib/api";
 import { createPipeline, updatePipeline } from "@/lib/api";
 import { routerPaths } from "@/routes/routerPaths";
 import { UnsavedChangesGuard } from "@/features/configuration/components/UnsavedChangesGuard/UnsavedChangesGuard";
+import { useUnsavedChangesGuard } from "@/features/configuration/hooks/useUnsavedChangesGuard";
 import { PipelineCanvas } from "../components/PipelineCanvas/PipelineCanvas";
 import { PipelineSaveBar } from "../components/PipelineSaveBar/PipelineSaveBar";
 import { PluginPalette } from "../components/PluginPalette/PluginPalette";
@@ -84,21 +85,14 @@ export function PipelineEditorPage() {
     (JSON.stringify(stages) !== JSON.stringify(originalStages) ||
       pipelineName !== originalName);
 
-  const blocker = useBlocker(isDirty && !isSaving);
+  // The app uses <BrowserRouter> (not a data router), so React Router's
+  // useBlocker is unavailable. Use the app-wide navigation guard instead —
+  // the same mechanism the Configuration page uses.
+  const unsavedGuard = useUnsavedChangesGuard(isDirty && !isSaving);
 
-  const unsavedGuardOpen = blocker.state === "blocked";
-
-  function handleProceedNavigation() {
-    if (blocker.state === "blocked") {
-      blocker.proceed();
-    }
-  }
-
-  function handleCancelNavigation() {
-    if (blocker.state === "blocked") {
-      blocker.reset();
-    }
-  }
+  const unsavedGuardOpen = unsavedGuard.isPromptOpen;
+  const handleProceedNavigation = unsavedGuard.confirm;
+  const handleCancelNavigation = unsavedGuard.cancel;
 
   async function handleSave() {
     setIsSaving(true);
