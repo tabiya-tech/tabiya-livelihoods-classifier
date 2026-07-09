@@ -18,7 +18,7 @@ describe("useApiHealth", () => {
     expect(result.current.lastCheckedAt).toBeNull();
   });
 
-  it("reports status='healthy' when /v1/health returns healthy", async () => {
+  it("reports status='healthy' when /v2/classify/health returns healthy", async () => {
     // GIVEN a successful healthy response with a version
     const givenVersion = "1.0.0";
     const fetchHealth = vi.fn(async () => ({

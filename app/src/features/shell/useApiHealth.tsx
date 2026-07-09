@@ -1,5 +1,5 @@
 /**
- * Polls the backend's /v1/health endpoint and exposes its status to the UI.
+ * Polls the backend's /v2/classify/health endpoint and exposes its status to the UI.
  *
  * - Polls every `pollIntervalMs` (default 30s).
  * - First call happens on mount; the component sees `status: "unknown"` until

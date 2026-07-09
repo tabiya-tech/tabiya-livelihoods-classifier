@@ -96,7 +96,7 @@ function useLiveFirebaseAuth(): UseFirebaseAuthValue {
   const [user, setUser] = useState<AuthenticatedUser | null>(() =>
     auth.currentUser ? adaptFirebaseUser(auth.currentUser) : null,
   );
-  const [loading, setLoading] = useState<boolean>(auth.currentUser === null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {

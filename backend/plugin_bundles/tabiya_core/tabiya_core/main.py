@@ -113,9 +113,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Tabiya-Core Plugin Bundle", version="0.1.0", lifespan=lifespan)
+_cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=(os.getenv("CORS_ALLOWED_ORIGINS") or "*").split(","),
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
