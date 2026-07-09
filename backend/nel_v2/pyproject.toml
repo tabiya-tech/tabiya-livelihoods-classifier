@@ -14,13 +14,22 @@ motor = "^3.4"
 dnspython = "^2.6.0"
 sentence-transformers = { version = "^2.2.2", optional = true }
 google-cloud-aiplatform = { version = "^1.60.0", optional = true }
+# CPU-only torch: pinned to the PyTorch CPU wheel index (see [[tool.poetry.source]]
+# below) so the multi-GB NVIDIA CUDA wheels are never pulled. This service runs
+# inference on CPU only; the CUDA builds would just bloat the image.
+torch = { version = "^2.1.2", source = "pytorch-cpu", optional = true }
 pandas = "^2.0.3"
 python-dotenv = "^1.0.1"
 tqdm = "^4.66.0"
 tabiya-shared = { path = "../shared", develop = true }
 
 [tool.poetry.extras]
-inference = ["sentence-transformers", "google-cloud-aiplatform"]
+inference = ["sentence-transformers", "google-cloud-aiplatform", "torch"]
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
