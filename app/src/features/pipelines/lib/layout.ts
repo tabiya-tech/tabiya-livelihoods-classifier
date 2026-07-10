@@ -69,7 +69,7 @@ export function layoutStages(
   return { nodes, edges };
 }
 
-function buildConfigPreview(stage: PipelineStage): string {
+export function buildConfigPreview(stage: PipelineStage): string {
   const entries = Object.entries(stage.config)
     .filter(([, value]) => value !== "" && value !== null && value !== undefined)
     .slice(0, 2)

@@ -4,6 +4,7 @@ import { I18nextProvider } from "react-i18next";
 import { initialize, mswLoader } from "msw-storybook-addon";
 import i18n from "../src/i18n/i18n";
 import { Locale, LocalesLabels } from "../src/i18n/constants";
+import { handlers } from "../src/mocks/handlers";
 import "../src/index.css";
 
 initialize({ onUnhandledRequest: "bypass" });
@@ -15,6 +16,11 @@ const localeToolbarItems = Object.entries(LocalesLabels).map(
 const preview: Preview = {
   loaders: [mswLoader],
   parameters: {
+    // Register the full MSW handler set for every story. Without this, MSW is
+    // initialized but has no handlers, so any story that hits the API (e.g. the
+    // pipelines pages) gets an unhandled request and fails to load. Individual
+    // stories still tune the backing store via seed/reset helpers.
+    msw: { handlers },
     controls: {
       matchers: {
         color: /(background|color)$/i,

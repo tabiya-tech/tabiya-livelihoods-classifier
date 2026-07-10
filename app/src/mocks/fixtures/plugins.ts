@@ -163,14 +163,44 @@ function summaryFromManifest(manifest: PluginManifest): PluginSummary {
   };
 }
 
+// Coming-soon plugins now ship real backend manifests, so their summaries
+// carry a proper category (they land in the right palette section, not
+// "Other"). They stay status=unavailable + coming_soon so the palette greys
+// them and they can't be dropped.
 const scraperSummary: PluginSummary = {
   plugin_id: "tabiya.source.scraper.v1",
   name: "Job Scraper",
-  version: "",
+  version: "0.1.0",
   category: "source",
-  summary: "Fetches a job posting from a URL.",
-  detail: null,
+  summary: "Fetches a job posting from a URL and feeds its text into the pipeline.",
+  detail: "coming soon",
   icon: "globe",
+  status: "unavailable",
+  coming_soon: true,
+  last_error: "coming_soon",
+};
+
+const stopwordsSummary: PluginSummary = {
+  plugin_id: "tabiya.transform.stopwords.v1",
+  name: "Stop-word Filter",
+  version: "0.1.0",
+  category: "transform",
+  summary: "Removes common stop words from the text to cut down on noise entities.",
+  detail: "coming soon",
+  icon: "filter",
+  status: "unavailable",
+  coming_soon: true,
+  last_error: "coming_soon",
+};
+
+const databaseSummary: PluginSummary = {
+  plugin_id: "tabiya.sink.database.v1",
+  name: "Database Sink",
+  version: "0.1.0",
+  category: "sink",
+  summary: "Writes the linked entities to a configured database.",
+  detail: "coming soon",
+  icon: "download",
   status: "unavailable",
   coming_soon: true,
   last_error: "coming_soon",
@@ -179,23 +209,25 @@ const scraperSummary: PluginSummary = {
 const languageRouterSummary: PluginSummary = {
   plugin_id: "tabiya.branching.language_router.v1",
   name: "Language Router",
-  version: "",
-  category: null,
-  summary: "Branches by detected language.",
-  detail: null,
+  version: "0.1.0",
+  category: "core",
+  summary: "Detects the input language and routes to a language-specific branch.",
+  detail: "coming soon",
   icon: "globe",
   status: "unavailable",
   coming_soon: true,
   last_error: "coming_soon",
 };
 
-/** The full six-entry palette. Order matches the backend catalog. */
+/** The full palette. Order matches the backend catalog. */
 export const fixturePluginSummaries: PluginSummary[] = [
   summaryFromManifest(fixtureNerManifest),
   summaryFromManifest(fixtureNelManifest),
   summaryFromManifest(fixtureTextInputManifest),
   summaryFromManifest(fixtureResultsManifest),
   scraperSummary,
+  stopwordsSummary,
+  databaseSummary,
   languageRouterSummary,
 ];
 
@@ -214,6 +246,20 @@ export const fixturePluginDetails: Record<string, PluginDetail> = {
   ),
   [scraperSummary.plugin_id]: {
     plugin_id: scraperSummary.plugin_id,
+    status: "unavailable",
+    coming_soon: true,
+    last_error: "coming_soon",
+    manifest: null,
+  },
+  [stopwordsSummary.plugin_id]: {
+    plugin_id: stopwordsSummary.plugin_id,
+    status: "unavailable",
+    coming_soon: true,
+    last_error: "coming_soon",
+    manifest: null,
+  },
+  [databaseSummary.plugin_id]: {
+    plugin_id: databaseSummary.plugin_id,
     status: "unavailable",
     coming_soon: true,
     last_error: "coming_soon",

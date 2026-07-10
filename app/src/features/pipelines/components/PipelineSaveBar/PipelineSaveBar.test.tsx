@@ -9,8 +9,6 @@ import type { PipelineSaveBarProps } from "./PipelineSaveBar";
 // ── default props ─────────────────────────────────────────────────────────────
 
 const defaultProps: PipelineSaveBarProps = {
-  name: "My Pipeline",
-  onNameChange: vi.fn(),
   isReadonly: false,
   issues: [],
   isValidating: false,
@@ -27,21 +25,16 @@ function renderSaveBar(overrides: Partial<PipelineSaveBarProps> = {}) {
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 describe("PipelineSaveBar", () => {
-  it("shows the name input when isReadonly is false and hides it when true", () => {
-    // GIVEN isReadonly is false (name input should appear)
-    const givenIsReadonly = false;
+  it("renders the save and cancel actions", () => {
+    // GIVEN a dirty, editable pipeline
 
-    // WHEN we render with isReadonly=false
-    const { rerender } = renderSaveBar({ isReadonly: givenIsReadonly });
+    // WHEN we render the save bar
+    renderSaveBar({ isReadonly: false });
 
-    // THEN the name input is present
-    expect(screen.getByTestId(DATA_TEST_ID.NAME_INPUT)).toBeInTheDocument();
-
-    // AND WHEN we rerender with isReadonly=true
-    rerender(<PipelineSaveBar {...defaultProps} isReadonly={true} />);
-
-    // THEN the name input is no longer rendered
-    expect(screen.queryByTestId(DATA_TEST_ID.NAME_INPUT)).not.toBeInTheDocument();
+    // THEN both actions are present (the name is edited via the page title,
+    // not here — the save bar no longer owns a name input)
+    expect(screen.getByTestId(DATA_TEST_ID.SAVE_BUTTON)).toBeInTheDocument();
+    expect(screen.getByTestId(DATA_TEST_ID.CANCEL_BUTTON)).toBeInTheDocument();
   });
 
   it("validation pill shows the validating text when isValidating is true", () => {

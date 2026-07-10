@@ -111,13 +111,16 @@ def test_load_catalog_parses_shipped_json_into_typed_entries() -> None:
     # WHEN we load it
     entries = load_catalog(givenPath)
 
-    # THEN every entry is a CatalogEntry and the six ids from the design doc are present
+    # THEN every entry is a CatalogEntry and the shipped ids are present
     expectedIds = {
         "tabiya.ner.v1",
         "tabiya.nel.v1",
         "tabiya.source.text.v1",
+        "tabiya.source.json.v1",
         "tabiya.sink.results.v1",
         "tabiya.source.scraper.v1",
+        "tabiya.transform.stopwords.v1",
+        "tabiya.sink.database.v1",
         "tabiya.branching.language_router.v1",
     }
     assert {entry.plugin_id for entry in entries} == expectedIds
@@ -202,6 +205,56 @@ async def test_refresh_marks_reachable_plugin_enabled() -> None:
     assert entry.manifest.plugin_id == "tabiya.ner.v1"
     assert entry.resolved_url == f"{givenBase}/plugin/tabiya.ner.v1"
     assert fake_http.calls == [givenManifestUrl]
+
+
+async def test_manifest_declaring_coming_soon_is_cached_but_unavailable() -> None:
+    # GIVEN a reachable plugin whose manifest declares x-tabiya-coming-soon
+    givenBase = "http://tabiya-io:5011"
+    givenManifestUrl = f"{givenBase}/plugin/tabiya.sink.database.v1/manifest"
+    comingSoonManifest = Manifest(
+        plugin_id="tabiya.sink.database.v1",
+        name="Database Sink",
+        version="0.1.0",
+        category=PluginCategory.CORE,
+        summary="Writes results to a database.",
+        icon="download",
+        input_slot=Slot(type=SlotType.LINKED_ENTITIES),
+        output_slot=Slot(type=SlotType.NONE),
+        config_schema={},
+        timeout_ms=5_000,
+        **{
+            "x-tabiya-contract-version": CONTRACT_VERSION,
+            "x-tabiya-coming-soon": True,
+        },
+    )
+    fake_http = _FakeHttp().on(
+        givenManifestUrl,
+        httpx.Response(200, json=comingSoonManifest.model_dump(by_alias=True, exclude_none=True)),
+    )
+    givenCatalog = [
+        CatalogEntry(
+            plugin_id="tabiya.sink.database.v1",
+            url_env="TABIYA_IO_BUNDLE_URL",
+            path="/plugin/tabiya.sink.database.v1",
+        )
+    ]
+    registry = PluginRegistry(
+        givenCatalog,
+        http_client=fake_http,
+        env={"TABIYA_IO_BUNDLE_URL": givenBase},
+    )
+
+    # WHEN we refresh
+    await registry.refresh()
+
+    # THEN the manifest is cached (so the palette can show name/category), but
+    # the plugin is flagged coming_soon + UNAVAILABLE (so it stays undroppable).
+    entry = registry.get("tabiya.sink.database.v1")
+    assert entry is not None
+    assert entry.manifest is not None
+    assert entry.manifest.name == "Database Sink"
+    assert entry.coming_soon is True
+    assert entry.status == PluginStatus.UNAVAILABLE
 
 
 async def test_refresh_attaches_identity_token_to_manifest_fetch() -> None:

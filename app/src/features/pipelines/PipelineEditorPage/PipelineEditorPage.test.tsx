@@ -17,6 +17,7 @@ import {
 } from "@/mocks/fixtures/plugins";
 import { DATA_TEST_ID, PipelineEditorPage } from "./PipelineEditorPage";
 import { DATA_TEST_ID as SAVE_BAR_DATA_TEST_ID } from "../components/PipelineSaveBar/PipelineSaveBar";
+import { DATA_TEST_ID as TITLE_DATA_TEST_ID } from "../components/InlineEditableTitle/InlineEditableTitle";
 
 // Mock the API module so we can control what is returned without hitting MSW.
 const apiMocks = vi.hoisted(() => {
@@ -118,7 +119,7 @@ describe("PipelineEditorPage", () => {
     );
   });
 
-  it("loads an existing pipeline and shows the pipeline name in the save bar", async () => {
+  it("loads an existing pipeline and shows the pipeline name as the editable title", async () => {
     // GIVEN an existing editable pipeline returned by the API
     const givenPipeline = fixtureRecruiterTuningPipeline;
     apiMocks.getPipeline.mockResolvedValue(givenPipeline);
@@ -128,12 +129,12 @@ describe("PipelineEditorPage", () => {
     // WHEN we render the editor for the existing pipeline
     renderEditorAtPath(givenPath);
 
-    // THEN loading clears and the pipeline name appears in the name input
+    // THEN loading clears and the pipeline name appears as the inline title
     await waitFor(() =>
       expect(screen.queryByTestId(DATA_TEST_ID.LOADING)).not.toBeInTheDocument(),
     );
-    const nameInput = await screen.findByTestId(SAVE_BAR_DATA_TEST_ID.NAME_INPUT);
-    expect(nameInput).toHaveValue(expectedName);
+    const title = await screen.findByTestId(TITLE_DATA_TEST_ID.DISPLAY);
+    expect(title).toHaveTextContent(expectedName);
   });
 
   it("disables the save button for a readonly pipeline", async () => {
@@ -153,12 +154,12 @@ describe("PipelineEditorPage", () => {
     expect(saveButton).toBeDisabled();
   });
 
-  it("reflects a changed name in the save bar input (dirty state)", async () => {
+  it("renames the pipeline by clicking the inline title and typing", async () => {
     // GIVEN an existing editable pipeline returned by the API
     const givenPipeline = fixtureRecruiterTuningPipeline;
     apiMocks.getPipeline.mockResolvedValue(givenPipeline);
     const givenPath = `/pipelines/${givenPipeline.pipeline_id}`;
-    const givenNewNameSuffix = " updated";
+    const givenNewName = "Renamed pipeline";
 
     // AND the editor has loaded
     renderEditorAtPath(givenPath);
@@ -166,12 +167,17 @@ describe("PipelineEditorPage", () => {
       expect(screen.queryByTestId(DATA_TEST_ID.LOADING)).not.toBeInTheDocument(),
     );
 
-    // WHEN the user appends text to the name input
-    const nameInput = screen.getByTestId(SAVE_BAR_DATA_TEST_ID.NAME_INPUT);
-    await userEvent.type(nameInput, givenNewNameSuffix);
+    // WHEN the user clicks the title, clears it, and types a new name
+    const title = await screen.findByTestId(TITLE_DATA_TEST_ID.DISPLAY);
+    await userEvent.click(title);
+    const titleInput = screen.getByTestId(TITLE_DATA_TEST_ID.INPUT);
+    await userEvent.clear(titleInput);
+    await userEvent.type(titleInput, `${givenNewName}{Enter}`);
 
-    // THEN the input reflects the updated value
-    expect(nameInput).toHaveValue(`${givenPipeline.name}${givenNewNameSuffix}`);
+    // THEN the title display reflects the new name
+    expect(await screen.findByTestId(TITLE_DATA_TEST_ID.DISPLAY)).toHaveTextContent(
+      givenNewName,
+    );
   });
 
   it("renders all structural containers on the new pipeline route", async () => {

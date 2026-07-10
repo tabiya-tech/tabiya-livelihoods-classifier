@@ -23,6 +23,9 @@ from .ner import core as ner_core
 from .nel import MANIFEST as NEL_MANIFEST
 from .nel import invoke as nel_invoke
 from .nel import core as nel_core
+from .language_router import MANIFEST as LANGUAGE_ROUTER_MANIFEST
+from .language_router import health as language_router_health
+from .language_router import invoke as language_router_invoke
 
 
 HealthFn = Callable[[], Awaitable[Health]]
@@ -43,4 +46,6 @@ async def _nel_health() -> Health:
 INSTALLED_PLUGINS: list[tuple[Manifest, object, Optional[HealthFn]]] = [
     (NER_MANIFEST, ner_invoke, _ner_health),
     (NEL_MANIFEST, nel_invoke, _nel_health),
+    # Coming-soon plugin: real manifest, no implementation yet.
+    (LANGUAGE_ROUTER_MANIFEST, language_router_invoke, language_router_health),
 ]
