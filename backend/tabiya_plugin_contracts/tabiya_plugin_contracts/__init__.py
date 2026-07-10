@@ -22,6 +22,7 @@ from .slots import (
     RawTextStreamItem,
     Slot,
     SlotType,
+    slot_accepts,
 )
 from .version import CONTRACT_VERSION
 
@@ -49,4 +50,5 @@ __all__ = [
     "SLOT_MODEL_BY_TYPE",
     "Slot",
     "SlotType",
+    "slot_accepts",
 ]

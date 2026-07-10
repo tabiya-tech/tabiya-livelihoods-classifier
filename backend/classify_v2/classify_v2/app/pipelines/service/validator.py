@@ -17,7 +17,7 @@ from typing import Iterable, Optional
 
 import jsonschema
 from jsonschema import Draft202012Validator
-from tabiya_plugin_contracts import Manifest, PluginCategory, SlotType
+from tabiya_plugin_contracts import Manifest, PluginCategory, SlotType, slot_accepts
 
 from classify_v2.app.pipelines.registry import (
     PluginRegistry,
@@ -63,7 +63,13 @@ class PipelineValidator:
             issues.extend(self._check_slot_compatibility(stages, resolved_manifests))
             issues.extend(self._check_ner_and_nel_limits(stages))
 
-        issues.extend(self._check_stage_configs(stages, manifests))
+        # NOTE: per-stage config-schema validation is intentionally NOT run at
+        # pipeline save/validate time. A stage's config (e.g. NEL's model
+        # selections) is set independently of the pipeline's structure — a user
+        # can define the chain first and choose models later — so a missing or
+        # partial config must not block saving the pipeline. Config is still
+        # validated at invoke time by each plugin's own adapter. (_check_stage_configs
+        # is retained for potential future opt-in use.)
         return issues
 
     # ── individual rules ────────────────────────────────────────────────
@@ -194,7 +200,7 @@ class PipelineValidator:
         for stage_index in range(1, len(manifests)):
             previous_output = manifests[stage_index - 1].output_slot.type
             current_input = manifests[stage_index].input_slot.type
-            if previous_output != current_input:
+            if not slot_accepts(previous_output, current_input):
                 yield ValidationIssue(
                     code=IssueCode.SLOT_MISMATCH,
                     message=(

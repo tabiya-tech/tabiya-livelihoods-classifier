@@ -26,14 +26,50 @@ describe("pluginIcon", () => {
     expect(actualIcon).toBe(expectedIcon);
   });
 
-  it("falls back to a neutral default when icon and category are both unknown", () => {
-    // GIVEN no manifest icon and no category
+  it("derives an icon from the plugin_id when no manifest has loaded", () => {
+    // GIVEN a NER node with no manifest and no category (manifest not loaded)
+    const givenPluginId = "tabiya.ner.v1";
+    const expectedIcon = "search";
+
+    // WHEN we resolve using only the plugin_id
+    const actualIcon = pluginIcon(undefined, undefined, givenPluginId);
+
+    // THEN we still get a meaningful icon, NOT the gear/sun default
+    expect(actualIcon).toBe(expectedIcon);
+  });
+
+  it("derives a source icon from the plugin_id's category segment", () => {
+    // GIVEN an unknown source plugin id with no manifest
+    const givenPluginId = "tabiya.source.somethingnew.v1";
+    const expectedIcon = "upload";
+
+    // WHEN we resolve using only the plugin_id
+    const actualIcon = pluginIcon(undefined, undefined, givenPluginId);
+
+    // THEN the `.source.` segment yields the source icon
+    expect(actualIcon).toBe(expectedIcon);
+  });
+
+  it("accepts a manifest icon that is already a valid frontend icon name", () => {
+    // GIVEN a manifest icon that is itself a valid icon (e.g. scraper's globe)
+    const givenManifestIcon = "globe";
+    const expectedIcon = "globe";
+
+    // WHEN we resolve
+    const actualIcon = pluginIcon(givenManifestIcon, "source");
+
+    // THEN it's used verbatim
+    expect(actualIcon).toBe(expectedIcon);
+  });
+
+  it("falls back to the gear icon only when nothing is known", () => {
+    // GIVEN no manifest icon, no category, and no plugin_id
     const expectedIcon = "config";
 
-    // WHEN we resolve the icon
-    const actualIcon = pluginIcon(undefined, undefined);
+    // WHEN we resolve
+    const actualIcon = pluginIcon(undefined, undefined, undefined);
 
-    // THEN we get the neutral default
+    // THEN the neutral default is the true last resort
     expect(actualIcon).toBe(expectedIcon);
   });
 });

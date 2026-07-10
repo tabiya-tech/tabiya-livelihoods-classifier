@@ -51,10 +51,23 @@ describe("areSlotsCompatible", () => {
     expect(result).toBe(false);
   });
 
-  it("returns false when output is Entities but input expects LinkedEntities", () => {
-    // GIVEN a mismatched Entities->LinkedEntities pair
+  it("returns true when output is Entities and input expects LinkedEntities", () => {
+    // GIVEN an Entities producer feeding a LinkedEntities consumer — allowed by
+    // the subtype rule so a pipeline can end on NER output (text→ner→results).
     const givenOutputType: PluginSlot["type"] = "Entities";
     const givenInputType: PluginSlot["type"] = "LinkedEntities";
+
+    // WHEN we check compatibility
+    const result = areSlotsCompatible(givenOutputType, givenInputType);
+
+    // THEN it is compatible
+    expect(result).toBe(true);
+  });
+
+  it("returns false for the reverse: LinkedEntities output into an Entities input", () => {
+    // GIVEN the reverse direction (the subtype relationship is one-way)
+    const givenOutputType: PluginSlot["type"] = "LinkedEntities";
+    const givenInputType: PluginSlot["type"] = "Entities";
 
     // WHEN we check compatibility
     const result = areSlotsCompatible(givenOutputType, givenInputType);
