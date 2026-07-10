@@ -29,16 +29,22 @@ export class ApiError extends Error {
 
 /** Allows tests to substitute the token source without touching Firebase. */
 export interface RequestContext {
-  /** Fetches a Firebase ID token. Pass `forceRefresh=true` to mint a fresh one. */
-  getIdToken: (forceRefresh?: boolean) => Promise<string>;
+  /**
+   * Fetches a Firebase ID token, or `null` when no user is signed in. Pass
+   * `forceRefresh=true` to mint a fresh one.
+   */
+  getIdToken: (forceRefresh?: boolean) => Promise<string | null>;
   /** Override for tests. Defaults to the global `fetch`. */
   fetchImpl?: typeof fetch;
 }
 
-function defaultIdTokenSource(forceRefresh = false): Promise<string> {
+function defaultIdTokenSource(forceRefresh = false): Promise<string | null> {
   const user = auth.currentUser;
   if (!user) {
-    return Promise.reject(new Error("Not authenticated"));
+    // No signed-in user (e.g. Storybook / MSW, or a not-yet-authed render).
+    // Return null rather than rejecting so the request still goes out — the
+    // mock layer answers it, and a real Firebase-gated backend replies 401.
+    return Promise.resolve(null);
   }
   return user.getIdToken(forceRefresh);
 }
@@ -62,11 +68,14 @@ export async function request<TResponse>(
   const fetchImpl = options.context?.fetchImpl ?? fetch;
   const getIdToken = options.context?.getIdToken ?? defaultIdTokenSource;
 
-  const buildInit = (idToken: string): RequestInit => ({
+  const buildInit = (idToken: string | null): RequestInit => ({
     ...options,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
+      // Only attach the bearer header when we actually have a token; without a
+      // signed-in user we send an unauthenticated request (mock layer answers;
+      // a real gated backend returns 401).
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
       ...(options.headers ?? {}),
     },
   });

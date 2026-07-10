@@ -404,6 +404,16 @@ def create_cloud_run_services(
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="TABIYA_IO_BUNDLE_URL", value=tabiya_io.uri
                         ),
+                        # Defaults for lazy "Default Tabiya" pipeline seeding.
+                        # classify_v2 reads these to populate the seeded NEL
+                        # stage; without them, ensure_default() no-ops and a
+                        # fresh user gets no default pipeline.
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="DEFAULT_NEL_MODEL_ID", value=default_nel_model_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="DEFAULT_TAXONOMY_MODEL_ID", value=default_taxonomy_model_id
+                        ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="TARGET_ENVIRONMENT_TYPE", value=env
                         ),

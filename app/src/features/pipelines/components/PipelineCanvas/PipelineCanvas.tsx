@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -21,8 +20,9 @@ import type {
   PipelineValidationIssue,
   PluginSummary,
 } from "@/lib/api";
-import { layoutStages } from "../../lib/layout";
+import { layoutStages, buildConfigPreview } from "../../lib/layout";
 import { areSlotsCompatible } from "../../lib/slotCompat";
+import { defaultConfigForManifest } from "../../lib/defaultConfig";
 import { StageNode } from "../StageNode/StageNode";
 
 import "reactflow/dist/style.css";
@@ -59,6 +59,7 @@ function buildEnrichedNodes(
   manifests: Record<string, PluginManifest>,
   validationIssues: PipelineValidationIssue[],
   shakingNodeIds: Set<string>,
+  onDelete?: (stageIndex: number) => void,
 ) {
   const stagesWithErrors = new Set(
     validationIssues
@@ -73,6 +74,7 @@ function buildEnrichedNodes(
     data: {
       ...node.data,
       hasError: stagesWithErrors.has(node.data.stageIndex),
+      onDelete,
     },
     className: shakingNodeIds.has(node.id) ? "animate-shake" : undefined,
   }));
@@ -119,10 +121,12 @@ function ReadOnlyCanvas({
         nodesConnectable={false}
         elementsSelectable={true}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.3, maxZoom: 0.85 }}
+        minZoom={0.3}
+        maxZoom={1.25}
+        proOptions={{ hideAttribution: true }}
       >
         <Background />
-        <MiniMap />
         <Controls position="bottom-right" />
       </ReactFlow>
     </div>
@@ -146,32 +150,73 @@ function EditModeCanvas({
 }: Required<Pick<PipelineCanvasProps, "pipeline" | "manifests" | "validationIssues" | "className" | "onStagesChange" | "onConnectRejected" | "onNodeSelect">>) {
   const [shakingNodeIds, setShakingNodeIds] = useState<Set<string>>(new Set());
 
+  // Remove a stage by index and hand the shortened list back to the parent.
+  const handleStageDelete = useCallback(
+    (stageIndex: number) => {
+      const nextStages = pipeline.stages.filter(
+        (_stage, index) => index !== stageIndex,
+      );
+      onStagesChange(nextStages);
+    },
+    [pipeline.stages, onStagesChange],
+  );
+
   const { nodes: initialNodes, edges: initialEdges } = buildEnrichedNodes(
     pipeline,
     manifests,
     validationIssues,
     shakingNodeIds,
+    handleStageDelete,
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const reactFlowInstance = useReactFlow<{ stageIndex: number; pluginId: string }>();
 
-  // Re-initialise nodes/edges when the pipeline prop changes from the outside.
-  const prevPipelineRef = useRef(pipeline);
+  // Re-layout nodes/edges only when the pipeline STRUCTURE changes (stages
+  // added, removed, or reordered) — keyed by the plugin_id sequence. A
+  // config-only edit (same structure) must not re-run layout, or it would
+  // reset any positions the user dragged. Validation-issue and manifest
+  // changes are applied in a separate, position-preserving effect below.
+  const structureKey = pipeline.stages.map((stage) => stage.plugin_id).join(">");
+  const prevStructureKeyRef = useRef(structureKey);
   useEffect(() => {
-    if (prevPipelineRef.current !== pipeline) {
-      prevPipelineRef.current = pipeline;
+    if (prevStructureKeyRef.current !== structureKey) {
+      prevStructureKeyRef.current = structureKey;
       const { nodes: nextNodes, edges: nextEdges } = buildEnrichedNodes(
         pipeline,
         manifests,
         validationIssues,
         shakingNodeIds,
+        handleStageDelete,
       );
       setNodes(nextNodes);
       setEdges(nextEdges);
     }
-  }, [pipeline, manifests, validationIssues, shakingNodeIds, setNodes, setEdges]);
+  }, [structureKey, pipeline, manifests, validationIssues, shakingNodeIds, handleStageDelete, setNodes, setEdges]);
+
+  // Re-apply error/config data onto existing nodes WITHOUT moving them, so a
+  // config edit or validation refresh updates node appearance in place.
+  useEffect(() => {
+    setNodes((currentNodes) =>
+      currentNodes.map((node) => {
+        const stageIndex = node.data.stageIndex as number;
+        const stage = pipeline.stages[stageIndex];
+        const hasError = validationIssues.some(
+          (issue) => issue.stage_index === stageIndex,
+        );
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            hasError,
+            configPreview: stage ? buildConfigPreview(stage) : node.data.configPreview,
+          },
+        };
+      }),
+    );
+    // structureKey guards against running during a full re-layout tick.
+  }, [validationIssues, pipeline.stages, structureKey, setNodes]);
 
   // Apply shake className whenever shakingNodeIds changes.
   useEffect(() => {
@@ -221,18 +266,32 @@ function EditModeCanvas({
   const handleNodesChange: typeof onNodesChange = useCallback(
     (changes) => {
       onNodesChange(changes);
-      // After position changes settle, reconstruct stages from updated nodes.
+      // After a drag settles, only propagate to the parent when the drag
+      // actually changed the left-right STAGE ORDER. A plain nudge that keeps
+      // the order must NOT trigger onStagesChange — doing so rebuilds the
+      // pipeline prop, which re-runs layout and snaps the node back to the
+      // grid (the "jumps to center" bug). Positions aren't part of the
+      // pipeline model, so a nudge that preserves order is a no-op upstream.
       const hasPositionChange = changes.some(
         (change) => change.type === "position" && !change.dragging,
       );
       if (hasPositionChange) {
         setNodes((currentNodes) => {
-          onStagesChange(reconstructStages(currentNodes));
+          const nextStages = reconstructStages(currentNodes);
+          const orderChanged =
+            nextStages.length !== pipeline.stages.length ||
+            nextStages.some(
+              (stage, index) =>
+                stage.plugin_id !== pipeline.stages[index]?.plugin_id,
+            );
+          if (orderChanged) {
+            onStagesChange(nextStages);
+          }
           return currentNodes;
         });
       }
     },
-    [onNodesChange, setNodes, onStagesChange, reconstructStages],
+    [onNodesChange, setNodes, onStagesChange, reconstructStages, pipeline.stages],
   );
 
   const handleEdgesChange: typeof onEdgesChange = useCallback(
@@ -354,9 +413,13 @@ function EditModeCanvas({
         insertionIndex = 0;
       }
 
+      // Seed config from the manifest's declared defaults so optional fields
+      // (top_k, min_similarity, text_field, …) are populated immediately.
+      // Required fields with no default stay absent and are flagged by the
+      // required-field UI until the user fills them.
       const newStage: PipelineStage = {
         plugin_id: dragData.pluginId,
-        config: {},
+        config: defaultConfigForManifest(manifests[dragData.pluginId]),
       };
 
       const currentStages = reconstructStages(sortedNodes.map((node) => ({
@@ -371,14 +434,17 @@ function EditModeCanvas({
 
       onStagesChange(nextStages);
     },
-    [nodes, reactFlowInstance, reconstructStages, onStagesChange],
+    [nodes, manifests, reactFlowInstance, reconstructStages, onStagesChange],
   );
 
   return (
     <div
       data-testid={DATA_TEST_ID.ROOT}
       className={className}
-      style={{ width: "100%", height: "400px" }}
+      // Fill the parent (the editor's flex-1 canvas area) so React Flow's
+      // bottom-right Controls sit at the true bottom-right of the canvas,
+      // not mid-page (which a fixed height would cause).
+      style={{ width: "100%", height: "100%", minHeight: "400px" }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
@@ -395,10 +461,12 @@ function EditModeCanvas({
         onConnect={handleConnect}
         onNodeClick={handleNodeClick}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.3, maxZoom: 0.85 }}
+        minZoom={0.3}
+        maxZoom={1.25}
+        proOptions={{ hideAttribution: true }}
       >
         <Background />
-        <MiniMap />
         <Controls position="bottom-right" />
       </ReactFlow>
     </div>

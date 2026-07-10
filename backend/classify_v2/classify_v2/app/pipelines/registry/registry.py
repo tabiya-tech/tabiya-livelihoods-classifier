@@ -274,16 +274,27 @@ class PluginRegistry:
                 )
                 return
 
+        # A plugin may ship a real manifest while declaring itself not-yet-
+        # implemented via `x-tabiya-coming-soon`. Cache the manifest (so the
+        # palette shows its name/category/icon) but keep it UNAVAILABLE +
+        # coming_soon so it stays undroppable and the validator rejects it.
+        is_coming_soon = bool(manifest.x_tabiya_coming_soon) or entry.coming_soon
         self._plugins[plugin_id] = current.model_copy(
             update={
                 "resolved_url": url,
                 "manifest": manifest,
-                "status": PluginStatus.ENABLED,
-                "last_error": None,
+                "status": (
+                    PluginStatus.UNAVAILABLE if is_coming_soon else PluginStatus.ENABLED
+                ),
+                "coming_soon": is_coming_soon,
+                "last_error": "coming_soon" if is_coming_soon else None,
                 "last_refreshed_at": datetime.now(timezone.utc),
             }
         )
-        _logger.info("Plugin '%s' ENABLED at %s", plugin_id, url)
+        if is_coming_soon:
+            _logger.info("Plugin '%s' COMING SOON (manifest served) at %s", plugin_id, url)
+        else:
+            _logger.info("Plugin '%s' ENABLED at %s", plugin_id, url)
 
     async def start_background_refresh(self) -> None:
         """Spawn the periodic refresh task. Idempotent — safe to call twice."""

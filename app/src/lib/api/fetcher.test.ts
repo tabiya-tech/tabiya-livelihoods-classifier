@@ -111,6 +111,21 @@ describe("fetcher.request", () => {
     expect(getIdToken).toHaveBeenCalledWith(false);
   });
 
+  it("omits the Authorization header when no token is available (no signed-in user)", async () => {
+    // GIVEN a token source that yields null (e.g. Storybook / not signed in)
+    const getIdToken = vi.fn(async () => null);
+    const fetchImpl = buildSequentialFetch([buildJsonResponse({ ok: true })]);
+
+    // WHEN we call request
+    await request<{ ok: boolean }>("/v2/example", {
+      context: { getIdToken, fetchImpl },
+    });
+
+    // THEN the request still goes out, with NO Authorization header
+    const [, init] = fetchImpl.mock.calls[0];
+    expect((init?.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
   it("returns undefined for 204 No Content responses", async () => {
     // GIVEN a 204 response
     const getIdToken = vi.fn(async () => "tok");

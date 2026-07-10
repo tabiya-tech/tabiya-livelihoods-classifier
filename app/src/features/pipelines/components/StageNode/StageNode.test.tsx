@@ -158,4 +158,66 @@ describe("StageNode", () => {
     // THEN no validation badge is present
     expect(screen.queryByTestId(DATA_TEST_ID.VALIDATION_BADGE)).toBeNull();
   });
+
+  it("renders a delete button that calls onDelete with the stage index", async () => {
+    // GIVEN a node with an onDelete handler
+    const deleteCalls: number[] = [];
+    const givenStageIndex = 2;
+    const givenData = {
+      pluginId: "tabiya.nel.v1",
+      manifest: givenManifest,
+      stageIndex: givenStageIndex,
+      onDelete: (index: number) => deleteCalls.push(index),
+    };
+
+    // WHEN we render and click the delete button
+    render(
+      <ReactFlowProvider>
+        <StageNode {...givenBaseNodeProps} data={givenData} />
+      </ReactFlowProvider>,
+    );
+    screen.getByTestId(DATA_TEST_ID.DELETE_BUTTON).click();
+
+    // THEN onDelete fires with this node's stage index
+    expect(deleteCalls).toEqual([givenStageIndex]);
+  });
+
+  it("does not render a delete button when onDelete is absent (read-only)", () => {
+    // GIVEN a node with no onDelete handler
+    const givenData = {
+      pluginId: "tabiya.ner.v1",
+      manifest: givenManifest,
+      stageIndex: 0,
+    };
+
+    // WHEN we render
+    render(
+      <ReactFlowProvider>
+        <StageNode {...givenBaseNodeProps} data={givenData} />
+      </ReactFlowProvider>,
+    );
+
+    // THEN there is no delete affordance
+    expect(screen.queryByTestId(DATA_TEST_ID.DELETE_BUTTON)).toBeNull();
+  });
+
+  it("uses a non-gear icon derived from the manifest (not the config/sun default)", () => {
+    // GIVEN a NER manifest whose icon should map to 'search', not 'config'
+    const givenData = {
+      pluginId: "tabiya.ner.v1",
+      manifest: givenManifest,
+      stageIndex: 1,
+    };
+
+    // WHEN we render
+    const { container } = render(
+      <ReactFlowProvider>
+        <StageNode {...givenBaseNodeProps} data={givenData} />
+      </ReactFlowProvider>,
+    );
+
+    // THEN the header icon is not the gear/sun ('config') default
+    const configIcon = container.querySelector('[data-icon="config"]');
+    expect(configIcon).toBeNull();
+  });
 });

@@ -27,19 +27,22 @@ afterEach(() => {
 });
 
 describe("listPlugins", () => {
-  it("returns the six-entry palette from the shipped fixtures", async () => {
+  it("returns the full palette from the shipped fixtures", async () => {
     // GIVEN the MSW handlers are seeded from `fixturePluginSummaries`.
 
     // WHEN we call the client
     const response = await listPlugins();
 
-    // THEN we get the six catalog entries in the same order the backend serves
+    // THEN we get the catalog entries in the same order the backend serves,
+    // including the coming-soon plugins (which now ship real manifests).
     const expectedIds = [
       "tabiya.ner.v1",
       "tabiya.nel.v1",
       "tabiya.source.text.v1",
       "tabiya.sink.results.v1",
       "tabiya.source.scraper.v1",
+      "tabiya.transform.stopwords.v1",
+      "tabiya.sink.database.v1",
       "tabiya.branching.language_router.v1",
     ];
     expect(response.plugins.map((plugin) => plugin.plugin_id)).toEqual(

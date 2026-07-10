@@ -4,6 +4,7 @@ import type { PluginManifest, PluginStatus } from "@/lib/api";
 import { Icon } from "@/components/Icon/Icon";
 import { ValidationBadge } from "../ValidationBadge/ValidationBadge";
 import { slotColor } from "../../lib/slotCompat";
+import { pluginIcon } from "../../lib/pluginIcon";
 
 const uniqueId = "c7d1e2f3-4a5b-6c7d-8e9f-0a1b2c3d4e5f";
 
@@ -17,15 +18,19 @@ export const DATA_TEST_ID = {
   OUTPUT_SLOT_PILL: `stage-node-output-slot-pill-${uniqueId}`,
   STATUS_INDICATOR: `stage-node-status-indicator-${uniqueId}`,
   VALIDATION_BADGE: `stage-node-validation-badge-${uniqueId}`,
+  DELETE_BUTTON: `stage-node-delete-button-${uniqueId}`,
 };
 
 export interface StageNodeData {
   pluginId: string;
   manifest?: PluginManifest;
   status?: PluginStatus;
+  category?: PluginManifest["category"];
   stageIndex: number;
   configPreview?: string;
   hasError?: boolean;
+  /** When set, the node renders a delete (×) button (edit mode only). */
+  onDelete?: (stageIndex: number) => void;
 }
 
 const STATUS_COLORS: Record<PluginStatus, string> = {
@@ -35,7 +40,8 @@ const STATUS_COLORS: Record<PluginStatus, string> = {
 };
 
 export function StageNode({ data }: NodeProps<StageNodeData>) {
-  const { manifest, pluginId, status, stageIndex, configPreview, hasError } = data;
+  const { manifest, pluginId, status, stageIndex, configPreview, hasError, onDelete } =
+    data;
 
   const pluginName = manifest?.name ?? pluginId;
   const inputSlotType = manifest?.input_slot.type ?? "None";
@@ -43,6 +49,7 @@ export function StageNode({ data }: NodeProps<StageNodeData>) {
   const inputColor = slotColor(inputSlotType);
   const outputColor = slotColor(outputSlotType);
   const statusColor = status ? STATUS_COLORS[status] : "#c9c5be";
+  const iconName = pluginIcon(manifest?.icon, manifest?.category ?? data.category);
 
   return (
     <div
@@ -66,11 +73,45 @@ export function StageNode({ data }: NodeProps<StageNodeData>) {
           style={{
             position: "absolute",
             top: "-8px",
-            right: "-8px",
+            // Sit to the left of the delete button when both are shown.
+            right: onDelete ? "18px" : "-8px",
           }}
         >
           <ValidationBadge severity="error" count={1} title="Validation error" />
         </div>
+      )}
+
+      {onDelete && (
+        <button
+          type="button"
+          data-testid={DATA_TEST_ID.DELETE_BUTTON}
+          className="nodrag nopan"
+          title="Delete stage"
+          aria-label="Delete stage"
+          onClick={(clickEvent) => {
+            clickEvent.stopPropagation();
+            onDelete(stageIndex);
+          }}
+          style={{
+            position: "absolute",
+            top: "-8px",
+            right: "-8px",
+            width: "18px",
+            height: "18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            borderRadius: "50%",
+            border: "1px solid #e0ddd9",
+            background: "#faf9f6",
+            color: "#6b6b6b",
+            cursor: "pointer",
+            boxShadow: "0 1px 2px rgba(12,26,46,0.08)",
+          }}
+        >
+          <Icon name="close" size={10} />
+        </button>
       )}
 
       <Handle
@@ -93,7 +134,7 @@ export function StageNode({ data }: NodeProps<StageNodeData>) {
           marginBottom: configPreview ? "6px" : 0,
         }}
       >
-        <Icon name="config" size={14} style={{ color: "#6b6b6b", flexShrink: 0 }} />
+        <Icon name={iconName} size={14} style={{ color: "#6b6b6b", flexShrink: 0 }} />
 
         <span
           data-testid={DATA_TEST_ID.PLUGIN_NAME}

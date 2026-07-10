@@ -62,3 +62,12 @@ class Manifest(BaseModel):
     x_tabiya_idempotent: Optional[bool] = Field(default=None, alias="x-tabiya-idempotent")
     x_tabiya_cancellable: Optional[bool] = Field(default=None, alias="x-tabiya-cancellable")
     x_tabiya_batch_max: Optional[int] = Field(default=None, alias="x-tabiya-batch-max")
+    x_tabiya_coming_soon: Optional[bool] = Field(
+        default=None,
+        alias="x-tabiya-coming-soon",
+        description=(
+            "When true, the plugin ships a real manifest but has no working "
+            "implementation yet. The palette shows it greyed/undroppable and "
+            "the validator rejects pipelines that use it."
+        ),
+    )

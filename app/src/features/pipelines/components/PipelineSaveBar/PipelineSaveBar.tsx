@@ -1,31 +1,29 @@
 /**
- * Fixed-bottom save bar for the pipeline editor.
+ * Save bar for the pipeline editor, rendered inline in the page header
+ * toolbar (not a fixed-bottom overlay).
  *
  * Layout (left-to-right):
- *   [Name input] | [Validation pill] | [Cancel] [Save]
+ *   [Validation pill] | [Cancel] [Save]
  *
- * The name input is hidden when the pipeline is readonly.
+ * The pipeline name is edited via the inline-editable page title, not here.
  * The validation pill reflects debounce / issue / clean state.
  * The save button is disabled when saving, invalid, clean, or readonly.
  */
 
 import { useTranslation } from "react-i18next";
-import { Button, Input } from "@/components";
+import { Button } from "@/components";
 import type { PipelineValidationIssue } from "@/lib/api";
 
 const uniqueId = "b7c2d4e6-f8a0-4b1c-9d3e-5f7a8b9c0d1e";
 
 export const DATA_TEST_ID = {
   ROOT: `pipeline-save-bar-root-${uniqueId}`,
-  NAME_INPUT: `pipeline-save-bar-name-input-${uniqueId}`,
   VALIDATION_PILL: `pipeline-save-bar-validation-pill-${uniqueId}`,
   CANCEL_BUTTON: `pipeline-save-bar-cancel-button-${uniqueId}`,
   SAVE_BUTTON: `pipeline-save-bar-save-button-${uniqueId}`,
 };
 
 export interface PipelineSaveBarProps {
-  name: string;
-  onNameChange: (nextName: string) => void;
   isReadonly: boolean;
   /** Validation issues from useValidatePipeline. */
   issues: PipelineValidationIssue[];
@@ -81,8 +79,6 @@ function ValidationPill({
 }
 
 export function PipelineSaveBar({
-  name,
-  onNameChange,
   isReadonly,
   issues,
   isValidating,
@@ -97,23 +93,10 @@ export function PipelineSaveBar({
   return (
     <div
       data-testid={DATA_TEST_ID.ROOT}
-      className="fixed bottom-0 left-0 right-0 z-[100] flex items-center gap-4 border-t border-line bg-paper px-6 py-3"
+      className="flex items-center gap-4"
     >
-      {/* Name input — hidden for readonly pipelines */}
-      {!isReadonly && (
-        <Input
-          data-testid={DATA_TEST_ID.NAME_INPUT}
-          value={name}
-          disabled={isSaving}
-          onChange={(changeEvent) => onNameChange(changeEvent.target.value)}
-          className="w-64"
-        />
-      )}
-
-      {/* Validation pill — centred in the remaining space */}
-      <div className="flex flex-1 items-center justify-center">
-        <ValidationPill isValidating={isValidating} issues={issues} />
-      </div>
+      {/* Validation pill */}
+      <ValidationPill isValidating={isValidating} issues={issues} />
 
       {/* Action buttons */}
       <div className="flex items-center gap-2">

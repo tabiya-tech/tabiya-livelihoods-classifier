@@ -25,6 +25,7 @@ import { createPipeline, updatePipeline } from "@/lib/api";
 import { routerPaths } from "@/routes/routerPaths";
 import { UnsavedChangesGuard } from "@/features/configuration/components/UnsavedChangesGuard/UnsavedChangesGuard";
 import { useUnsavedChangesGuard } from "@/features/configuration/hooks/useUnsavedChangesGuard";
+import { InlineEditableTitle } from "../components/InlineEditableTitle/InlineEditableTitle";
 import { PipelineCanvas } from "../components/PipelineCanvas/PipelineCanvas";
 import { PipelineSaveBar } from "../components/PipelineSaveBar/PipelineSaveBar";
 import { PluginPalette } from "../components/PluginPalette/PluginPalette";
@@ -218,10 +219,30 @@ export function PipelineEditorPage() {
       data-testid={DATA_TEST_ID.CONTAINER}
       className="flex h-full flex-col overflow-hidden"
     >
-      {/* Page header */}
-      <header className="flex flex-col gap-1 border-b border-line px-8 py-4">
-        <span className="eyebrow">{t("pipelines.editor.eyebrow")}</span>
-        <h1 className="h-page m-0">{pageTitle}</h1>
+      {/* Page header — title on the left, save toolbar on the right */}
+      <header className="flex items-center justify-between gap-4 border-b border-line px-8 py-4">
+        <div className="flex flex-col gap-1">
+          <span className="eyebrow">{t("pipelines.editor.eyebrow")}</span>
+          <InlineEditableTitle
+            value={pipelineName}
+            onChange={setPipelineName}
+            placeholder={pageTitle}
+            readOnly={isReadonly}
+          />
+        </div>
+        <div data-testid={DATA_TEST_ID.SAVE_BAR_CONTAINER}>
+          <PipelineSaveBar
+            isReadonly={isReadonly}
+            issues={validationState.issues}
+            isValidating={validationState.status === "checking"}
+            isDirty={isDirty}
+            isSaving={isSaving}
+            onSave={() => {
+              void handleSave();
+            }}
+            onCancel={handleCancel}
+          />
+        </div>
       </header>
 
       {/* Main editing area */}
@@ -229,7 +250,7 @@ export function PipelineEditorPage() {
         {/* Plugin palette */}
         <aside
           data-testid={DATA_TEST_ID.PALETTE_CONTAINER}
-          className="w-60 shrink-0 overflow-y-auto border-r border-line bg-paper"
+          className="w-72 shrink-0 overflow-y-auto overflow-x-hidden border-r border-line bg-paper"
         >
           <PluginPalette />
         </aside>
@@ -277,21 +298,6 @@ export function PipelineEditorPage() {
           errors={selectedStageErrors}
           onChange={handleStageChange}
           onDelete={handleStageDelete}
-        />
-      </div>
-
-      {/* Save bar */}
-      <div data-testid={DATA_TEST_ID.SAVE_BAR_CONTAINER}>
-        <PipelineSaveBar
-          name={pipelineName}
-          onNameChange={setPipelineName}
-          isReadonly={isReadonly}
-          issues={validationState.issues}
-          isValidating={validationState.status === "checking"}
-          isDirty={isDirty}
-          isSaving={isSaving}
-          onSave={() => { void handleSave(); }}
-          onCancel={handleCancel}
         />
       </div>
 

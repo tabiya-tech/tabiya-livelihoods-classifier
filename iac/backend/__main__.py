@@ -60,7 +60,24 @@ taxonomy_api_base_url = config.require("taxonomyApiBaseUrl")
 default_nel_model_id = config.get("defaultNELModelId") or "all-MiniLM-L6-v2"
 default_taxonomy_model_id = config.get("defaultTaxonomyModelId") or ""
 vertex_api_region = config.get("vertexApiRegion") or region
-app_origin = f"https://app.{env_subdomain}"
+
+# CORS allow-list passed to every service (comma-split by each service's
+# config). Always the deployed app origin; on non-prod stacks we also allow
+# common localhost dev-server origins so a developer can point their local
+# frontend at this backend without running the full stack in Docker.
+_deployed_app_origin = f"https://app.{env_subdomain}"
+_localhost_dev_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+app_origin = (
+    _deployed_app_origin
+    if env == "prod"
+    else ",".join([_deployed_app_origin, *_localhost_dev_origins])
+)
 
 
 def _require_env(name: str) -> str:
