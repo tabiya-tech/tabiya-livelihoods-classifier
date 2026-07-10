@@ -137,7 +137,7 @@ export function PipelinesTable({
                       onClick={() => onEdit?.(pipeline.pipeline_id)}
                       data-testid={DATA_TEST_ID.EDIT_BUTTON}
                       data-pipeline-id={pipeline.pipeline_id}
-                      leading={<Icon name="config" size={12} />}
+                      leading={<Icon name="arrowRight" size={12} />}
                     >
                       {t("pipelines.list.actions.edit")}
                     </Button>

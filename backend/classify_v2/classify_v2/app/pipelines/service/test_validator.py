@@ -178,6 +178,24 @@ def test_canonical_four_stage_pipeline_validates_clean() -> None:
     assert issues == []
 
 
+def test_ner_only_pipeline_ending_on_results_validates_clean() -> None:
+    # GIVEN a text → ner → results pipeline (no NEL): NER emits Entities and
+    # the Results sink declares LinkedEntities, which slot_accepts permits.
+    givenRegistry = _canonical_registry()
+    givenStages = [
+        StageDocument(plugin_id="tabiya.source.text.v1", config={"text": ""}),
+        StageDocument(plugin_id="tabiya.ner.v1", config={}),
+        StageDocument(plugin_id="tabiya.sink.results.v1", config={}),
+    ]
+    validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
+
+    # WHEN we validate
+    issues = validator.validate(givenStages)
+
+    # THEN there is no slot-mismatch — ending on NER output is allowed
+    assert IssueCode.SLOT_MISMATCH not in _issue_codes(issues)
+
+
 def test_too_few_stages_is_reported() -> None:
     # GIVEN a single-stage pipeline
     givenRegistry = _canonical_registry()
@@ -351,8 +369,10 @@ def test_slot_mismatch_between_adjacent_stages_reported() -> None:
     assert mismatches[0].detail == expectedDetail
 
 
-def test_config_that_fails_jsonschema_is_reported() -> None:
-    # GIVEN a NEL stage missing its required nel_model_id
+def test_missing_required_config_is_NOT_a_validation_error() -> None:
+    # GIVEN a NEL stage missing its required nel_model_id. Stage config (model
+    # selection) is set independently of pipeline structure, so a partial or
+    # empty config must NOT block saving/validating the pipeline.
     givenRegistry = _canonical_registry()
     givenStages = _canonical_stages()
     givenStages[2] = StageDocument(
@@ -364,16 +384,13 @@ def test_config_that_fails_jsonschema_is_reported() -> None:
     # WHEN we validate
     issues = validator.validate(givenStages)
 
-    # THEN STAGE_CONFIG_INVALID surfaces at the NEL stage index
-    invalid = [issue for issue in issues if issue.code == IssueCode.STAGE_CONFIG_INVALID]
-    assert len(invalid) == 1
-    assert invalid[0].stage_index == 2
-    assert invalid[0].detail is not None
-    assert invalid[0].detail["errors"]
+    # THEN no STAGE_CONFIG_INVALID is raised at pipeline-validate time
+    assert IssueCode.STAGE_CONFIG_INVALID not in _issue_codes(issues)
 
 
-def test_config_with_out_of_range_number_is_reported() -> None:
-    # GIVEN a NEL top_k over the schema max
+def test_out_of_range_config_is_NOT_a_validation_error() -> None:
+    # GIVEN a NEL top_k over the schema max — still not a pipeline-level error;
+    # per-stage config is validated at invoke time by the plugin, not here.
     givenRegistry = _canonical_registry()
     givenStages = _canonical_stages()
     givenStages[2] = StageDocument(
@@ -389,9 +406,8 @@ def test_config_with_out_of_range_number_is_reported() -> None:
     # WHEN we validate
     issues = validator.validate(givenStages)
 
-    # THEN STAGE_CONFIG_INVALID
-    invalid = [issue for issue in issues if issue.code == IssueCode.STAGE_CONFIG_INVALID]
-    assert len(invalid) == 1
+    # THEN no STAGE_CONFIG_INVALID
+    assert IssueCode.STAGE_CONFIG_INVALID not in _issue_codes(issues)
 
 
 def test_multiple_ner_stages_reported() -> None:
@@ -442,19 +458,20 @@ def test_multiple_nel_stages_reported() -> None:
 
 
 def test_validator_reports_every_issue_in_a_single_pass() -> None:
-    # GIVEN a pipeline with a missing plugin AND a bad config elsewhere
+    # GIVEN a pipeline with two independent unknown-plugin stages — the
+    # validator should surface both in one pass, not stop at the first.
     givenRegistry = _canonical_registry()
     givenStages = _canonical_stages()
     givenStages[1] = StageDocument(plugin_id="tabiya.ghost.v1", config={})
-    givenStages[2] = StageDocument(
-        plugin_id="tabiya.nel.v1", config={}  # missing required fields
-    )
+    givenStages[2] = StageDocument(plugin_id="tabiya.phantom.v1", config={})
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
     issues = validator.validate(givenStages)
 
-    # THEN both issues are surfaced in one pass
-    codes = _issue_codes(issues)
-    assert IssueCode.UNKNOWN_PLUGIN in codes
-    assert IssueCode.STAGE_CONFIG_INVALID in codes
+    # THEN both unknown plugins are reported, at their respective stage indexes
+    unknown = [
+        issue for issue in issues if issue.code == IssueCode.UNKNOWN_PLUGIN
+    ]
+    reportedIndexes = {issue.stage_index for issue in unknown}
+    assert reportedIndexes == {1, 2}

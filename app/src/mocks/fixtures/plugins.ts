@@ -140,12 +140,36 @@ export const fixtureResultsManifest: PluginManifest = {
   "x-tabiya-contract-version": CONTRACT_VERSION,
 };
 
+export const fixtureJsonEntitiesManifest: PluginManifest = {
+  plugin_id: "tabiya.source.json_entities.v1",
+  name: "JSON Entities",
+  version: "0.1.0",
+  category: "source",
+  summary: "Feeds pre-extracted entities from a JSON payload straight into linking.",
+  detail: "skip NER — link a JSON list of occupations/skills to the taxonomy",
+  icon: "docs",
+  input_slot: { type: "None", cardinality: "none" },
+  output_slot: { type: "Entities", cardinality: "single" },
+  config_schema: {
+    type: "object",
+    properties: {
+      json: { type: "string", title: "Entities JSON" },
+      source_text: { type: "string", title: "Source text (optional)" },
+    },
+    required: ["json"],
+    additionalProperties: false,
+  },
+  timeout_ms: 5_000,
+  "x-tabiya-contract-version": CONTRACT_VERSION,
+};
+
 /** Manifests keyed by plugin_id for fast lookup by fixture consumers. */
 export const fixturePluginManifests: Record<string, PluginManifest> = {
   [fixtureTextInputManifest.plugin_id]: fixtureTextInputManifest,
   [fixtureNerManifest.plugin_id]: fixtureNerManifest,
   [fixtureNelManifest.plugin_id]: fixtureNelManifest,
   [fixtureResultsManifest.plugin_id]: fixtureResultsManifest,
+  [fixtureJsonEntitiesManifest.plugin_id]: fixtureJsonEntitiesManifest,
 };
 
 function summaryFromManifest(manifest: PluginManifest): PluginSummary {
@@ -224,6 +248,7 @@ export const fixturePluginSummaries: PluginSummary[] = [
   summaryFromManifest(fixtureNerManifest),
   summaryFromManifest(fixtureNelManifest),
   summaryFromManifest(fixtureTextInputManifest),
+  summaryFromManifest(fixtureJsonEntitiesManifest),
   summaryFromManifest(fixtureResultsManifest),
   scraperSummary,
   stopwordsSummary,

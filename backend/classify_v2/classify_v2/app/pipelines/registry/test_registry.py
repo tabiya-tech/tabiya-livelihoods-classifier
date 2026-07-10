@@ -117,6 +117,7 @@ def test_load_catalog_parses_shipped_json_into_typed_entries() -> None:
         "tabiya.nel.v1",
         "tabiya.source.text.v1",
         "tabiya.source.json.v1",
+        "tabiya.source.json_entities.v1",
         "tabiya.sink.results.v1",
         "tabiya.source.scraper.v1",
         "tabiya.transform.stopwords.v1",

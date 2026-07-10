@@ -84,6 +84,28 @@ SLOT_MODEL_BY_TYPE: dict[SlotType, Type[BaseModel]] = {
 }
 
 
+# Subtype relationships between slot types: a producer type on the left may
+# feed a consumer that declares the type on the right, even without an exact
+# match. `Entities` → `LinkedEntities` holds because `LinkedEntity` extends
+# `Entity` with an optional `matches` list (default []), so an Entities payload
+# is a valid LinkedEntities payload. This lets a pipeline end on NER output
+# (text → ner → results) without an NEL stage.
+_SLOT_SUBTYPES: dict[SlotType, set[SlotType]] = {
+    SlotType.ENTITIES: {SlotType.LINKED_ENTITIES},
+}
+
+
+def slot_accepts(producer: SlotType, consumer: SlotType) -> bool:
+    """Return True if a `producer` output can feed a `consumer` input.
+
+    Exact match, or a declared subtype relationship (see `_SLOT_SUBTYPES`).
+    """
+
+    if producer == consumer:
+        return True
+    return consumer in _SLOT_SUBTYPES.get(producer, set())
+
+
 class Slot(BaseModel):
     """Manifest input_slot / output_slot descriptor."""
 

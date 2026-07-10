@@ -39,6 +39,7 @@ describe("listPlugins", () => {
       "tabiya.ner.v1",
       "tabiya.nel.v1",
       "tabiya.source.text.v1",
+      "tabiya.source.json_entities.v1",
       "tabiya.sink.results.v1",
       "tabiya.source.scraper.v1",
       "tabiya.transform.stopwords.v1",
