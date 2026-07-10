@@ -25,6 +25,8 @@ export {
   activatePipeline,
   clonePipeline,
   validatePipeline,
+  listClassifications,
+  getUsage,
 } from "./v2";
 export type {
   NelModel,
@@ -68,4 +70,8 @@ export type {
   PipelineValidationIssue,
   ValidatePipelineRequest,
   ValidatePipelineResponse,
+  ClassificationSummary,
+  ClassificationsPage,
+  DailyCount,
+  UsageResponse,
 } from "./v2";

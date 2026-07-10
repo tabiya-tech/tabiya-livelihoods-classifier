@@ -440,3 +440,47 @@ export function validatePipeline(
     body: JSON.stringify(payload),
   });
 }
+
+// ── Classifications (Classify v2) ──────────────────────────────────────────
+
+export interface ClassificationSummary {
+  classification_id: string;
+  pipeline_id: string;
+  entity_count: number;
+  processing_time_ms: number;
+  /** ISO-8601 UTC timestamp. */
+  created_at: string;
+}
+
+export interface ClassificationsPage {
+  items: ClassificationSummary[];
+  next_cursor: string | null;
+}
+
+export function listClassifications(params?: {
+  limit?: number;
+  cursor?: string;
+}): Promise<ClassificationsPage> {
+  const query = new URLSearchParams();
+  if (params?.limit != null) query.set("limit", String(params.limit));
+  if (params?.cursor) query.set("cursor", params.cursor);
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return request<ClassificationsPage>(`/v2/classifications${suffix}`);
+}
+
+// ── Usage (Classify v2) ────────────────────────────────────────────────────
+
+export interface DailyCount {
+  /** YYYY-MM-DD (UTC). */
+  date: string;
+  count: number;
+}
+
+export interface UsageResponse {
+  days: number;
+  data: DailyCount[];
+}
+
+export function getUsage(days = 30): Promise<UsageResponse> {
+  return request<UsageResponse>(`/v2/usage?days=${days}`);
+}
