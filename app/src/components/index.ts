@@ -221,3 +221,17 @@ export {
   DATA_TEST_ID as TOPBAR_DATA_TEST_ID,
 } from "./Topbar/Topbar";
 export type { TopbarProps } from "./Topbar/Topbar";
+
+// StatCard
+export {
+  StatCard,
+  DATA_TEST_ID as STAT_CARD_DATA_TEST_ID,
+} from "./StatCard/StatCard";
+export type { StatCardProps } from "./StatCard/StatCard";
+
+// UsageChart
+export {
+  UsageChart,
+  DATA_TEST_ID as USAGE_CHART_DATA_TEST_ID,
+} from "./UsageChart/UsageChart";
+export type { UsageChartProps } from "./UsageChart/UsageChart";

@@ -69,7 +69,41 @@
   "dashboard": {
     "eyebrow": "Workspace · Dashboard",
     "welcomeBack": "Welcome back, {{name}}",
-    "fallbackName": "there"
+    "fallbackName": "there",
+    "stats": {
+      "callsThisWeek": "Calls this week",
+      "callsDelta": "{{delta}} vs last week",
+      "activeKeys": "Active API keys",
+      "activePipeline": "Active pipeline"
+    },
+    "usageChart": {
+      "title": "Classifications · 30 days",
+      "emptyTitle": "No classifications yet",
+      "emptyDescription": "Run a classification from the Classifier page to see usage data here.",
+      "tooltipLabel": "calls"
+    },
+    "recentClassifications": {
+      "title": "Recent classifications",
+      "viewAll": "View all",
+      "empty": "No classifications yet"
+    }
+  },
+  "history": {
+    "eyebrow": "Workspace · History",
+    "title": "Classification history",
+    "intro": "A record of every classification run on your account.",
+    "table": {
+      "headerDate": "Date",
+      "headerPipeline": "Pipeline",
+      "headerEntities": "Entities",
+      "headerDuration": "Duration",
+      "empty": "No classifications yet",
+      "emptyDescription": "Classifications appear here after you run the Classifier."
+    },
+    "loadMore": "Load more",
+    "toasts": {
+      "loadError": "Couldn't load classification history."
+    }
   },
   "configuration": {
     "eyebrow": "Settings · Pipeline configuration",

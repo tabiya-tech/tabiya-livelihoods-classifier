@@ -1,6 +1,7 @@
 import type { HttpHandler } from "msw";
 import { apiKeysHandlers } from "./handlers/apiKeys";
 import { classifyHandlers } from "./handlers/classify";
+import { classificationsHandlers } from "./handlers/classifications";
 import { nelV2Handlers } from "./handlers/nelV2";
 import { pipelinesHandlers } from "./handlers/pipelines";
 import { pluginsHandlers } from "./handlers/plugins";
@@ -9,6 +10,7 @@ export const handlers: HttpHandler[] = [
   ...nelV2Handlers,
   ...apiKeysHandlers,
   ...classifyHandlers,
+  ...classificationsHandlers,
   ...pluginsHandlers,
   ...pipelinesHandlers,
 ];
@@ -44,6 +46,14 @@ export {
   fixtureRecruiterTuningPipeline,
   fixtureRecruiterTuningStages,
 } from "./fixtures/pipelines";
+export {
+  resetClassificationsHandlersStore,
+  seedClassificationsHandlersStore,
+} from "./handlers/classifications";
+export {
+  fixtureClassificationSummaries,
+  fixtureDailyCounts,
+} from "./fixtures/classifications";
 export {
   fixtureNerManifest,
   fixtureNelManifest,
