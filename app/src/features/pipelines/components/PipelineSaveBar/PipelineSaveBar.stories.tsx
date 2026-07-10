@@ -14,8 +14,6 @@ const meta: Meta<typeof PipelineSaveBar> = {
   component: PipelineSaveBar,
   parameters: { layout: "fullscreen" },
   args: {
-    name: "Recruiter tuning",
-    onNameChange: () => {},
     isReadonly: false,
     issues: [],
     isValidating: false,

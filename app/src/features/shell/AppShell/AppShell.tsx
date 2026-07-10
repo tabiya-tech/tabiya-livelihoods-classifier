@@ -47,16 +47,16 @@ function buildNavGroups(
           label: t("shell.nav.items.classifier"),
           icon: "classify",
         },
-        {
-          id: "pipelines",
-          label: t("shell.nav.items.pipelines"),
-          icon: "pipelines",
-        },
       ],
     },
     {
       label: t("shell.nav.groups.settings"),
       items: [
+        {
+          id: "pipelines",
+          label: t("shell.nav.items.pipelines"),
+          icon: "pipelines",
+        },
         {
           id: "configuration",
           label: t("shell.nav.items.configuration"),

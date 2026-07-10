@@ -16,6 +16,7 @@ const uniqueId = "f9e8d7c6-b5a4-4321-8fed-cba987654321";
 export const DATA_TEST_ID = {
   ROOT: `stage-detail-drawer-root-${uniqueId}`,
   SLOT_PILLS: `stage-detail-drawer-slot-pills-${uniqueId}`,
+  DESCRIPTION: `stage-detail-drawer-description-${uniqueId}`,
   ERRORS_BLOCK: `stage-detail-drawer-errors-block-${uniqueId}`,
   DELETE_BUTTON: `stage-detail-drawer-delete-button-${uniqueId}`,
   CLOSE_BUTTON: `stage-detail-drawer-close-button-${uniqueId}`,
@@ -63,6 +64,9 @@ export function StageDetailDrawer({
       </span>
     ) : undefined;
 
+  const description = manifest?.summary;
+  const detail = manifest?.detail;
+
   const hasErrors = errors && errors.length > 0;
 
   const footerNode = (
@@ -94,6 +98,29 @@ export function StageDetailDrawer({
         description={slotPillsNode}
         footer={footerNode}
       >
+        {description && (
+          <div
+            data-testid={DATA_TEST_ID.DESCRIPTION}
+            style={{ marginBottom: "16px" }}
+          >
+            <p style={{ fontSize: "13px", color: "#3f3d3a", margin: 0, lineHeight: 1.5 }}>
+              {description}
+            </p>
+            {detail && (
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#6b6b6b",
+                  margin: "4px 0 0",
+                  lineHeight: 1.5,
+                }}
+              >
+                {detail}
+              </p>
+            )}
+          </div>
+        )}
+
         {hasErrors && (
           <div
             data-testid={DATA_TEST_ID.ERRORS_BLOCK}

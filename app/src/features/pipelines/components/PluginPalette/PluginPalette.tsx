@@ -119,6 +119,7 @@ export function PluginPalette({
         flexDirection: "column",
         gap: "16px",
         padding: "12px",
+        minWidth: 0,
         fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif',
       }}
     >
@@ -161,9 +162,10 @@ export function PluginPalette({
 
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  display: "flex",
+                  flexDirection: "column",
                   gap: "6px",
+                  minWidth: 0,
                 }}
               >
                 {categoryPlugins.map((plugin) => (
@@ -237,6 +239,7 @@ function PluginRow({ plugin, onClick }: PluginRowProps) {
         display: "flex",
         flexDirection: "column",
         gap: "2px",
+        minWidth: 0,
         boxShadow: "0 1px 0 rgba(12,26,46,0.04)",
       }}
     >
@@ -244,6 +247,7 @@ function PluginRow({ plugin, onClick }: PluginRowProps) {
         style={{
           display: "flex",
           alignItems: "center",
+          minWidth: 0,
           justifyContent: "space-between",
           gap: "4px",
         }}
