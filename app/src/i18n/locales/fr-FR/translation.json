@@ -69,7 +69,41 @@
   "dashboard": {
     "eyebrow": "Espace de travail · Tableau de bord",
     "welcomeBack": "Bon retour, {{name}}",
-    "fallbackName": "vous"
+    "fallbackName": "vous",
+    "stats": {
+      "callsThisWeek": "Appels cette semaine",
+      "callsDelta": "{{delta}} vs semaine dernière",
+      "activeKeys": "Clés API actives",
+      "activePipeline": "Pipeline actif"
+    },
+    "usageChart": {
+      "title": "Classifications · 30 jours",
+      "emptyTitle": "Aucune classification",
+      "emptyDescription": "Lancez une classification depuis la page Classifier pour voir les données d'utilisation ici.",
+      "tooltipLabel": "appels"
+    },
+    "recentClassifications": {
+      "title": "Classifications récentes",
+      "viewAll": "Tout voir",
+      "empty": "Aucune classification"
+    }
+  },
+  "history": {
+    "eyebrow": "Espace de travail · Historique",
+    "title": "Historique des classifications",
+    "intro": "Un enregistrement de chaque classification effectuée sur votre compte.",
+    "table": {
+      "headerDate": "Date",
+      "headerPipeline": "Pipeline",
+      "headerEntities": "Entités",
+      "headerDuration": "Durée",
+      "empty": "Aucune classification",
+      "emptyDescription": "Les classifications apparaissent ici après avoir utilisé le Classifier."
+    },
+    "loadMore": "Charger plus",
+    "toasts": {
+      "loadError": "Impossible de charger l'historique des classifications."
+    }
   },
   "configuration": {
     "eyebrow": "Paramètres · Configuration du pipeline",

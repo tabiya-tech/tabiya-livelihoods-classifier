@@ -10,6 +10,7 @@ import { ClassifierPage } from "@/features/classifier/ClassifierPage/ClassifierP
 import { ConfigurationPage } from "@/features/configuration/ConfigurationPage/ConfigurationPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage/DashboardPage";
 import { ApiKeysPage } from "@/features/keys/ApiKeysPage/ApiKeysPage";
+import { HistoryPage } from "@/features/history/HistoryPage/HistoryPage";
 import { PipelinesPage } from "@/features/pipelines/PipelinesPage/PipelinesPage";
 import { PipelineEditorPage } from "@/features/pipelines/PipelineEditorPage/PipelineEditorPage";
 import { PipelineLibraryPage } from "@/features/pipelines/PipelineLibraryPage/PipelineLibraryPage";
@@ -37,6 +38,7 @@ export function AppRouter() {
           }
         >
           <Route path={routerPaths.DASHBOARD} element={<DashboardPage />} />
+          <Route path={routerPaths.HISTORY} element={<HistoryPage />} />
           <Route
             path={routerPaths.CLASSIFIER}
             element={<ClassifierPage />}
