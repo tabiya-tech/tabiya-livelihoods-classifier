@@ -222,11 +222,17 @@ class PipelineExecutor:
             outcomes.append(outcome)
 
             current_input = response_body.get("output") or {"kind": "None"}
-            # Snapshot the LinkedEntities payload wherever it appears —
-            # for the canonical pipeline that's after the NEL stage; a
-            # future pipeline with post-NEL transforms could re-shape it,
-            # so we always keep the *last* one we saw.
+            # Snapshot the entities payload for the response. Prefer the last
+            # LinkedEntities we see (canonical text→ner→nel→results). If the
+            # pipeline ends on NER with no NEL stage, capture the Entities
+            # payload instead — its `matches` are simply empty. Entities and
+            # LinkedEntities share shape, so the response builder handles both.
             if manifest.output_slot.type == SlotType.LINKED_ENTITIES:
+                linked_entities_payload = current_input
+            elif (
+                manifest.output_slot.type == SlotType.ENTITIES
+                and linked_entities_payload is None
+            ):
                 linked_entities_payload = current_input
 
         return ExecutorResult(

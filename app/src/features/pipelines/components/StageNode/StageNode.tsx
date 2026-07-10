@@ -49,7 +49,11 @@ export function StageNode({ data }: NodeProps<StageNodeData>) {
   const inputColor = slotColor(inputSlotType);
   const outputColor = slotColor(outputSlotType);
   const statusColor = status ? STATUS_COLORS[status] : "#c9c5be";
-  const iconName = pluginIcon(manifest?.icon, manifest?.category ?? data.category);
+  const iconName = pluginIcon(
+    manifest?.icon,
+    manifest?.category ?? data.category,
+    pluginId,
+  );
 
   return (
     <div
