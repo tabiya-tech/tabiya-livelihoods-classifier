@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from classify_v2.app.classification.service.errors import (
@@ -36,6 +38,10 @@ from classify_v2.app.classification.service.types import (
     QualificationMatch,
     SkillMatch,
     TaxonomyMatch,
+)
+from classify_v2.app.classifications.repository import (
+    ClassificationRecord,
+    IClassificationRepository,
 )
 from classify_v2.app.pipelines.executor import (
     ExecutorResult,
@@ -64,8 +70,14 @@ class IClassifyService(ABC):
 
 
 class ClassifyService(IClassifyService):
-    def __init__(self, *, executor: PipelineExecutor) -> None:
+    def __init__(
+        self,
+        *,
+        executor: PipelineExecutor,
+        classifications_repo: Optional[IClassificationRepository] = None,
+    ) -> None:
         self._executor = executor
+        self._classifications_repo = classifications_repo
 
     async def classify(
         self,
@@ -103,7 +115,7 @@ class ClassifyService(IClassifyService):
         nel_metadata = _collect_nel_metadata(result)
         ner_metadata = _collect_ner_metadata(result)
 
-        return ClassifyResponse(
+        response = ClassifyResponse(
             entities=entities,
             metadata=ClassifyMetadata(
                 classifier_version=CLASSIFIER_VERSION,
@@ -124,6 +136,28 @@ class ClassifyService(IClassifyService):
                 ),
             ),
         )
+
+        if self._classifications_repo is not None and user_id is not None:
+            try:
+                await self._classifications_repo.insert(
+                    ClassificationRecord(
+                        classification_id=str(uuid.uuid4()),
+                        user_id=user_id,
+                        pipeline_id=pipeline.pipeline_id,
+                        entity_count=len(entities),
+                        processing_time_ms=processing_time_ms,
+                        created_at=datetime.now(timezone.utc),
+                    )
+                )
+            except Exception:
+                # Never fail the classify response because of a persistence error.
+                _logger.exception(
+                    "Failed to persist classification record for user=%s request=%s",
+                    user_id,
+                    request_id,
+                )
+
+        return response
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
