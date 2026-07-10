@@ -22,6 +22,10 @@ from classify_v2.app.classification.service.types import (
     ClassifyRequest,
     ClassifyResponse,
 )
+from classify_v2.app.classifications.repository import (
+    ClassificationRepository,
+    IClassificationRepository,
+)
 from classify_v2.app.pipelines.executor import (
     GcpIdentityTokenProvider,
     PipelineExecutor,
@@ -66,7 +70,15 @@ async def _get_pipeline_service(
     )
 
 
-def _get_classify_service(request: Request) -> IClassifyService:
+async def _get_classifications_repo() -> IClassificationRepository:
+    app_db = await ClassifyDBProvider.get_application_db()
+    return ClassificationRepository(app_db)
+
+
+async def _get_classify_service(
+    request: Request,
+    classifications_repo: IClassificationRepository = Depends(_get_classifications_repo),
+) -> IClassifyService:
     registry: PluginRegistry = request.app.state.plugin_registry
     http_client = request.app.state.plugin_http
     # In local mode the bundles bypass auth, so no token is minted. Against
@@ -82,7 +94,7 @@ def _get_classify_service(request: Request) -> IClassifyService:
         http_client=http_client,
         identity_token_provider=identity_token_provider,
     )
-    return ClassifyService(executor=executor)
+    return ClassifyService(executor=executor, classifications_repo=classifications_repo)
 
 
 def _default_tabiya_config() -> DefaultTabiyaConfig | None:
