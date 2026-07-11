@@ -1,7 +1,7 @@
 """Manifest — the static metadata a plugin exposes at `GET /plugin/manifest`.
 
 Capability metadata rides as namespaced `x-tabiya-*` extension fields so
-adding one doesn't require a contract-version bump. See design doc §6.
+adding one doesn't require a contract-version bump.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Pipeline validator tests.
 
-Every rule from design §7 gets its own test. Uses a fake registry so no
+Every validation rule gets its own test. Uses a fake registry so no
 Mongo / network / actual manifest fetch is involved.
 """
 

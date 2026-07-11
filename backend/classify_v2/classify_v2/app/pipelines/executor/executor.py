@@ -45,8 +45,7 @@ from tabiya_plugin_contracts import CONTRACT_VERSION, Manifest, SlotType
 
 _logger = logging.getLogger(__name__)
 
-# Dedicated logger for the observability stream — the field shape here is
-# the ops contract from design §11. Ops dashboards should filter on
+# Dedicated logger for the observability stream — ops dashboards should filter on
 # `logger.name == "classify_v2.pipeline_stage"` and read the extras as
 # structured JSON (Cloud Run's log agent lifts `extra=` fields into
 # `jsonPayload` on every entry).
@@ -69,8 +68,7 @@ def _log_stage(
 ) -> None:
     """Emit one structured log line per plugin /invoke call.
 
-    Design §11 pins the field set — do not add or rename fields here
-    without also updating the ops dashboard queries.
+    Do not add or rename fields here without also updating the ops dashboard queries.
     """
 
     extra: dict[str, Any] = {
@@ -165,7 +163,7 @@ class PipelineExecutor:
         overridden by the caller's per-request input.
 
         Emits one structured log line per stage on
-        `classify_v2.pipeline_stage` (design §11) regardless of outcome.
+        `classify_v2.pipeline_stage` regardless of outcome.
         """
 
         outcomes: list[StageOutcome] = []

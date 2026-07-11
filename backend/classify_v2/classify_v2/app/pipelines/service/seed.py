@@ -3,7 +3,7 @@
 Composes the four-stage `text_input → NER → NEL → results` chain that
 mirrors the pre-plugin classify behaviour. A fresh user gets one of these
 inserted on their first `GET /v2/pipelines` or `POST /v2/classify`
-(design §10 — lazy seeding on the two endpoints an API-only caller can hit).
+(lazy seeding on the two endpoints an API-only caller can hit).
 
 The seed intentionally leaves NEL's `nel_model_id` and `taxonomy_model_id`
 as configurable via env-var-backed defaults; if either is unset the

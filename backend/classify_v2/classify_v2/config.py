@@ -8,7 +8,7 @@ NEL_V2_API_URL: str = os.getenv("NEL_V2_API_URL", "http://localhost:5003")
 
 # Plugin bundle URLs — resolved by the pipeline registry to fetch manifests
 # and (post-11.6) invoke plugin stages. Unset bundles are surfaced to the
-# frontend as UNAVAILABLE per design §10.
+# frontend as UNAVAILABLE when unset.
 TABIYA_CORE_BUNDLE_URL: str = os.getenv("TABIYA_CORE_BUNDLE_URL", "")
 TABIYA_IO_BUNDLE_URL: str = os.getenv("TABIYA_IO_BUNDLE_URL", "")
 

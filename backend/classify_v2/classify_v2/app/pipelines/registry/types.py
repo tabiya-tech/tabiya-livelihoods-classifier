@@ -3,7 +3,7 @@
 `CatalogEntry` mirrors the JSON shape in `catalog.json`.
 `ResolvedPlugin` is what the registry hands back to callers — a catalog
 entry that has been through URL resolution + manifest fetch.
-`PluginStatus` covers the three states from design §10.
+`PluginStatus` covers the three states: AVAILABLE, UNAVAILABLE, and UNKNOWN.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Pipeline service: validator + service.
 
 Exports:
-  * `PipelineValidator`, `ValidationIssue`, `ValidationError` — 11.5 §7 rules.
+  * `PipelineValidator`, `ValidationIssue`, `ValidationError` — pipeline validation rules.
   * `PipelineService`, `IPipelineService`, `CreatePipelineInput`,
     `UpdatePipelineInput` — the CRUD + validate + activate + clone facade.
   * `DEFAULT_TABIYA_NAME`, `build_default_tabiya_stages()` — the seed helper.
