@@ -39,7 +39,12 @@ def create_cloud_run_services(
     gateway_base_url: str,
     vertex_api_region: str = "us-central1",
     env: str = "dev",
+    min_instances: int = 0,
 ):
+    # Warm-instance floor for every service in the chain. Kept in stack config
+    # (see `minInstances`) so each environment sets its own policy: dev runs at
+    # 0 (scale to zero, no idle cost — first request after idle cold-starts),
+    # prod can pin 1 to keep the orchestrators warm.
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
     classify_sa = service_accounts["classify_sa"]
@@ -58,7 +63,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=ner_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
+                min_instance_count=min_instances,
                 max_instance_count=3,
             ),
             containers=[
@@ -124,7 +129,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=nel_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
+                min_instance_count=min_instances,
                 max_instance_count=5,
             ),
             containers=[
@@ -187,7 +192,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=nel_v2_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
+                min_instance_count=min_instances,
                 max_instance_count=5,
             ),
             containers=[
@@ -276,7 +281,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=tabiya_core_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
+                min_instance_count=min_instances,
                 max_instance_count=3,
             ),
             containers=[
@@ -331,7 +336,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=tabiya_io_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
+                min_instance_count=min_instances,
                 max_instance_count=3,
             ),
             containers=[
@@ -380,7 +385,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_v2_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
+                min_instance_count=min_instances,
                 max_instance_count=10,
             ),
             containers=[
@@ -539,7 +544,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
+                min_instance_count=min_instances,
                 max_instance_count=10,
             ),
             containers=[

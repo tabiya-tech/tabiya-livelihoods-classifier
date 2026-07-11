@@ -37,6 +37,12 @@ REQUIRED_SERVICES = [
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",     # required for Workload Identity Federation (CI login)
 
+    # ── NEL embeddings (Vertex AI) ─────────────────────────────────────────
+    # nel-v2 loads Vertex text-embedding models (e.g. gemini-embedding-001)
+    # to embed NEL queries. Without this the /v2/nel call 403s with
+    # SERVICE_DISABLED and the classify pipeline's NEL stage fails.
+    "aiplatform.googleapis.com",
+
     # ── Common (load balancer) ─────────────────────────────────────────────
     "compute.googleapis.com",
 ]
