@@ -6,6 +6,7 @@
  * (`enum`, `x-source`, `minimum`/`maximum`).
  */
 
+import { useTranslation } from "react-i18next";
 import { FormField, Input, Select, Slider, Toggle } from "@/components";
 import { usePluginOptions } from "../../hooks/usePluginOptions";
 
@@ -92,6 +93,7 @@ function XSourceField({
   onChange,
   allValues,
 }: Omit<FieldRendererProps, "fieldSchema" | "fieldError">) {
+  const { t } = useTranslation();
   const { status, options, error } = usePluginOptions(pluginId, fieldName);
 
   if (status === "error") {
@@ -100,7 +102,7 @@ function XSourceField({
         data-testid={DATA_TEST_ID.X_SOURCE_ERROR}
         style={{ color: "#b91c1c", fontSize: "12px" }}
       >
-        {error?.message ?? "Failed to load options"}
+        {error?.message ?? t("pipelines.editor.configForm.errorOptions")}
       </p>
     );
   }
@@ -108,7 +110,7 @@ function XSourceField({
   if (status === "loading" || status === "idle") {
     return (
       <Select disabled value="">
-        <option value="">Loading…</option>
+        <option value="">{t("pipelines.editor.configForm.loading")}</option>
       </Select>
     );
   }
@@ -121,7 +123,7 @@ function XSourceField({
       }
     >
       <option value="" disabled>
-        — select —
+        {t("pipelines.editor.configForm.selectPlaceholder")}
       </option>
       {options.map((optionItem) => (
         <option key={optionItem.value} value={optionItem.value}>
@@ -313,6 +315,7 @@ export function ConfigForm({
   errors,
   pluginId,
 }: ConfigFormProps) {
+  const { t } = useTranslation();
   const schemaProperties = (
     (schema.properties as Record<string, unknown>) ?? {}
   ) as Record<string, FieldSchema>;
@@ -323,7 +326,7 @@ export function ConfigForm({
     return (
       <div data-testid={DATA_TEST_ID.ROOT}>
         <p style={{ fontSize: "13px", color: "#6b6b6b" }}>
-          No configuration options for this stage.
+          {t("pipelines.editor.configForm.noOptions")}
         </p>
       </div>
     );

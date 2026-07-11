@@ -1,5 +1,6 @@
 import { Handle, Position } from "reactflow";
 import type { NodeProps } from "reactflow";
+import { useTranslation } from "react-i18next";
 import type { PluginManifest, PluginStatus } from "@/lib/api";
 import { Icon } from "@/components/Icon/Icon";
 import { ValidationBadge } from "../ValidationBadge/ValidationBadge";
@@ -40,6 +41,7 @@ const STATUS_COLORS: Record<PluginStatus, string> = {
 };
 
 export function StageNode({ data }: NodeProps<StageNodeData>) {
+  const { t } = useTranslation();
   const { manifest, pluginId, status, stageIndex, configPreview, hasError, onDelete } =
     data;
 
@@ -81,7 +83,7 @@ export function StageNode({ data }: NodeProps<StageNodeData>) {
             right: onDelete ? "18px" : "-8px",
           }}
         >
-          <ValidationBadge severity="error" count={1} title="Validation error" />
+          <ValidationBadge severity="error" count={1} title={t("pipelines.editor.stageValidationError")} />
         </div>
       )}
 
@@ -90,8 +92,8 @@ export function StageNode({ data }: NodeProps<StageNodeData>) {
           type="button"
           data-testid={DATA_TEST_ID.DELETE_BUTTON}
           className="nodrag nopan"
-          title="Delete stage"
-          aria-label="Delete stage"
+          title={t("pipelines.editor.drawer.deleteButton")}
+          aria-label={t("pipelines.editor.drawer.deleteButton")}
           onClick={(clickEvent) => {
             clickEvent.stopPropagation();
             onDelete(stageIndex);

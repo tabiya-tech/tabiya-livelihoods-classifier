@@ -6,6 +6,13 @@
 export { AppLayout, DATA_TEST_ID as APP_LAYOUT_DATA_TEST_ID } from "./AppLayout/AppLayout";
 export type { AppLayoutProps } from "./AppLayout/AppLayout";
 
+// BottomTabBar
+export {
+  BottomTabBar,
+  DATA_TEST_ID as BOTTOM_TAB_BAR_DATA_TEST_ID,
+} from "./BottomTabBar/BottomTabBar";
+export type { BottomTabBarProps, BottomTabItem } from "./BottomTabBar/BottomTabBar";
+
 // Breadcrumbs
 export {
   Breadcrumbs,

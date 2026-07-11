@@ -29,7 +29,7 @@ export function AppLayout({
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
       className={mergeClassNames(
-        "grid h-screen grid-cols-[232px_1fr] bg-cream",
+        "grid h-screen bg-cream md:grid-cols-[232px_1fr]",
         className,
       )}
     >
@@ -38,7 +38,7 @@ export function AppLayout({
         {topbar}
         <main
           data-testid={DATA_TEST_ID.MAIN}
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-16 md:pb-0"
         >
           {children}
         </main>
