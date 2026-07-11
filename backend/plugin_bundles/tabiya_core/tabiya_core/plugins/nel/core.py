@@ -86,7 +86,14 @@ class IEntityLinker(Protocol):
         top_k: int,
         min_similarity: float,
         user_id: Optional[str] = None,
-    ) -> list[list[Match]]: ...
+    ) -> tuple[list[list[Match]], dict]:
+        """Return (matches-per-entity, resolved-metadata).
+
+        The metadata carries the model ids the linking backend actually
+        resolved (e.g. from the user's config), so the pipeline can report
+        the real nel_model_id / taxonomy_model_id rather than "unknown".
+        """
+        ...
 
 
 _linker: Optional[IEntityLinker] = None
@@ -105,7 +112,9 @@ def get_linker() -> IEntityLinker:
     return _linker
 
 
-async def invoke(input: Entities, config: dict, context: Context) -> LinkedEntities:
+async def invoke(
+    input: Entities, config: dict, context: Context
+) -> tuple[LinkedEntities, dict]:
     try:
         parsed_config = NelConfig.model_validate(config or {})
     except ValidationError as exc:
@@ -114,8 +123,19 @@ async def invoke(input: Entities, config: dict, context: Context) -> LinkedEntit
             detail={"errors": jsonable_validation_errors(exc)},
         ) from exc
 
+    # Fallback metadata from the stage config. When the linker is actually
+    # called it overrides these with the ids the backend resolved from the
+    # user's config (the request doesn't carry them — see http_linker).
+    resolved_metadata = {
+        "nel_model_id": parsed_config.nel_model_id,
+        "taxonomy_model_id": parsed_config.taxonomy_model_id,
+    }
+
     if not input.entities:
-        return LinkedEntities(entities=[], source_text=input.source_text)
+        return (
+            LinkedEntities(entities=[], source_text=input.source_text),
+            resolved_metadata,
+        )
 
     # Split the batch into linkable vs. pass-through. Pass-through entities
     # keep their metadata but get an empty matches list — the pipeline stays
@@ -129,8 +149,8 @@ async def invoke(input: Entities, config: dict, context: Context) -> LinkedEntit
 
     linker = get_linker()
     try:
-        matches_per_entity = (
-            await linker.link(
+        if linkable_pairs:
+            matches_per_entity, backend_metadata = await linker.link(
                 entities=linkable_pairs,
                 nel_model_id=parsed_config.nel_model_id,
                 taxonomy_model_id=parsed_config.taxonomy_model_id,
@@ -141,9 +161,13 @@ async def invoke(input: Entities, config: dict, context: Context) -> LinkedEntit
                 # not the pipeline's config or a shared service account).
                 user_id=context.user_id,
             )
-            if linkable_pairs
-            else []
-        )
+            # Prefer the ids the backend actually resolved over the stage
+            # config's (which may be blank when models come from user config).
+            for key in ("nel_model_id", "taxonomy_model_id"):
+                if backend_metadata.get(key):
+                    resolved_metadata[key] = backend_metadata[key]
+        else:
+            matches_per_entity = []
     except EmbeddingsCacheNotReady as exc:
         raise UpstreamUnavailableError(str(exc)) from exc
 
@@ -170,7 +194,10 @@ async def invoke(input: Entities, config: dict, context: Context) -> LinkedEntit
         for index, entity in enumerate(input.entities)
     ]
 
-    return LinkedEntities(entities=linked_entities, source_text=input.source_text)
+    return (
+        LinkedEntities(entities=linked_entities, source_text=input.source_text),
+        resolved_metadata,
+    )
 
 
 __all__ = [

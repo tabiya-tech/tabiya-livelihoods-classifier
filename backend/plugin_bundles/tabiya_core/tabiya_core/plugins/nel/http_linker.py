@@ -74,9 +74,9 @@ class HttpEntityLinker:
         top_k: int,
         min_similarity: float,
         user_id: Optional[str] = None,
-    ) -> list[list[Match]]:
+    ) -> tuple[list[list[Match]], dict]:
         if not entities:
-            return []
+            return [], {}
 
         # nel_v2's NELRequest puts top_k / min_similarity at the top level
         # (not under "options"). The model + taxonomy are NOT in the body —
@@ -117,7 +117,12 @@ class HttpEntityLinker:
             matches_per_entity.append(
                 [_match_from_v2_dict(raw_match) for raw_match in raw_matches]
             )
-        return matches_per_entity
+        # nel_v2 reports which models it actually resolved from the user's
+        # config (they're not in our request — see above). Surface them so the
+        # plugin's invoke response — and ultimately classify's metadata — shows
+        # the real nel_model_id / taxonomy_model_id instead of "unknown".
+        resolved_metadata = payload.get("metadata") or {}
+        return matches_per_entity, resolved_metadata
 
 
 def _match_from_v2_dict(raw_match: dict) -> Match:

@@ -29,9 +29,14 @@ class _FakeLinker:
         self.calls: list[dict] = []
         self._raise: Exception | None = None
         self._matches_override: list[list[Match]] | None = None
+        self._metadata_override: dict | None = None
 
     def with_matches(self, matches: list[list[Match]]) -> "_FakeLinker":
         self._matches_override = matches
+        return self
+
+    def with_metadata(self, metadata: dict) -> "_FakeLinker":
+        self._metadata_override = metadata
         return self
 
     def with_raise(self, exc: Exception) -> "_FakeLinker":
@@ -46,7 +51,7 @@ class _FakeLinker:
         top_k: int,
         min_similarity: float,
         user_id: str | None = None,
-    ) -> list[list[Match]]:
+    ) -> tuple[list[list[Match]], dict]:
         self.calls.append(
             {
                 "entities": entities,
@@ -59,9 +64,10 @@ class _FakeLinker:
         )
         if self._raise is not None:
             raise self._raise
+        metadata = self._metadata_override or {}
         if self._matches_override is not None:
-            return self._matches_override
-        return [
+            return self._matches_override, metadata
+        matches = [
             [
                 Match(
                     id=f"esco/{entity_type}/{surface}",
@@ -72,6 +78,7 @@ class _FakeLinker:
             ]
             for surface, entity_type in entities
         ]
+        return matches, metadata
 
 
 @pytest.fixture
@@ -157,6 +164,47 @@ def test_invoke_links_each_linkable_entity_via_the_linker(fake_linker) -> None:
     assert len(linked) == expectedEntityCount
     assert linked[0]["matches"][0]["preferred_label"] == "Statistician"
     assert linked[1]["matches"][0]["preferred_label"] == "Python"
+
+
+def test_invoke_surfaces_backend_resolved_model_ids_in_metadata(fake_linker) -> None:
+    # GIVEN the linking backend resolves models from the user's config and
+    # reports them back (the stage config here carries different ids)
+    fake_linker.with_metadata(
+        {"nel_model_id": "resolved-nel", "taxonomy_model_id": "resolved-tax"}
+    )
+    givenEntities = [("Statistician", "occupation")]
+    client = _client()
+
+    # WHEN we invoke
+    response = client.post(
+        f"/plugin/{NEL_MANIFEST.plugin_id}/invoke", json=_invoke_body(givenEntities)
+    )
+
+    # THEN the invoke metadata reports the ids the backend actually resolved,
+    # not the stage config's — so classify shows real ids, never "unknown"
+    assert response.status_code == 200
+    metadata = response.json()["metadata"]
+    assert metadata["nel_model_id"] == "resolved-nel"
+    assert metadata["taxonomy_model_id"] == "resolved-tax"
+
+
+def test_invoke_falls_back_to_config_ids_when_backend_omits_metadata(fake_linker) -> None:
+    # GIVEN a backend that returns no metadata (empty)
+    givenEntities = [("Statistician", "occupation")]
+    givenConfig = {"nel_model_id": "cfg-nel", "taxonomy_model_id": "cfg-tax"}
+    client = _client()
+
+    # WHEN we invoke
+    response = client.post(
+        f"/plugin/{NEL_MANIFEST.plugin_id}/invoke",
+        json=_invoke_body(givenEntities, config=givenConfig),
+    )
+
+    # THEN metadata falls back to the stage config's ids
+    assert response.status_code == 200
+    metadata = response.json()["metadata"]
+    assert metadata["nel_model_id"] == "cfg-nel"
+    assert metadata["taxonomy_model_id"] == "cfg-tax"
 
 
 def test_invoke_passes_non_linkable_entities_through_with_empty_matches(fake_linker) -> None:

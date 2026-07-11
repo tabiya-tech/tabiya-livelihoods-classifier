@@ -279,7 +279,16 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                     # sends a Bearer token; api_key stays valid for scripted access.
                     "security": [{"firebase": []}, {"api_key": []}],
                     "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
-                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classify"},
+                    # A single classify fans out to several plugin services
+                    # (source → NER → NEL → sink), any of which may be cold and
+                    # loading an ML model. The gateway's default backend deadline
+                    # (~15s) cuts the first request off mid-cold-start, which is
+                    # why it "fails the first time then works". Raise it well
+                    # above the chained cold-start + per-stage budget.
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/classify",
+                        "deadline": 120.0,
+                    },
                     "responses": {"200": {"description": "Classification result"}},
                 },
             },

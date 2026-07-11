@@ -3,7 +3,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "@/i18n/i18n";
 import { fixtureClassifyEntities } from "@/mocks/fixtures/classify";
-import { DATA_TEST_ID, EntityGroupCard } from "./EntityGroupCard";
+import {
+  COLLAPSED_ROW_LIMIT,
+  DATA_TEST_ID,
+  EntityGroupCard,
+} from "./EntityGroupCard";
 import {
   DATA_TEST_ID as ENTITY_ROW_DATA_TEST_ID,
 } from "../EntityRow/EntityRow";
@@ -96,5 +100,77 @@ describe("EntityGroupCard", () => {
       fixtureClassifyEntities[0],
       givenIndex,
     );
+  });
+
+  // The fixture has only a handful of top-level entities, so synthesize a
+  // longer list with distinct spans (distinct React keys) to exercise the
+  // collapse threshold.
+  function makeEntries(total: number) {
+    const template = fixtureClassifyEntities[1]; // a "skill" entity
+    return Array.from({ length: total }, (_unused, entityIndex) => ({
+      entity: {
+        ...template,
+        surface_form: `skill ${entityIndex}`,
+        span: { ...template.span, start: entityIndex * 100 },
+      },
+      entityIndex,
+    }));
+  }
+
+  it("collapses to the row limit by default and hides the rest", () => {
+    // GIVEN more entries than the collapsed limit (7 > 5)
+    const givenEntries = makeEntries(7);
+    const expectedVisibleRowCount = COLLAPSED_ROW_LIMIT;
+
+    // WHEN we render without expanding
+    render(<EntityGroupCard entityType="skill" entries={givenEntries} />);
+
+    // THEN only the first COLLAPSED_ROW_LIMIT rows are shown
+    const renderedRows = screen.getAllByTestId(
+      ENTITY_ROW_DATA_TEST_ID.CONTAINER,
+    );
+    expect(renderedRows).toHaveLength(expectedVisibleRowCount);
+    // AND a "show more" toggle offers the hidden ones
+    expect(screen.getByTestId(DATA_TEST_ID.TOGGLE)).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  it("reveals all rows after clicking the toggle, then collapses again", async () => {
+    // GIVEN a collapsed card with 7 entries
+    const givenEntries = makeEntries(7);
+    render(<EntityGroupCard entityType="skill" entries={givenEntries} />);
+
+    // WHEN the user expands
+    await userEvent.click(screen.getByTestId(DATA_TEST_ID.TOGGLE));
+
+    // THEN every row is visible
+    expect(
+      screen.getAllByTestId(ENTITY_ROW_DATA_TEST_ID.CONTAINER),
+    ).toHaveLength(givenEntries.length);
+    expect(screen.getByTestId(DATA_TEST_ID.TOGGLE)).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+
+    // AND clicking again collapses back to the limit
+    await userEvent.click(screen.getByTestId(DATA_TEST_ID.TOGGLE));
+    expect(
+      screen.getAllByTestId(ENTITY_ROW_DATA_TEST_ID.CONTAINER),
+    ).toHaveLength(COLLAPSED_ROW_LIMIT);
+  });
+
+  it("shows no toggle when entries fit within the row limit", () => {
+    // GIVEN fewer entries than the limit
+    const givenEntries = fixtureClassifyEntities
+      .slice(0, 3)
+      .map((entity, entityIndex) => ({ entity, entityIndex }));
+
+    // WHEN we render
+    render(<EntityGroupCard entityType="skill" entries={givenEntries} />);
+
+    // THEN no expand/collapse control appears
+    expect(screen.queryByTestId(DATA_TEST_ID.TOGGLE)).toBeNull();
   });
 });

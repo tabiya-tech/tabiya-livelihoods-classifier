@@ -5,6 +5,7 @@
  * — selection / click handling is forwarded.
  */
 
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ClassifiedEntity, ClassifyEntityType } from "@/lib/api";
 import { mergeClassNames } from "@/lib/mergeClassNames";
@@ -13,12 +14,16 @@ import { EntitySwatch } from "../EntitySwatch/EntitySwatch";
 
 const uniqueId = "6c2e8f4d-1b7a-4d9c-8e5f-3a2d6c9b1e4f";
 
+/** Rows shown before the card must be expanded to reveal the rest. */
+export const COLLAPSED_ROW_LIMIT = 5;
+
 export const DATA_TEST_ID = {
   CONTAINER: `entity-group-card-container-${uniqueId}`,
   HEADER: `entity-group-card-header-${uniqueId}`,
   LABEL: `entity-group-card-label-${uniqueId}`,
   COUNT: `entity-group-card-count-${uniqueId}`,
   ROWS: `entity-group-card-rows-${uniqueId}`,
+  TOGGLE: `entity-group-card-toggle-${uniqueId}`,
 };
 
 export interface EntityGroupCardEntry {
@@ -46,6 +51,16 @@ export function EntityGroupCard({
 }: EntityGroupCardProps) {
   const { t } = useTranslation();
   const labelKey = `classifier.entityTypeFilter.types.${entityType}` as const;
+
+  // Collapsed by default: show at most COLLAPSED_ROW_LIMIT rows until the
+  // user expands. Keeps long occupation/skill lists from dominating the pane.
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isOverflowing = entries.length > COLLAPSED_ROW_LIMIT;
+  const visibleEntries =
+    isExpanded || !isOverflowing
+      ? entries
+      : entries.slice(0, COLLAPSED_ROW_LIMIT);
+  const hiddenCount = entries.length - COLLAPSED_ROW_LIMIT;
 
   return (
     <section
@@ -78,7 +93,7 @@ export function EntityGroupCard({
         data-testid={DATA_TEST_ID.ROWS}
         className="flex flex-col gap-2"
       >
-        {entries.map(({ entity, entityIndex }) => (
+        {visibleEntries.map(({ entity, entityIndex }) => (
           <EntityRow
             key={`${entityIndex}-${entity.span.start}`}
             entity={entity}
@@ -89,6 +104,23 @@ export function EntityGroupCard({
           />
         ))}
       </div>
+      {isOverflowing && (
+        <button
+          type="button"
+          data-testid={DATA_TEST_ID.TOGGLE}
+          aria-expanded={isExpanded}
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className={mergeClassNames(
+            "self-start rounded font-mono text-[11px] uppercase tracking-[0.08em] text-navy",
+            "transition-colors hover:text-ink focus-visible:outline-none",
+            "focus-visible:ring-[3px] focus-visible:ring-navy/10",
+          )}
+        >
+          {isExpanded
+            ? t("classifier.entityGroup.showLess")
+            : t("classifier.entityGroup.showMore", { count: hiddenCount })}
+        </button>
+      )}
     </section>
   );
 }

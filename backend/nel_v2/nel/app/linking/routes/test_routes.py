@@ -5,6 +5,7 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from nel.app.embedding.service.service import EmbeddingBackendUnavailableError
 from nel.app.linking.routes.routes import router, _get_service, _get_user_config
 from nel.app.linking.service.errors import EmbeddingsCacheNotReadyError
 from nel.app.linking.service.service import INELService
@@ -123,6 +124,25 @@ class TestLinkEntities:
             )
 
         # THEN 503 is returned
+        assert resp.status_code == 503
+
+    async def test_503_when_embedding_backend_unavailable(self):
+        # GIVEN the embedding backend is unavailable (e.g. Vertex AI disabled)
+        svc = FakeNELService(
+            raises=EmbeddingBackendUnavailableError(
+                "Vertex AI embedding backend unavailable for model 'text-embedding-005'"
+            )
+        )
+
+        # WHEN POST /v2/nel is called
+        async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
+            resp = await client.post(
+                "/v2/nel",
+                json={"entities": [{"text": "Head Chef", "entity_type": "occupation"}]},
+            )
+
+        # THEN 503 is returned (not an opaque 500), so the classify pipeline
+        # maps it to a retryable upstream-unavailable failure
         assert resp.status_code == 503
 
     async def test_400_when_user_config_has_no_taxonomy_model_and_no_default(self):

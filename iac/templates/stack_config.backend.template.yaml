@@ -35,6 +35,11 @@ config:
   # GCP region for Vertex AI embedding calls (default: same as region)
   tabiya-classifier-backend:vertexApiRegion: <region>
 
+  # Warm-instance floor (min_instance_count) applied to every Cloud Run
+  # service. "0" = scale to zero (no idle cost, first request cold-starts).
+  # Set "1"+ in prod to keep the orchestrators warm. Optional; defaults to 0.
+  tabiya-classifier-backend:minInstances: <count>
+
   # Docker image URIs — injected by CI; set as placeholders here
   tabiya-classifier-backend:nerImage: <image-uri>
   tabiya-classifier-backend:nelImage: <image-uri>

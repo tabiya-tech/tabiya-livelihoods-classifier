@@ -133,7 +133,7 @@ export function SourcePane({
       {showHighlight ? (
         <div
           data-testid={DATA_TEST_ID.HIGHLIGHT}
-          className="min-h-[200px] flex-1 overflow-y-auto rounded-md border border-line bg-paper px-4 py-3 lg:min-h-0"
+          className="h-80 overflow-y-auto rounded-md border border-line bg-paper px-4 py-3"
         >
           <EntityHighlight
             text={text}
@@ -151,7 +151,7 @@ export function SourcePane({
         <Textarea
           data-testid={DATA_TEST_ID.TEXTAREA}
           mono
-          className="min-h-[200px] flex-1 resize-none lg:min-h-0"
+          className="h-80 resize-none overflow-y-auto"
           placeholder={t("classifier.source.placeholder")}
           value={text}
           disabled={isRunning}
