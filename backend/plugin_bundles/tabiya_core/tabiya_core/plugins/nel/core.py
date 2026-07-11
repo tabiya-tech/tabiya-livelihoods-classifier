@@ -41,14 +41,6 @@ LINKABLE_ENTITY_TYPES = frozenset({"occupation", "skill", "qualification"})
 class NelConfig(BaseModel):
     """Typed NEL plugin config."""
 
-    nel_model_id: str = Field(
-        ...,
-        description="Embedding model to use for the query embedding.",
-    )
-    taxonomy_model_id: str = Field(
-        ...,
-        description="Taxonomy snapshot to search against.",
-    )
     top_k: int = Field(default=5, ge=1, le=50)
     min_similarity: float = Field(default=0.0, ge=0.0, le=1.0)
 
@@ -123,13 +115,9 @@ async def invoke(
             detail={"errors": jsonable_validation_errors(exc)},
         ) from exc
 
-    # Fallback metadata from the stage config. When the linker is actually
-    # called it overrides these with the ids the backend resolved from the
-    # user's config (the request doesn't carry them — see http_linker).
-    resolved_metadata = {
-        "nel_model_id": parsed_config.nel_model_id,
-        "taxonomy_model_id": parsed_config.taxonomy_model_id,
-    }
+    # Metadata is populated from what the backend actually resolved from the
+    # user's config. Starts empty — nel_v2 always returns the real ids.
+    resolved_metadata: dict = {}
 
     if not input.entities:
         return (
@@ -152,20 +140,19 @@ async def invoke(
         if linkable_pairs:
             matches_per_entity, backend_metadata = await linker.link(
                 entities=linkable_pairs,
-                nel_model_id=parsed_config.nel_model_id,
-                taxonomy_model_id=parsed_config.taxonomy_model_id,
+                nel_model_id="",
+                taxonomy_model_id="",
                 top_k=parsed_config.top_k,
                 min_similarity=parsed_config.min_similarity,
                 # Forward the end-user identity so the NEL service resolves
-                # *this user's* configured models (per-user, via identity —
-                # not the pipeline's config or a shared service account).
+                # *this user's* configured models (per-user, via identity).
                 user_id=context.user_id,
             )
-            # Prefer the ids the backend actually resolved over the stage
-            # config's (which may be blank when models come from user config).
-            for key in ("nel_model_id", "taxonomy_model_id"):
-                if backend_metadata.get(key):
-                    resolved_metadata[key] = backend_metadata[key]
+            resolved_metadata = {
+                key: backend_metadata[key]
+                for key in ("nel_model_id", "taxonomy_model_id")
+                if backend_metadata.get(key)
+            }
         else:
             matches_per_entity = []
     except EmbeddingsCacheNotReady as exc:

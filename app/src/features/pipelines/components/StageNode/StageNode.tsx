@@ -36,7 +36,7 @@ export interface StageNodeData {
 
 const STATUS_COLORS: Record<PluginStatus, string> = {
   enabled: "#00d579",
-  degraded: "#eeff41",
+  degraded: "#e67e22",
   unavailable: "#c0392b",
 };
 

@@ -32,13 +32,12 @@ from tabiya_plugin_contracts.adapters.http import (
 )
 
 
+_DEFAULT_MODEL_ID = "tabiya/roberta-base-job-ner"
+
+
 class NerConfig(BaseModel):
     """Typed NER plugin config. Kept minimal in v1."""
 
-    model_id: str = Field(
-        default="tabiya/roberta-base-job-ner",
-        description="Model identifier the extractor should load.",
-    )
     entity_types: Optional[list[str]] = Field(
         default=None,
         description=(
@@ -50,12 +49,6 @@ class NerConfig(BaseModel):
 
 
 class IEntityExtractor(Protocol):
-    """Extracts entities from raw text.
-
-    Implementations may or may not respect `model_id`; the fake used in tests
-    ignores it. The real transformer-backed extractor honours it.
-    """
-
     def extract(self, text: str, model_id: str) -> list[Entity]: ...
 
 
@@ -94,7 +87,7 @@ async def invoke(input: RawText, config: dict, context: Context) -> tuple[Entiti
         ) from exc
 
     extractor = get_extractor()
-    all_entities = extractor.extract(input.text, parsed_config.model_id)
+    all_entities = extractor.extract(input.text, _DEFAULT_MODEL_ID)
 
     if parsed_config.entity_types:
         allowed = {label.lower() for label in parsed_config.entity_types}
@@ -104,7 +97,7 @@ async def invoke(input: RawText, config: dict, context: Context) -> tuple[Entiti
     else:
         filtered = list(all_entities)
 
-    return Entities(entities=filtered, source_text=input.text), {"model_name": parsed_config.model_id}
+    return Entities(entities=filtered, source_text=input.text), {"model_name": _DEFAULT_MODEL_ID}
 
 
 __all__ = [

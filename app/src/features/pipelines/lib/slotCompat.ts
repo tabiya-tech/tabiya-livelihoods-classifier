@@ -31,7 +31,7 @@ const SLOT_COLORS: Record<PluginSlot["type"], string> = {
   RawText: "#26887d",
   RawTextStream: "#00d579",
   Entities: "#002147",
-  LinkedEntities: "#eeff41",
+  LinkedEntities: "#e67e22",
 };
 
 /** Returns a hex color for the given slot type, drawn from the theme palette. */
