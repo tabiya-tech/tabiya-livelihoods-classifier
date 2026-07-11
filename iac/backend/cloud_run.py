@@ -292,7 +292,7 @@ def create_cloud_run_services(
                             name="NER_API_URL", value=ner.uri
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="NEL_V1_API_URL", value=nel.uri
+                            name="NEL_V2_API_URL", value=nel_v2.uri
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="TARGET_ENVIRONMENT_TYPE", value=env
@@ -501,7 +501,7 @@ def create_cloud_run_services(
         member=classify_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
 
-    # The core bundle proxies to ner and nel; grant it invoker on both.
+    # The core bundle proxies to ner (v1) and nel_v2; grant it invoker on both.
     gcp.cloudrunv2.ServiceIamMember(
         "ner-tabiya-core-invoker",
         project=project,
@@ -512,10 +512,10 @@ def create_cloud_run_services(
     )
 
     gcp.cloudrunv2.ServiceIamMember(
-        "nel-tabiya-core-invoker",
+        "nel-v2-tabiya-core-invoker",
         project=project,
         location=region,
-        name=nel.name,
+        name=nel_v2.name,
         role="roles/run.invoker",
         member=tabiya_core_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
