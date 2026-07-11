@@ -11,7 +11,7 @@ the shared adapter helper.
 The lifespan additionally wires the plugin Cores to their real backends:
 
 - NER: `HttpEntityExtractor` posts to `${NER_API_URL}/v1/ner`.
-- NEL: `HttpEntityLinker`  posts to `${NEL_V1_API_URL}/v1/nel`.
+- NEL: `HttpEntityLinker`  posts to `${NEL_V2_API_URL}/v2/nel`.
 
 If either env var is missing, that plugin is left unwired — the plugin's
 health endpoint reports `down` and any invoke returns a `PLUGIN_INTERNAL`
@@ -49,7 +49,7 @@ log = logging.getLogger("tabiya-core-bundle")
 
 
 NER_API_URL_ENV = "NER_API_URL"
-NEL_V1_API_URL_ENV = "NEL_V1_API_URL"
+NEL_V2_API_URL_ENV = "NEL_V2_API_URL"
 
 
 _ner_http_extractor: HttpEntityExtractor | None = None
@@ -76,17 +76,17 @@ def _wire_ner_extractor() -> HttpEntityExtractor | None:
 def _wire_nel_linker() -> HttpEntityLinker | None:
     """Instantiate + register the NEL HTTP linker if the env var is set."""
 
-    nel_base_url = os.getenv(NEL_V1_API_URL_ENV, "").strip()
+    nel_base_url = os.getenv(NEL_V2_API_URL_ENV, "").strip()
     if not nel_base_url:
         log.warning(
             "%s is not set — NEL plugin will report health=down and every "
             "invoke will return PLUGIN_INTERNAL until it is configured.",
-            NEL_V1_API_URL_ENV,
+            NEL_V2_API_URL_ENV,
         )
         return None
     linker = HttpEntityLinker(base_url=nel_base_url)
     nel_core.set_linker(linker)
-    log.info("NEL plugin wired to %s/v1/nel.", nel_base_url)
+    log.info("NEL plugin wired to %s/v2/nel.", nel_base_url)
     return linker
 
 

@@ -44,6 +44,7 @@ import { useClassify } from "../hooks/useClassify";
 import { useClassifierUrlState } from "../hooks/useClassifierUrlState";
 import { usePipelineOutputSlot } from "../hooks/usePipelineOutputSlot";
 import { normalizeClassifyInput } from "../lib/normalizeClassifyInput";
+import { defaultsFromPipeline } from "../lib/defaultsFromPipeline";
 
 const uniqueId = "8d3e1b6c-4f9a-4c5d-9e2f-7a6b3d8c1e4f";
 
@@ -85,6 +86,16 @@ export function ClassifierPage() {
   const response = classifyState.response;
   const entities = response?.entities ?? null;
 
+  // Seed entity-type filter from the active pipeline's NER stage config
+  // whenever the pipeline changes. Falls back to all types when the pipeline
+  // has no entity_types config.
+  useEffect(() => {
+    const defaults = defaultsFromPipeline(activePipelineState.activePipeline ?? null);
+    setSelectedEntityTypes(
+      new Set(defaults.entityTypes ?? ENTITY_TYPES),
+    );
+  }, [activePipelineState.activePipeline]);
+
   async function handleRun() {
     // Normalise before sending so the NER model sees prose-style text. The
     // returned entity spans are offsets into the normalised string, so we
@@ -92,10 +103,15 @@ export function ClassifierPage() {
     const normalised = normalizeClassifyInput(text);
     if (!normalised) return;
     if (normalised !== text) setText(normalised);
+    const extractEntities = [...selectedEntityTypes] as ClassifyEntityType[];
     const payload: ClassifyRequest = {
       text: normalised,
       pipeline_id: activePipelineState.activePipeline?.pipeline_id,
-      options: { top_k: topK, min_similarity: minSimilarity },
+      options: {
+        top_k: topK,
+        min_similarity: minSimilarity,
+        extract_entities: extractEntities.length < ENTITY_TYPES.length ? extractEntities : undefined,
+      },
     };
     setSelectedEntityIndex(null);
     try {

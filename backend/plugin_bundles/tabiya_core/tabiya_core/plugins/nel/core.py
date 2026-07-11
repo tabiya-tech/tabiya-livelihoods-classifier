@@ -85,6 +85,7 @@ class IEntityLinker(Protocol):
         taxonomy_model_id: str,
         top_k: int,
         min_similarity: float,
+        user_id: Optional[str] = None,
     ) -> list[list[Match]]: ...
 
 
@@ -135,6 +136,10 @@ async def invoke(input: Entities, config: dict, context: Context) -> LinkedEntit
                 taxonomy_model_id=parsed_config.taxonomy_model_id,
                 top_k=parsed_config.top_k,
                 min_similarity=parsed_config.min_similarity,
+                # Forward the end-user identity so the NEL service resolves
+                # *this user's* configured models (per-user, via identity —
+                # not the pipeline's config or a shared service account).
+                user_id=context.user_id,
             )
             if linkable_pairs
             else []

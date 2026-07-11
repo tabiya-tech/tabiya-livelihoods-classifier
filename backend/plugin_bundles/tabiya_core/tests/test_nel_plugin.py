@@ -45,6 +45,7 @@ class _FakeLinker:
         taxonomy_model_id: str,
         top_k: int,
         min_similarity: float,
+        user_id: str | None = None,
     ) -> list[list[Match]]:
         self.calls.append(
             {
@@ -53,6 +54,7 @@ class _FakeLinker:
                 "taxonomy_model_id": taxonomy_model_id,
                 "top_k": top_k,
                 "min_similarity": min_similarity,
+                "user_id": user_id,
             }
         )
         if self._raise is not None:
