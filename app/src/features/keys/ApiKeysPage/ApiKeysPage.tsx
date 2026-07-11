@@ -87,7 +87,7 @@ export function ApiKeysPage() {
   return (
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
-      className="mx-auto flex w-full max-w-[1080px] flex-col gap-8 px-8 py-10"
+      className="mx-auto flex w-full max-w-[1080px] flex-col gap-8 px-4 py-6 sm:px-8 sm:py-10"
     >
       <header className="flex flex-col gap-2">
         <span data-testid={DATA_TEST_ID.EYEBROW} className="eyebrow">

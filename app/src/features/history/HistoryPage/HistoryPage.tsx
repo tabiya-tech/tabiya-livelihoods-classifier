@@ -41,7 +41,7 @@ export function HistoryPage() {
   return (
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
-      className="mx-auto w-full max-w-5xl px-10 py-10"
+      className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10"
     >
       <Eyebrow>{t("history.eyebrow")}</Eyebrow>
       <h1 className="h-page mt-2">{t("history.title")}</h1>

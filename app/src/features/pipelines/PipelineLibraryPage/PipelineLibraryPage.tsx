@@ -99,7 +99,7 @@ export function PipelineLibraryPage() {
       data-testid={DATA_TEST_ID.CONTAINER}
       className="flex h-full flex-col overflow-hidden"
     >
-      <header className="flex flex-col gap-2 border-b border-line px-8 py-6">
+      <header className="flex flex-col gap-2 border-b border-line px-4 py-4 sm:px-8 sm:py-6">
         <span className="eyebrow">{t("pipelines.library.eyebrow")}</span>
         <h1 className="h-page m-0">{t("pipelines.library.title")}</h1>
         <p className="m-0 max-w-[680px] text-sm leading-relaxed text-muted">
@@ -107,14 +107,14 @@ export function PipelineLibraryPage() {
         </p>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-[250px] shrink-0 overflow-y-auto border-r border-line bg-paper">
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+        <aside className="shrink-0 overflow-y-auto border-b border-line bg-paper md:w-[250px] md:border-b-0 md:border-r">
           <PluginPalette onPluginClick={handlePluginClick} />
         </aside>
 
         <main
           data-testid={DATA_TEST_ID.DETAIL_PANEL}
-          className="flex-1 overflow-y-auto px-8 py-6"
+          className="flex-1 overflow-y-auto px-4 py-4 sm:px-8 sm:py-6"
         >
           <PluginDetailContent
             selectedPluginId={selectedPluginId}

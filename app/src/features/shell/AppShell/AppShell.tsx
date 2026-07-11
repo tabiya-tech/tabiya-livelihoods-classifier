@@ -40,7 +40,7 @@ function buildBottomTabItems(
     { id: "classifier", label: t("shell.nav.items.classifier"), icon: "classify" },
     { id: "pipelines", label: t("shell.nav.items.pipelines"), icon: "pipelines" },
     { id: "keys", label: t("shell.nav.items.keys"), icon: "key" },
-    { id: "configuration", label: t("shell.nav.items.configuration"), icon: "config" },
+    { id: "configuration", label: t("shell.nav.items.configuration"), shortLabel: "Config", icon: "config" },
   ];
 }
 

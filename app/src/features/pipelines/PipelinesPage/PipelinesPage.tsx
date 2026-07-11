@@ -91,17 +91,17 @@ export function PipelinesPage() {
   return (
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
-      className="mx-auto flex w-full max-w-[1080px] flex-col gap-8 px-8 py-10"
+      className="mx-auto flex w-full max-w-[1080px] flex-col gap-8 px-4 py-6 sm:px-8 sm:py-10"
     >
       <header className="flex flex-col gap-2">
         <span data-testid={DATA_TEST_ID.EYEBROW} className="eyebrow">
           {t("pipelines.list.eyebrow")}
         </span>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <h1 data-testid={DATA_TEST_ID.TITLE} className="h-page m-0">
             {t("pipelines.list.title")}
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Button
               variant="ghost"
               onClick={() => navigate(routerPaths.PIPELINE_LIBRARY)}
