@@ -1,9 +1,9 @@
 """Plugin registry.
 
-Resolves each catalog entry's URL from env vars, fetches its
-`/plugin/manifest`, and caches the parsed `Manifest` object. A background
-task refreshes the cache every 5 minutes so plugin manifest updates
-(new fields, new options) reach the frontend without a classify_v2 redeploy.
+Resolves each catalog entry's URL from env vars and fetches its
+`/plugin/manifest` on first use (lazy). The manifest is cached for the
+lifetime of the process — manual invalidation happens automatically on
+redeploy since classify_v2 restarts and the in-memory cache is cleared.
 
 The registry is the single source of truth for two questions:
 
@@ -34,7 +34,6 @@ from .types import CatalogEntry, PluginStatus, ResolvedPlugin
 _logger = logging.getLogger(__name__)
 
 DEFAULT_CATALOG_PATH = Path(__file__).parent / "catalog.json"
-DEFAULT_REFRESH_INTERVAL_SECONDS = 5 * 60
 DEFAULT_FETCH_TIMEOUT_SECONDS = 5.0
 
 
@@ -86,14 +85,12 @@ class PluginRegistry:
         http_client: IHttpClient,
         env: Optional[dict[str, str]] = None,
         fetch_timeout_seconds: float = DEFAULT_FETCH_TIMEOUT_SECONDS,
-        refresh_interval_seconds: float = DEFAULT_REFRESH_INTERVAL_SECONDS,
         identity_token_provider: Optional[Any] = None,
     ) -> None:
         self._catalog = catalog
         self._http = http_client
         self._env = dict(env) if env is not None else dict(os.environ)
         self._fetch_timeout = fetch_timeout_seconds
-        self._refresh_interval = refresh_interval_seconds
         # Attaches a GCP identity token to manifest fetches so a private
         # Cloud Run bundle accepts them. None in local mode / tests → no header.
         self._identity = identity_token_provider
@@ -105,7 +102,11 @@ class PluginRegistry:
             )
             for entry in catalog
         }
-        self._refresh_task: Optional[asyncio.Task] = None
+        # Per-plugin locks prevent concurrent first-requests from racing to
+        # fetch the same manifest simultaneously.
+        self._fetch_locks: dict[str, asyncio.Lock] = {
+            entry.plugin_id: asyncio.Lock() for entry in catalog
+        }
 
     def _resolve_url(self, entry: CatalogEntry) -> Optional[str]:
         if entry.coming_soon:
@@ -132,10 +133,10 @@ class PluginRegistry:
         return {"Authorization": f"Bearer {token}"} if token else {}
 
     async def refresh(self) -> None:
-        """Re-resolve every URL and re-fetch every manifest once.
+        """Fetch (or re-fetch) every manifest once.
 
-        Runs sequentially so ordering in logs is stable; six plugins is a
-        small enough set that a parallel gather isn't worth the noise.
+        Called by the smoke-test health endpoint and by tests. Runs
+        sequentially so ordering in logs is stable.
         """
 
         for entry in self._catalog:
@@ -296,51 +297,48 @@ class PluginRegistry:
         else:
             _logger.info("Plugin '%s' ENABLED at %s", plugin_id, url)
 
-    async def start_background_refresh(self) -> None:
-        """Spawn the periodic refresh task. Idempotent — safe to call twice."""
-
-        if self._refresh_task is not None and not self._refresh_task.done():
-            return
-        self._refresh_task = asyncio.create_task(self._refresh_loop())
-
-    async def stop_background_refresh(self) -> None:
-        if self._refresh_task is None:
-            return
-        self._refresh_task.cancel()
-        try:
-            await self._refresh_task
-        except asyncio.CancelledError:
-            pass
-        self._refresh_task = None
-
-    async def _refresh_loop(self) -> None:
-        while True:
-            try:
-                await asyncio.sleep(self._refresh_interval)
-                await self.refresh()
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                # Never let a single refresh error kill the background loop.
-                _logger.exception("Background refresh cycle failed")
-
     # ── Read API ────────────────────────────────────────────────────────
 
     def list_manifests(self) -> list[ResolvedPlugin]:
         return list(self._plugins.values())
 
-    def get(self, plugin_id: str) -> Optional[ResolvedPlugin]:
-        return self._plugins.get(plugin_id)
+    async def get(self, plugin_id: str) -> Optional[ResolvedPlugin]:
+        """Return the resolved plugin, fetching its manifest on first access.
 
-    def get_manifest(self, plugin_id: str) -> Manifest:
-        """Return the cached manifest or raise if the plugin isn't ENABLED.
-
-        The executor and validator call this on the hot path; a plugin that
-        the catalog knows about but that hasn't successfully loaded is
-        treated as unreachable so callers get a clean error.
+        Thread-safe for concurrent coroutines: a per-plugin lock ensures only
+        one fetch runs at a time; subsequent callers return the cached result.
         """
 
-        entry = self._plugins.get(plugin_id)
+        plugin = self._plugins.get(plugin_id)
+        if plugin is None:
+            return None
+
+        # Already loaded (or previously failed and cached as UNAVAILABLE with
+        # a last_error — don't retry on every request).
+        if plugin.last_refreshed_at is not None:
+            return plugin
+
+        lock = self._fetch_locks.get(plugin_id)
+        if lock is None:
+            return plugin
+
+        async with lock:
+            # Re-check inside the lock in case another coroutine just loaded it.
+            if self._plugins[plugin_id].last_refreshed_at is not None:
+                return self._plugins[plugin_id]
+            entry = next(e for e in self._catalog if e.plugin_id == plugin_id)
+            await self._refresh_one(entry)
+
+        return self._plugins[plugin_id]
+
+    async def get_manifest(self, plugin_id: str) -> Manifest:
+        """Return the manifest, fetching it lazily on first call.
+
+        Raises PluginUnreachableError if the plugin isn't in the catalog or
+        its manifest fetch failed.
+        """
+
+        entry = await self.get(plugin_id)
         if entry is None:
             raise PluginUnreachableError(
                 plugin_id=plugin_id, url="<unknown>", reason="not in catalog"
@@ -353,6 +351,6 @@ class PluginRegistry:
             )
         return entry.manifest
 
-    def get_status(self, plugin_id: str) -> PluginStatus:
-        entry = self._plugins.get(plugin_id)
+    async def get_status(self, plugin_id: str) -> PluginStatus:
+        entry = await self.get(plugin_id)
         return entry.status if entry is not None else PluginStatus.UNAVAILABLE

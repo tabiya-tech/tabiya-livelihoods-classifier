@@ -89,7 +89,7 @@ class _StubRegistry:
     def __init__(self, entries: dict[str, ResolvedPlugin]) -> None:
         self._entries = entries
 
-    def get(self, plugin_id: str) -> Optional[ResolvedPlugin]:
+    async def get(self, plugin_id: str) -> Optional[ResolvedPlugin]:
         return self._entries.get(plugin_id)
 
 
