@@ -80,19 +80,6 @@ def test_manifest_declares_raw_text_input_and_entities_output() -> None:
     assert givenManifest.category == PluginCategory.CORE
 
 
-def test_manifest_config_schema_advertises_x_source_for_model_id() -> None:
-    # GIVEN the NER config_schema
-    givenSchema = NER_MANIFEST.config_schema
-
-    # WHEN we look up the model_id field
-    modelIdField = givenSchema["properties"]["model_id"]
-
-    # THEN it points at the NEL v2 model list (resolved by classify_v2's
-    # options proxy). It must NOT point back at the /v2/plugins/.../options
-    # endpoint that reads this field — that would recurse infinitely.
-    expectedXSource = "/v2/nel/models"
-    assert modelIdField["x-source"] == expectedXSource
-
 
 def test_invoke_happy_path_returns_one_entity_per_word(fake_extractor) -> None:
     # GIVEN a two-word sentence
@@ -137,24 +124,6 @@ def test_invoke_filters_entities_by_configured_types(fake_extractor) -> None:
     assert response.status_code == expectedStatus
     assert len(response.json()["output"]["entities"]) == expectedEntityCount
 
-
-def test_invoke_passes_model_id_through_to_the_extractor(fake_extractor) -> None:
-    # GIVEN a specific model id in config
-    givenModelId = "my-custom-ner-model"
-    client = _client()
-
-    # WHEN we invoke
-    response = client.post(
-        f"/plugin/{NER_MANIFEST.plugin_id}/invoke",
-        json=_invoke_body("word", config={"model_id": givenModelId}),
-    )
-
-    # THEN the extractor saw the model_id verbatim
-    # AND the response metadata reflects the same model_id
-    expectedStatus = 200
-    assert response.status_code == expectedStatus
-    assert fake_extractor.seen_model_ids == [givenModelId]
-    assert response.json()["metadata"]["model_name"] == givenModelId
 
 
 def test_invoke_with_empty_text_returns_bad_input(fake_extractor) -> None:

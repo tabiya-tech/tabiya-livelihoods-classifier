@@ -155,7 +155,11 @@ export function StageDetailDrawer({
           </div>
         )}
 
-        {stage ? (
+        {stage && manifest?.category === "source" ? (
+          <p style={{ fontSize: "13px", color: "#6b6b6b", lineHeight: 1.5 }}>
+            Input text is provided at classify time — there is nothing to configure here.
+          </p>
+        ) : stage ? (
           <ConfigForm
             schema={manifest?.config_schema ?? { type: "object", properties: {} }}
             value={stage.config}

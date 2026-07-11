@@ -60,7 +60,8 @@
       "apiHealthy": "API opérationnelle",
       "apiDegraded": "API dégradée",
       "apiOffline": "API hors ligne",
-      "apiChecking": "Vérification de l'API…"
+      "apiChecking": "Vérification de l'API…",
+      "apiHealthCheckTooltip": "Cliquer pour vérifier la santé de l'API"
     },
     "languageMenu": {
       "selectLanguage": "Choisir la langue"
