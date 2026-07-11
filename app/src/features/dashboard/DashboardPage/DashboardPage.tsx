@@ -48,11 +48,25 @@ export function DashboardPage() {
   const pipelineNames = usePipelineNames();
 
   // Derive calls-this-week and delta from the usage data.
+  // The backend omits zero-count days, so slice(-7) would count the last 7
+  // non-empty entries — not the last 7 calendar days. Use UTC date strings
+  // instead so today always counts, even when adjacent days had zero calls.
+  const todayUtc = new Date().toISOString().slice(0, 10);
+  const sevenDaysAgoUtc = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const fourteenDaysAgoUtc = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
   const callsThisWeek = usage.data
-    .slice(-7)
+    .filter((entry) => entry.date > sevenDaysAgoUtc && entry.date <= todayUtc)
     .reduce((sum, entry) => sum + entry.count, 0);
   const callsLastWeek = usage.data
-    .slice(-14, -7)
+    .filter(
+      (entry) =>
+        entry.date > fourteenDaysAgoUtc && entry.date <= sevenDaysAgoUtc
+    )
     .reduce((sum, entry) => sum + entry.count, 0);
   const delta = callsThisWeek - callsLastWeek;
   const deltaText = t("dashboard.stats.callsDelta", {
