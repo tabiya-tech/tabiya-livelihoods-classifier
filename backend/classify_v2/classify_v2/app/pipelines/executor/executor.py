@@ -153,6 +153,7 @@ class PipelineExecutor:
         *,
         pipeline: PipelineDocument,
         source_overrides: Optional[dict[str, Any]] = None,
+        stage_config_overrides: Optional[dict[int, dict[str, Any]]] = None,
         request_id: str,
         user_id: Optional[str],
     ) -> ExecutorResult:
@@ -196,6 +197,8 @@ class PipelineExecutor:
             stage_config: dict[str, Any] = {**(stage.config or {})}
             if stage_index == 0 and source_overrides:
                 stage_config.update(source_overrides)
+            if stage_config_overrides and stage_index in stage_config_overrides:
+                stage_config.update(stage_config_overrides[stage_index])
 
             invoke_body = {
                 "context": {
