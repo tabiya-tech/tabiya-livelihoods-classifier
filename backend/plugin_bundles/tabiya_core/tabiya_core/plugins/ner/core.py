@@ -81,7 +81,7 @@ def get_extractor() -> IEntityExtractor:
     return _extractor
 
 
-async def invoke(input: RawText, config: dict, context: Context) -> Entities:
+async def invoke(input: RawText, config: dict, context: Context) -> tuple[Entities, dict]:
     if not input.text.strip():
         raise BadInputError("Field 'text' is required and cannot be empty.")
 
@@ -104,7 +104,7 @@ async def invoke(input: RawText, config: dict, context: Context) -> Entities:
     else:
         filtered = list(all_entities)
 
-    return Entities(entities=filtered, source_text=input.text)
+    return Entities(entities=filtered, source_text=input.text), {"model_name": parsed_config.model_id}
 
 
 __all__ = [
