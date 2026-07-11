@@ -28,6 +28,8 @@ export interface EntityRowProps {
   entityIndex: number;
   isSelected?: boolean;
   onClick?: (entity: ClassifiedEntity, entityIndex: number) => void;
+  /** When false, match label/score are hidden (NER-only pipelines). */
+  showMatches?: boolean;
   className?: string;
 }
 
@@ -36,10 +38,11 @@ export function EntityRow({
   entityIndex,
   isSelected = false,
   onClick,
+  showMatches = true,
   className,
 }: EntityRowProps) {
   const { t } = useTranslation();
-  const topMatch = entity.matches[0];
+  const topMatch = showMatches ? entity.matches[0] : undefined;
 
   return (
     <button
@@ -47,13 +50,15 @@ export function EntityRow({
       data-testid={DATA_TEST_ID.CONTAINER}
       data-entity-index={entityIndex}
       aria-pressed={isSelected}
+      disabled={!showMatches}
       onClick={() => onClick?.(entity, entityIndex)}
       className={mergeClassNames(
         "flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/30",
-        isSelected
+        showMatches && (isSelected
           ? "border-navy bg-paper"
-          : "border-line bg-paper hover:border-line-strong",
+          : "border-line bg-paper hover:border-line-strong"),
+        !showMatches && "cursor-default border-line bg-paper",
         className,
       )}
     >

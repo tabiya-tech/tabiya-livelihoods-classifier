@@ -32,6 +32,7 @@ export interface EntityGroupCardProps {
   entries: EntityGroupCardEntry[];
   selectedEntityIndex?: number | null;
   onEntityClick?: (entity: ClassifiedEntity, entityIndex: number) => void;
+  showMatches?: boolean;
   className?: string;
 }
 
@@ -40,6 +41,7 @@ export function EntityGroupCard({
   entries,
   selectedEntityIndex = null,
   onEntityClick,
+  showMatches = true,
   className,
 }: EntityGroupCardProps) {
   const { t } = useTranslation();
@@ -82,7 +84,8 @@ export function EntityGroupCard({
             entity={entity}
             entityIndex={entityIndex}
             isSelected={entityIndex === selectedEntityIndex}
-            onClick={onEntityClick}
+            onClick={showMatches ? onEntityClick : undefined}
+            showMatches={showMatches}
           />
         ))}
       </div>

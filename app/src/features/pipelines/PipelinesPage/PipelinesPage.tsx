@@ -101,12 +101,20 @@ export function PipelinesPage() {
           <h1 data-testid={DATA_TEST_ID.TITLE} className="h-page m-0">
             {t("pipelines.list.title")}
           </h1>
-          <Button
-            variant="primary"
-            onClick={() => navigate(routerPaths.PIPELINE_NEW)}
-          >
-            {t("pipelines.list.newButton")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(routerPaths.PIPELINE_LIBRARY)}
+            >
+              {t("pipelines.list.libraryButton")}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => navigate(routerPaths.PIPELINE_NEW)}
+            >
+              {t("pipelines.list.newButton")}
+            </Button>
+          </div>
         </div>
         <p
           data-testid={DATA_TEST_ID.INTRO}

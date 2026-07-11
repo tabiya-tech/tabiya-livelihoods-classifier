@@ -113,6 +113,7 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
             return
 
         _logger.info("Starting embedding generation: %s", entity_type)
+
         await self._cache_repo.upsert_cache_status(
             EmbeddingCacheStatus(
                 taxonomy_model_id=taxonomy_model_id,
@@ -122,6 +123,7 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
             )
         )
 
+        # force=True means "regenerate from scratch" — wipe existing embeddings.
         if force:
             deleted = await self._cache_repo.delete_embeddings(
                 taxonomy_model_id, nel_model_id, entity_type
@@ -129,10 +131,34 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
             if deleted:
                 _logger.info("Deleted %d existing embeddings for %s", deleted, entity_type)
 
-        try:
-            total = await self._run_generation(
-                taxonomy_model_id, nel_model_id, entity_type, start_cursor=start_cursor
+        # Item-level resume: skip items already embedded for this combination so
+        # an interrupted/failed prior run continues where it left off — no
+        # re-embedding (no wasted compute/Vertex cost) and no duplicates. On a
+        # fresh run this is just an empty set. Skipped when forcing (we just
+        # deleted everything) or resuming an explicit --start-cursor stream.
+        skip_uuids: set[str] = set()
+        if not force and start_cursor is None:
+            skip_uuids = await self._cache_repo.get_existing_uuids(
+                taxonomy_model_id, nel_model_id, entity_type
             )
+            if skip_uuids:
+                _logger.info(
+                    "Resuming %s — %d items already embedded, will skip them",
+                    entity_type,
+                    len(skip_uuids),
+                )
+
+        try:
+            newly_inserted = await self._run_generation(
+                taxonomy_model_id,
+                nel_model_id,
+                entity_type,
+                start_cursor=start_cursor,
+                skip_uuids=skip_uuids,
+            )
+            # total_count reflects the full cache (items carried over from a
+            # prior run + newly embedded this run), not just this run's inserts.
+            total = len(skip_uuids) + newly_inserted
             await self._cache_repo.upsert_cache_status(
                 EmbeddingCacheStatus(
                     taxonomy_model_id=taxonomy_model_id,
@@ -142,7 +168,10 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
                     total_count=total,
                 )
             )
-            _logger.info("Done: %s — %d embeddings stored", entity_type, total)
+            _logger.info(
+                "Done: %s — %d embeddings stored (%d new this run)",
+                entity_type, total, newly_inserted,
+            )
 
         except Exception as exc:
             _logger.exception("Failed generating %s: %s", entity_type, exc)
@@ -158,16 +187,31 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
             raise
 
     async def _run_generation(
-        self, taxonomy_model_id: str, nel_model_id: str, entity_type: str, start_cursor: str | None = None
+        self,
+        taxonomy_model_id: str,
+        nel_model_id: str,
+        entity_type: str,
+        start_cursor: str | None = None,
+        skip_uuids: set[str] | None = None,
     ) -> int:
-        """Fetch a page, embed it, insert it, repeat. Returns total inserted count."""
+        """Fetch a page, embed it, insert it, repeat. Returns total inserted count.
+
+        Items whose UUID is in `skip_uuids` (already embedded on a prior run)
+        are dropped BEFORE embedding, so a resume costs nothing for work already
+        done.
+        """
+        skip_uuids = skip_uuids or set()
         total = 0
+        skipped = 0
         t0 = time.monotonic()
 
         source = self._get_source(entity_type, taxonomy_model_id, start_cursor=start_cursor)
         page: list[dict] = []
 
         async for raw in source:
+            if skip_uuids and raw.get("UUID", "") in skip_uuids:
+                skipped += 1
+                continue
             page.append(raw)
             if len(page) >= self._batch_size:
                 total += await self._flush_page(page, entity_type, taxonomy_model_id, nel_model_id, total, t0)
@@ -175,6 +219,9 @@ class EmbeddingGenerationService(IEmbeddingGenerationService):
 
         if page:
             total += await self._flush_page(page, entity_type, taxonomy_model_id, nel_model_id, total, t0)
+
+        if skipped:
+            _logger.info("Skipped %d already-embedded %s item(s) on resume", skipped, entity_type)
 
         return total
 

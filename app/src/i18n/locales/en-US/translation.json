@@ -289,6 +289,7 @@
       "title": "Pipelines",
       "intro": "Pipelines define the sequence of plugins used to classify text. Activate a pipeline to make it the default for all API calls and the in-app Classifier.",
       "newButton": "New pipeline",
+      "libraryButton": "Plugin library",
       "table": {
         "headerName": "Name",
         "headerActive": "Active",

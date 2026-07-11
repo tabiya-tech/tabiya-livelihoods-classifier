@@ -29,6 +29,7 @@ export interface EntityTableProps {
   onEntityClick?: (entity: ClassifiedEntity, entityIndex: number) => void;
   /** Filename for the CSV (without extension). */
   csvFilename?: string;
+  showMatches?: boolean;
   className?: string;
 }
 
@@ -37,6 +38,7 @@ export function EntityTable({
   selectedEntityIndex = null,
   onEntityClick,
   csvFilename = "classification",
+  showMatches = true,
   className,
 }: EntityTableProps) {
   const { t } = useTranslation();
@@ -81,18 +83,22 @@ export function EntityTable({
               <Table.HeaderCell>
                 {t("classifier.resultsTable.headerSurfaceForm")}
               </Table.HeaderCell>
-              <Table.HeaderCell>
-                {t("classifier.resultsTable.headerTopMatch")}
-              </Table.HeaderCell>
-              <Table.HeaderCell className="w-[80px]">
-                {t("classifier.resultsTable.headerScore")}
-              </Table.HeaderCell>
-              <Table.HeaderCell className="w-[1%] text-right" />
+              {showMatches && (
+                <>
+                  <Table.HeaderCell>
+                    {t("classifier.resultsTable.headerTopMatch")}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell className="w-[80px]">
+                    {t("classifier.resultsTable.headerScore")}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell className="w-[1%] text-right" />
+                </>
+              )}
             </Table.Row>
           </Table.Head>
           <Table.Body>
             {entities.map((entity, entityIndex) => {
-              const topMatch = entity.matches[0];
+              const topMatch = showMatches ? entity.matches[0] : undefined;
               const isSelected = entityIndex === selectedEntityIndex;
               return (
                 <Table.Row
@@ -100,9 +106,9 @@ export function EntityTable({
                   data-testid={DATA_TEST_ID.ROW}
                   data-entity-index={entityIndex}
                   data-selected={isSelected ? "true" : "false"}
-                  hover={Boolean(onEntityClick)}
+                  hover={showMatches && Boolean(onEntityClick)}
                   className={isSelected ? "bg-cream-200" : undefined}
-                  onClick={() => onEntityClick?.(entity, entityIndex)}
+                  onClick={showMatches ? () => onEntityClick?.(entity, entityIndex) : undefined}
                 >
                   <Table.Cell>
                     <span className="inline-flex items-center gap-2">
@@ -119,32 +125,36 @@ export function EntityTable({
                       {entity.surface_form}
                     </span>
                   </Table.Cell>
-                  <Table.Cell>
-                    <span className="text-xs text-muted">
-                      {topMatch?.entity.preferred_label ??
-                        t("classifier.results.noMatches")}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <span className="font-mono text-[11px] text-muted">
-                      {topMatch
-                        ? `${(topMatch.similarity_score * 100).toFixed(0)}%`
-                        : "—"}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onEntityClick?.(entity, entityIndex);
-                      }}
-                      data-testid={DATA_TEST_ID.OPEN_BUTTON}
-                    >
-                      {t("classifier.resultsTable.openButton")}
-                    </Button>
-                  </Table.Cell>
+                  {showMatches && (
+                    <>
+                      <Table.Cell>
+                        <span className="text-xs text-muted">
+                          {topMatch?.entity.preferred_label ??
+                            t("classifier.results.noMatches")}
+                        </span>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <span className="font-mono text-[11px] text-muted">
+                          {topMatch
+                            ? `${(topMatch.similarity_score * 100).toFixed(0)}%`
+                            : "—"}
+                        </span>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onEntityClick?.(entity, entityIndex);
+                          }}
+                          data-testid={DATA_TEST_ID.OPEN_BUTTON}
+                        >
+                          {t("classifier.resultsTable.openButton")}
+                        </Button>
+                      </Table.Cell>
+                    </>
+                  )}
                 </Table.Row>
               );
             })}

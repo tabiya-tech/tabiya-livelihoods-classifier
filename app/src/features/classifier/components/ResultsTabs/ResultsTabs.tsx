@@ -41,6 +41,8 @@ export interface ResultsTabsProps {
   onActiveTabChange: (next: ResultsTabId) => void;
   selectedEntityIndex?: number | null;
   onEntityClick?: (entity: ClassifiedEntity, entityIndex: number) => void;
+  /** When false, ESCO match columns/interactions are hidden (NER-only pipelines). */
+  showMatches?: boolean;
   className?: string;
 }
 
@@ -73,6 +75,7 @@ export function ResultsTabs({
   onActiveTabChange,
   selectedEntityIndex = null,
   onEntityClick,
+  showMatches = true,
   className,
 }: ResultsTabsProps) {
   const { t } = useTranslation();
@@ -135,6 +138,7 @@ export function ResultsTabs({
                   entries={grouped[type]}
                   selectedEntityIndex={selectedEntityIndex}
                   onEntityClick={onEntityClick}
+                  showMatches={showMatches}
                 />
               ),
             )
@@ -156,6 +160,7 @@ export function ResultsTabs({
               entities={visibleEntities}
               selectedEntityIndex={selectedEntityIndex}
               onEntityClick={onEntityClick}
+              showMatches={showMatches}
             />
           ) : (
             <ResultsEmptyState />
