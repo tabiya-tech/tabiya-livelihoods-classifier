@@ -22,7 +22,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Icon, useToast } from "@/components";
+import { useToast } from "@/components";
 import type {
   ClassifiedEntity,
   ClassifyEntityType,
@@ -269,7 +269,6 @@ function PlaceholderPanel({ isRunning }: PlaceholderPanelProps) {
         "rounded-md border border-dashed border-line bg-paper px-8 py-12 text-center",
       )}
     >
-      <Icon name="spark" size={20} />
       <p className="m-0 font-mono text-xs text-navy">
         {isRunning
           ? t("classifier.placeholder.runningTitle")

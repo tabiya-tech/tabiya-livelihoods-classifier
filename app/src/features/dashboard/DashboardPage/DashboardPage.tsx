@@ -7,6 +7,8 @@ import { Table } from "@/components/Table/Table";
 import { useFirebaseAuth } from "@/lib/auth/useFirebaseAuth";
 import { useUsage } from "../hooks/useUsage";
 import { useClassifications } from "../hooks/useClassifications";
+import { useApiKeys } from "@/features/keys/hooks/useApiKeys";
+import { usePipelineNames } from "../hooks/usePipelineNames";
 import { routerPaths } from "@/routes/routerPaths";
 
 const uniqueId = "f0e3a6a2-2b18-4f0b-9d8b-7d2c9f1a8b3e";
@@ -42,6 +44,8 @@ export function DashboardPage() {
 
   const usage = useUsage({ days: 30 });
   const classifications = useClassifications({ limit: 5 });
+  const apiKeys = useApiKeys();
+  const pipelineNames = usePipelineNames();
 
   // Derive calls-this-week and delta from the usage data.
   const callsThisWeek = usage.data
@@ -83,7 +87,13 @@ export function DashboardPage() {
         <StatCard
           data-testid={DATA_TEST_ID.STAT_KEYS}
           label={t("dashboard.stats.activeKeys")}
-          value="—"
+          value={
+            apiKeys.status === "loading" ? (
+              <Spinner size={20} />
+            ) : (
+              apiKeys.keys.length
+            )
+          }
         />
       </div>
 
@@ -139,8 +149,12 @@ export function DashboardPage() {
                 {classifications.items.map((item) => (
                   <Table.Row key={item.classification_id}>
                     <Table.Cell>{formatDate(item.created_at)}</Table.Cell>
-                    <Table.Cell className="font-mono text-[12px] text-muted">
-                      {item.pipeline_id}
+                    <Table.Cell>
+                      {pipelineNames.get(item.pipeline_id) ?? (
+                        <span className="font-mono text-[12px] text-muted">
+                          {item.pipeline_id}
+                        </span>
+                      )}
                     </Table.Cell>
                     <Table.Cell>{item.entity_count}</Table.Cell>
                     <Table.Cell className="text-muted">

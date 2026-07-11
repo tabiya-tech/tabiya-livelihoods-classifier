@@ -97,6 +97,7 @@ def test_manifest_config_schema_advertises_x_source_for_model_id() -> None:
 def test_invoke_happy_path_returns_one_entity_per_word(fake_extractor) -> None:
     # GIVEN a two-word sentence
     givenText = "Statistician wanted"
+    expectedDefaultModelId = "tabiya/roberta-base-job-ner"
     client = _client()
 
     # WHEN we invoke NER
@@ -105,6 +106,7 @@ def test_invoke_happy_path_returns_one_entity_per_word(fake_extractor) -> None:
     )
 
     # THEN we get one entity per word, spans line up, source_text is preserved
+    # AND metadata carries the model_name used
     expectedStatus = 200
     expectedEntityCount = 2
     assert response.status_code == expectedStatus
@@ -113,6 +115,7 @@ def test_invoke_happy_path_returns_one_entity_per_word(fake_extractor) -> None:
     assert len(body["output"]["entities"]) == expectedEntityCount
     assert body["output"]["entities"][0]["surface_form"] == "Statistician"
     assert body["output"]["entities"][1]["span"]["start"] == givenText.index("wanted")
+    assert body["metadata"]["model_name"] == expectedDefaultModelId
 
 
 def test_invoke_filters_entities_by_configured_types(fake_extractor) -> None:
@@ -147,9 +150,11 @@ def test_invoke_passes_model_id_through_to_the_extractor(fake_extractor) -> None
     )
 
     # THEN the extractor saw the model_id verbatim
+    # AND the response metadata reflects the same model_id
     expectedStatus = 200
     assert response.status_code == expectedStatus
     assert fake_extractor.seen_model_ids == [givenModelId]
+    assert response.json()["metadata"]["model_name"] == givenModelId
 
 
 def test_invoke_with_empty_text_returns_bad_input(fake_extractor) -> None:
