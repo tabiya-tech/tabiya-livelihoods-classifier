@@ -89,7 +89,7 @@ class IPipelineService(ABC):
     async def clone(self, *, user_id: str, pipeline_id: str) -> PipelineDocument: ...
 
     @abstractmethod
-    def validate(self, stages: list[StageDocument]) -> list[ValidationIssue]: ...
+    async def validate(self, stages: list[StageDocument]) -> list[ValidationIssue]: ...
 
     @abstractmethod
     async def ensure_default(
@@ -126,7 +126,7 @@ class PipelineService(IPipelineService):
     async def create(
         self, *, user_id: str, request: CreatePipelineInput
     ) -> PipelineDocument:
-        issues = self._validator.validate(request.stages)
+        issues = await self._validator.validate(request.stages)
         if issues:
             raise PipelineValidationError(issues)
 
@@ -156,7 +156,7 @@ class PipelineService(IPipelineService):
         if existing.is_readonly:
             raise ReadonlyPipelineError(pipeline_id)
 
-        issues = self._validator.validate(request.stages)
+        issues = await self._validator.validate(request.stages)
         if issues:
             raise PipelineValidationError(issues)
 
@@ -177,7 +177,7 @@ class PipelineService(IPipelineService):
         doc = await self.get(user_id=user_id, pipeline_id=pipeline_id)
         # Re-validate at activate time — a plugin the pipeline references
         # may have been removed since save.
-        issues = self._validator.validate(doc.stages)
+        issues = await self._validator.validate(doc.stages)
         if issues:
             raise PipelineValidationError(issues)
         return await self._repository.set_active(
@@ -203,8 +203,8 @@ class PipelineService(IPipelineService):
         await self._repository.insert(clone_doc)
         return clone_doc
 
-    def validate(self, stages: list[StageDocument]) -> list[ValidationIssue]:
-        return self._validator.validate(stages)
+    async def validate(self, stages: list[StageDocument]) -> list[ValidationIssue]:
+        return await self._validator.validate(stages)
 
     async def ensure_default(
         self, *, user_id: str, default_config: DefaultTabiyaConfig

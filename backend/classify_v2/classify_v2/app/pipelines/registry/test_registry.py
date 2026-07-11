@@ -149,7 +149,7 @@ async def test_refresh_marks_coming_soon_entries_unavailable() -> None:
     # THEN status is UNAVAILABLE with the coming_soon reason
     expectedStatus = PluginStatus.UNAVAILABLE
     expectedReason = "coming_soon"
-    entry = registry.get("tabiya.source.scraper.v1")
+    entry = await registry.get("tabiya.source.scraper.v1")
     assert entry is not None
     assert entry.status == expectedStatus
     assert entry.last_error == expectedReason
@@ -169,7 +169,7 @@ async def test_refresh_marks_missing_env_var_unavailable() -> None:
 
     # THEN the NER plugin is UNAVAILABLE with a clear reason
     expectedStatus = PluginStatus.UNAVAILABLE
-    entry = registry.get("tabiya.ner.v1")
+    entry = await registry.get("tabiya.ner.v1")
     assert entry is not None
     assert entry.status == expectedStatus
     assert entry.last_error == "env var TABIYA_CORE_BUNDLE_URL is unset"
@@ -199,7 +199,7 @@ async def test_refresh_marks_reachable_plugin_enabled() -> None:
 
     # THEN the plugin is ENABLED and the manifest is cached
     expectedStatus = PluginStatus.ENABLED
-    entry = registry.get("tabiya.ner.v1")
+    entry = await registry.get("tabiya.ner.v1")
     assert entry is not None
     assert entry.status == expectedStatus
     assert entry.manifest is not None
@@ -250,7 +250,7 @@ async def test_manifest_declaring_coming_soon_is_cached_but_unavailable() -> Non
 
     # THEN the manifest is cached (so the palette can show name/category), but
     # the plugin is flagged coming_soon + UNAVAILABLE (so it stays undroppable).
-    entry = registry.get("tabiya.sink.database.v1")
+    entry = await registry.get("tabiya.sink.database.v1")
     assert entry is not None
     assert entry.manifest is not None
     assert entry.manifest.name == "Database Sink"
@@ -342,7 +342,7 @@ async def test_refresh_marks_unreachable_plugin_unavailable() -> None:
 
     # THEN the plugin is UNAVAILABLE with the transport error as reason
     expectedStatus = PluginStatus.UNAVAILABLE
-    entry = registry.get("tabiya.ner.v1")
+    entry = await registry.get("tabiya.ner.v1")
     assert entry is not None
     assert entry.status == expectedStatus
     assert entry.manifest is None
@@ -372,7 +372,7 @@ async def test_refresh_marks_non_200_manifest_unavailable() -> None:
 
     # THEN UNAVAILABLE with the HTTP status in the reason
     expectedStatus = PluginStatus.UNAVAILABLE
-    entry = registry.get("tabiya.ner.v1")
+    entry = await registry.get("tabiya.ner.v1")
     assert entry is not None
     assert entry.status == expectedStatus
     assert "HTTP 500" in (entry.last_error or "")
@@ -401,7 +401,7 @@ async def test_refresh_marks_invalid_manifest_unavailable() -> None:
 
     # THEN UNAVAILABLE with "invalid manifest" reason
     expectedStatus = PluginStatus.UNAVAILABLE
-    entry = registry.get("tabiya.ner.v1")
+    entry = await registry.get("tabiya.ner.v1")
     assert entry is not None
     assert entry.status == expectedStatus
     assert "invalid manifest" in (entry.last_error or "")
@@ -430,7 +430,7 @@ async def test_refresh_rejects_manifest_whose_plugin_id_does_not_match_catalog()
     await registry.refresh()
 
     # THEN UNAVAILABLE with the mismatch called out
-    entry = registry.get("tabiya.ner.v1")
+    entry = await registry.get("tabiya.ner.v1")
     assert entry is not None
     assert entry.status == PluginStatus.UNAVAILABLE
     assert "plugin_id mismatch" in (entry.last_error or "")
@@ -460,7 +460,7 @@ async def test_refresh_rejects_contract_version_major_mismatch() -> None:
     await registry.refresh()
 
     # THEN UNAVAILABLE with the contract-version mismatch called out
-    entry = registry.get("tabiya.ner.v1")
+    entry = await registry.get("tabiya.ner.v1")
     assert entry is not None
     assert entry.status == PluginStatus.UNAVAILABLE
     assert "contract-version" in (entry.last_error or "").lower()
@@ -473,7 +473,7 @@ async def test_get_manifest_raises_when_plugin_not_in_catalog() -> None:
 
     # WHEN we ask for a plugin manifest, THEN we get PluginUnreachableError
     with pytest.raises(PluginUnreachableError, match="not in catalog"):
-        registry.get_manifest("tabiya.ner.v1")
+        await registry.get_manifest("tabiya.ner.v1")
 
 
 async def test_get_manifest_raises_when_plugin_is_unavailable() -> None:
@@ -491,7 +491,7 @@ async def test_get_manifest_raises_when_plugin_is_unavailable() -> None:
 
     # WHEN we ask for the manifest, THEN we get PluginUnreachableError
     with pytest.raises(PluginUnreachableError):
-        registry.get_manifest("tabiya.ner.v1")
+        await registry.get_manifest("tabiya.ner.v1")
 
 
 async def test_list_manifests_returns_every_catalog_entry_in_declared_order() -> None:
@@ -534,26 +534,10 @@ async def test_refresh_can_flip_a_plugin_from_unavailable_to_enabled_between_cyc
 
     # WHEN we refresh twice
     await registry.refresh()
-    firstStatus = registry.get_status("tabiya.ner.v1")
+    firstStatus = await registry.get_status("tabiya.ner.v1")
     await registry.refresh()
-    secondStatus = registry.get_status("tabiya.ner.v1")
+    secondStatus = await registry.get_status("tabiya.ner.v1")
 
     # THEN status transitions UNAVAILABLE → ENABLED
     assert firstStatus == PluginStatus.UNAVAILABLE
     assert secondStatus == PluginStatus.ENABLED
-
-
-async def test_background_refresh_task_is_cancelled_on_stop() -> None:
-    # GIVEN a registry with a fast refresh interval
-    fake_http = _FakeHttp()
-    registry = PluginRegistry(
-        [], http_client=fake_http, env={}, refresh_interval_seconds=0.05
-    )
-
-    # WHEN we start and then stop the background task
-    await registry.start_background_refresh()
-    await asyncio.sleep(0.15)  # let it tick at least once
-    await registry.stop_background_refresh()
-
-    # THEN the task is stopped and no exceptions leaked
-    assert registry._refresh_task is None

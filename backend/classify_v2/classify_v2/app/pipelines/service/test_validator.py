@@ -34,7 +34,7 @@ class _StubRegistry:
     def __init__(self, entries: dict[str, ResolvedPlugin]) -> None:
         self._entries = entries
 
-    def get(self, plugin_id: str) -> Optional[ResolvedPlugin]:
+    async def get(self, plugin_id: str) -> Optional[ResolvedPlugin]:
         return self._entries.get(plugin_id)
 
 
@@ -165,20 +165,20 @@ def _issue_codes(issues) -> list[IssueCode]:
     return [issue.code for issue in issues]
 
 
-def test_canonical_four_stage_pipeline_validates_clean() -> None:
+async def test_canonical_four_stage_pipeline_validates_clean() -> None:
     # GIVEN the canonical Default Tabiya shape
     givenRegistry = _canonical_registry()
     givenStages = _canonical_stages()
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN no issues
     assert issues == []
 
 
-def test_ner_only_pipeline_ending_on_results_validates_clean() -> None:
+async def test_ner_only_pipeline_ending_on_results_validates_clean() -> None:
     # GIVEN a text → ner → results pipeline (no NEL): NER emits Entities and
     # the Results sink declares LinkedEntities, which slot_accepts permits.
     givenRegistry = _canonical_registry()
@@ -190,27 +190,27 @@ def test_ner_only_pipeline_ending_on_results_validates_clean() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN there is no slot-mismatch — ending on NER output is allowed
     assert IssueCode.SLOT_MISMATCH not in _issue_codes(issues)
 
 
-def test_too_few_stages_is_reported() -> None:
+async def test_too_few_stages_is_reported() -> None:
     # GIVEN a single-stage pipeline
     givenRegistry = _canonical_registry()
     givenStages = [StageDocument(plugin_id="tabiya.source.text.v1", config={"text": ""})]
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN TOO_FEW_STAGES surfaces
     expectedCode = IssueCode.TOO_FEW_STAGES
     assert expectedCode in _issue_codes(issues)
 
 
-def test_unknown_plugin_id_is_reported_with_stage_index() -> None:
+async def test_unknown_plugin_id_is_reported_with_stage_index() -> None:
     # GIVEN a stage referencing an id that isn't in the catalog
     givenRegistry = _canonical_registry()
     givenStages = _canonical_stages()
@@ -218,7 +218,7 @@ def test_unknown_plugin_id_is_reported_with_stage_index() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN UNKNOWN_PLUGIN with the right stage index
     unknown = [issue for issue in issues if issue.code == IssueCode.UNKNOWN_PLUGIN]
@@ -229,7 +229,7 @@ def test_unknown_plugin_id_is_reported_with_stage_index() -> None:
     assert unknown[0].plugin_id == "tabiya.ghost.v1"
 
 
-def test_coming_soon_plugin_is_rejected() -> None:
+async def test_coming_soon_plugin_is_rejected() -> None:
     # GIVEN a stage referencing a coming_soon plugin
     givenRegistry = _canonical_registry(
         **{
@@ -248,13 +248,13 @@ def test_coming_soon_plugin_is_rejected() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN COMING_SOON_PLUGIN
     assert IssueCode.COMING_SOON_PLUGIN in _issue_codes(issues)
 
 
-def test_unavailable_plugin_is_rejected() -> None:
+async def test_unavailable_plugin_is_rejected() -> None:
     # GIVEN a stage whose plugin is UNAVAILABLE (bundle unreachable)
     givenRegistry = _canonical_registry(
         **{
@@ -269,7 +269,7 @@ def test_unavailable_plugin_is_rejected() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN UNAVAILABLE_PLUGIN
     unavailable = [issue for issue in issues if issue.code == IssueCode.UNAVAILABLE_PLUGIN]
@@ -277,7 +277,7 @@ def test_unavailable_plugin_is_rejected() -> None:
     assert unavailable[0].plugin_id == "tabiya.ner.v1"
 
 
-def test_first_stage_must_be_a_source() -> None:
+async def test_first_stage_must_be_a_source() -> None:
     # GIVEN a pipeline starting with a Core plugin instead of a Source
     givenRegistry = _canonical_registry()
     givenStages = [
@@ -287,7 +287,7 @@ def test_first_stage_must_be_a_source() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN NOT_A_SOURCE at stage index 0
     not_a_source = [issue for issue in issues if issue.code == IssueCode.NOT_A_SOURCE]
@@ -295,7 +295,7 @@ def test_first_stage_must_be_a_source() -> None:
     assert not_a_source[0].stage_index == 0
 
 
-def test_last_stage_must_be_a_sink() -> None:
+async def test_last_stage_must_be_a_sink() -> None:
     # GIVEN a pipeline that ends before a Sink stage
     givenRegistry = _canonical_registry()
     givenStages = [
@@ -305,7 +305,7 @@ def test_last_stage_must_be_a_sink() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN NOT_A_SINK on the last stage
     not_a_sink = [issue for issue in issues if issue.code == IssueCode.NOT_A_SINK]
@@ -313,7 +313,7 @@ def test_last_stage_must_be_a_sink() -> None:
     assert not_a_sink[0].stage_index == 1
 
 
-def test_multiple_sources_reported_on_extras() -> None:
+async def test_multiple_sources_reported_on_extras() -> None:
     # GIVEN two Source stages
     givenRegistry = _canonical_registry(
         **{
@@ -335,7 +335,7 @@ def test_multiple_sources_reported_on_extras() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN MULTIPLE_SOURCES on the extra
     multiple = [issue for issue in issues if issue.code == IssueCode.MULTIPLE_SOURCES]
@@ -343,7 +343,7 @@ def test_multiple_sources_reported_on_extras() -> None:
     assert multiple[0].stage_index == 1
 
 
-def test_slot_mismatch_between_adjacent_stages_reported() -> None:
+async def test_slot_mismatch_between_adjacent_stages_reported() -> None:
     # GIVEN a pipeline that skips NER (so NEL sees RawText instead of Entities)
     givenRegistry = _canonical_registry()
     givenStages = [
@@ -357,7 +357,7 @@ def test_slot_mismatch_between_adjacent_stages_reported() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN SLOT_MISMATCH on the NEL stage with expected slot detail
     mismatches = [issue for issue in issues if issue.code == IssueCode.SLOT_MISMATCH]
@@ -369,7 +369,7 @@ def test_slot_mismatch_between_adjacent_stages_reported() -> None:
     assert mismatches[0].detail == expectedDetail
 
 
-def test_missing_required_config_is_NOT_a_validation_error() -> None:
+async def test_missing_required_config_is_NOT_a_validation_error() -> None:
     # GIVEN a NEL stage missing its required nel_model_id. Stage config (model
     # selection) is set independently of pipeline structure, so a partial or
     # empty config must NOT block saving/validating the pipeline.
@@ -382,13 +382,13 @@ def test_missing_required_config_is_NOT_a_validation_error() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN no STAGE_CONFIG_INVALID is raised at pipeline-validate time
     assert IssueCode.STAGE_CONFIG_INVALID not in _issue_codes(issues)
 
 
-def test_out_of_range_config_is_NOT_a_validation_error() -> None:
+async def test_out_of_range_config_is_NOT_a_validation_error() -> None:
     # GIVEN a NEL top_k over the schema max — still not a pipeline-level error;
     # per-stage config is validated at invoke time by the plugin, not here.
     givenRegistry = _canonical_registry()
@@ -404,13 +404,13 @@ def test_out_of_range_config_is_NOT_a_validation_error() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN no STAGE_CONFIG_INVALID
     assert IssueCode.STAGE_CONFIG_INVALID not in _issue_codes(issues)
 
 
-def test_multiple_ner_stages_reported() -> None:
+async def test_multiple_ner_stages_reported() -> None:
     # GIVEN a pipeline with two NER stages
     givenRegistry = _canonical_registry()
     givenStages = [
@@ -426,13 +426,13 @@ def test_multiple_ner_stages_reported() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN NER_LIMIT_EXCEEDED
     assert IssueCode.NER_LIMIT_EXCEEDED in _issue_codes(issues)
 
 
-def test_multiple_nel_stages_reported() -> None:
+async def test_multiple_nel_stages_reported() -> None:
     # GIVEN two NEL stages
     givenRegistry = _canonical_registry()
     givenStages = [
@@ -451,13 +451,13 @@ def test_multiple_nel_stages_reported() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN NEL_LIMIT_EXCEEDED
     assert IssueCode.NEL_LIMIT_EXCEEDED in _issue_codes(issues)
 
 
-def test_validator_reports_every_issue_in_a_single_pass() -> None:
+async def test_validator_reports_every_issue_in_a_single_pass() -> None:
     # GIVEN a pipeline with two independent unknown-plugin stages — the
     # validator should surface both in one pass, not stop at the first.
     givenRegistry = _canonical_registry()
@@ -467,7 +467,7 @@ def test_validator_reports_every_issue_in_a_single_pass() -> None:
     validator = PipelineValidator(givenRegistry)  # type: ignore[arg-type]
 
     # WHEN we validate
-    issues = validator.validate(givenStages)
+    issues = await validator.validate(givenStages)
 
     # THEN both unknown plugins are reported, at their respective stage indexes
     unknown = [

@@ -172,7 +172,7 @@ class PipelineExecutor:
 
         for stage_index, stage in enumerate(pipeline.stages):
             try:
-                manifest = self._resolve_manifest(stage, stage_index)
+                manifest = await self._resolve_manifest(stage, stage_index)
             except PluginInvocationError as exc:
                 # Fall through to the log line below with a placeholder
                 # version/category since we don't know them without a
@@ -190,7 +190,7 @@ class PipelineExecutor:
                 )
                 raise
 
-            resolved_url = self._resolved_url(stage.plugin_id)
+            resolved_url = await self._resolved_url(stage.plugin_id)
 
             stage_config: dict[str, Any] = {**(stage.config or {})}
             if stage_index == 0 and source_overrides:
@@ -363,8 +363,8 @@ class PipelineExecutor:
 
     # ── helpers ────────────────────────────────────────────────────────
 
-    def _resolve_manifest(self, stage: StageDocument, stage_index: int) -> Manifest:
-        resolved = self._registry.get(stage.plugin_id)
+    async def _resolve_manifest(self, stage: StageDocument, stage_index: int) -> Manifest:
+        resolved = await self._registry.get(stage.plugin_id)
         if resolved is None:
             raise PluginInvocationError(
                 f"Plugin '{stage.plugin_id}' is not in the catalog.",
@@ -386,15 +386,12 @@ class PipelineExecutor:
             )
         return resolved.manifest
 
-    def _resolved_url(self, plugin_id: str) -> str:
-        try:
-            resolved = self._registry.get(plugin_id)
-        except PluginUnreachableError:
-            resolved = None
+    async def _resolved_url(self, plugin_id: str) -> str:
+        resolved = await self._registry.get(plugin_id)
         if resolved is None or resolved.resolved_url is None:
             # Should be unreachable — _resolve_manifest above already
             # asserted ENABLED. This is defensive so a race between
-            # refresh and invoke fails loudly rather than posting to None.
+            # fetch and invoke fails loudly rather than posting to None.
             raise PluginInvocationError(
                 f"Plugin '{plugin_id}' has no resolved URL.",
                 stage_index=-1,
