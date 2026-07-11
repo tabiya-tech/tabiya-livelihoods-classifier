@@ -60,6 +60,9 @@ taxonomy_api_base_url = config.require("taxonomyApiBaseUrl")
 default_nel_model_id = config.get("defaultNELModelId") or "all-MiniLM-L6-v2"
 default_taxonomy_model_id = config.get("defaultTaxonomyModelId") or ""
 vertex_api_region = config.get("vertexApiRegion") or region
+# Warm-instance floor for the Cloud Run services. Per-environment: dev sets 0
+# (scale to zero), prod can pin 1. Defaults to 0 when unset.
+min_instances = config.get_int("minInstances") or 0
 
 # CORS allow-list passed to every service (comma-split by each service's
 # config). Always the deployed app origin; on non-prod stacks we also allow
@@ -147,6 +150,7 @@ ner, nel, classify, nel_v2, classify_v2, tabiya_core, tabiya_io = create_cloud_r
     gateway_base_url=f"https://{env_subdomain}",
     vertex_api_region=vertex_api_region,
     env=env,
+    min_instances=min_instances,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)

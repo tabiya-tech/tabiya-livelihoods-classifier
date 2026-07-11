@@ -275,6 +275,10 @@
       "table": "Tableau",
       "json": "JSON"
     },
+    "entityGroup": {
+      "showMore": "Afficher {{count}} de plus",
+      "showLess": "Afficher moins"
+    },
     "resultsTable": {
       "headerType": "Type",
       "headerSurfaceForm": "Forme de surface",

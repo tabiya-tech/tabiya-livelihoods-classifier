@@ -67,7 +67,7 @@ async def test_link_posts_to_v2_nel_and_maps_matches():
     )
 
     # WHEN the plugin core calls link
-    matchesPerEntity = await givenLinker.link(
+    matchesPerEntity, resolvedMetadata = await givenLinker.link(
         entities=givenEntities,
         nel_model_id="all-MiniLM-L6-v2",
         taxonomy_model_id="tax-1",
@@ -86,6 +86,9 @@ async def test_link_posts_to_v2_nel_and_maps_matches():
     assert firstMatch.score == pytest.approx(0.92)
     assert firstMatch.uri == "http://data.europa.eu/esco/occupation/xyz"
     assert firstMatch.id == "2529.4"  # esco_code preferred as the id
+    # AND nel_v2's resolved metadata (the real model ids) is surfaced
+    assert resolvedMetadata["nel_model_id"] == "all-MiniLM-L6-v2"
+    assert resolvedMetadata["taxonomy_model_id"] == "tax-1"
 
 
 @pytest.mark.asyncio
@@ -140,7 +143,7 @@ async def test_link_returns_empty_list_when_no_entities():
     )
 
     # WHEN link runs with an empty batch
-    result = await givenLinker.link(
+    matchesPerEntity, resolvedMetadata = await givenLinker.link(
         entities=givenNoEntities,
         nel_model_id="any",
         taxonomy_model_id="any",
@@ -148,8 +151,9 @@ async def test_link_returns_empty_list_when_no_entities():
         min_similarity=0.0,
     )
 
-    # THEN no HTTP request was made and the result is an empty list
-    assert result == []
+    # THEN no HTTP request was made and the result is empty
+    assert matchesPerEntity == []
+    assert resolvedMetadata == {}
     assert receivedRequests == []
 
 
