@@ -107,7 +107,7 @@ async def get_plugin(
     _uid: str = Depends(get_firebase_uid),
     registry: PluginRegistry = Depends(get_plugin_registry),
 ) -> PluginDetail:
-    resolved = registry.get(plugin_id)
+    resolved = await registry.get(plugin_id)
     if resolved is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
     return PluginDetail(
@@ -264,7 +264,7 @@ async def get_plugin_options(
     registry: PluginRegistry = Depends(get_plugin_registry),
     http: httpx.AsyncClient = Depends(get_plugin_http),
 ) -> PluginOptionsResponse:
-    resolved = registry.get(plugin_id)
+    resolved = await registry.get(plugin_id)
     if resolved is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
     if resolved.status != PluginStatus.ENABLED:
@@ -276,7 +276,7 @@ async def get_plugin_options(
             ),
         )
     try:
-        manifest = registry.get_manifest(plugin_id)
+        manifest = await registry.get_manifest(plugin_id)
     except PluginUnreachableError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)

@@ -43,13 +43,13 @@ class PipelineValidator:
     def __init__(self, registry: PluginRegistry) -> None:
         self._registry = registry
 
-    def validate(self, stages: list[StageDocument]) -> list[ValidationIssue]:
+    async def validate(self, stages: list[StageDocument]) -> list[ValidationIssue]:
         issues: list[ValidationIssue] = []
         issues.extend(self._check_min_stages(stages))
 
         # Resolve every plugin_id up front. Everything downstream operates
         # on the resolved manifests + records the issues found here.
-        manifests, resolution_issues = self._resolve_manifests(stages)
+        manifests, resolution_issues = await self._resolve_manifests(stages)
         issues.extend(resolution_issues)
 
         # Rules that need a *complete* set of manifests only run when every
@@ -82,13 +82,13 @@ class PipelineValidator:
                 detail={"stage_count": len(stages)},
             )
 
-    def _resolve_manifests(
+    async def _resolve_manifests(
         self, stages: list[StageDocument]
     ) -> tuple[list[Optional[Manifest]], list[ValidationIssue]]:
         manifests: list[Optional[Manifest]] = []
         issues: list[ValidationIssue] = []
         for stage_index, stage in enumerate(stages):
-            resolved = self._registry.get(stage.plugin_id)
+            resolved = await self._registry.get(stage.plugin_id)
             if resolved is None:
                 manifests.append(None)
                 issues.append(

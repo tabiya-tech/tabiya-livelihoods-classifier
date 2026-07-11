@@ -104,7 +104,7 @@ class _StubRegistry:
     def __init__(self, entries: dict[str, ResolvedPlugin]) -> None:
         self._entries = entries
 
-    def get(self, plugin_id: str) -> Optional[ResolvedPlugin]:
+    async def get(self, plugin_id: str) -> Optional[ResolvedPlugin]:
         return self._entries.get(plugin_id)
 
 
@@ -527,7 +527,7 @@ async def test_get_of_missing_id_raises_not_found() -> None:
         await service.get(user_id="uid-1", pipeline_id="ghost")
 
 
-def test_validate_returns_issues_without_persisting() -> None:
+async def test_validate_returns_issues_without_persisting() -> None:
     # GIVEN a bad set of stages
     service, _ = _build_service()
     givenStages = [
@@ -535,7 +535,7 @@ def test_validate_returns_issues_without_persisting() -> None:
     ]
 
     # WHEN we validate
-    issues = service.validate(givenStages)
+    issues = await service.validate(givenStages)
 
-    # THEN issues are returned (nothing persisted — validate is sync/read-only)
+    # THEN issues are returned (nothing persisted — validate is read-only)
     assert issues

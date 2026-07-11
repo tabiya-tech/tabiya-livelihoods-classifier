@@ -54,9 +54,9 @@ async def lifespan(app: FastAPI):
             "/v2/user/api-keys routes will return 500 until configured",
         )
 
-    # Plugin registry: resolve URLs, fetch manifests, keep a periodic refresh.
+    # Plugin registry: resolve URLs, fetch manifests lazily on first use.
     # A dedicated AsyncClient is stored on app.state so the registry and the
-    # future executor share connection pooling to plugin bundles.
+    # executor share connection pooling to plugin bundles.
     app.state.plugin_http = httpx.AsyncClient(timeout=5.0)
     # Against private Cloud Run bundles the manifest fetch needs a GCP identity
     # token; local mode bypasses bundle auth, so no provider is attached.
@@ -70,11 +70,8 @@ async def lifespan(app: FastAPI):
         http_client=app.state.plugin_http,
         identity_token_provider=plugin_identity_provider,
     )
-    await registry.refresh()
-    await registry.start_background_refresh()
     app.state.plugin_registry = registry
-    loaded_count = sum(1 for plugin in registry.list_manifests() if plugin.manifest is not None)
-    _logger.info("Loaded %d plugin manifest(s)", loaded_count)
+    _logger.info("Plugin registry initialised (%d catalog entries)", len(registry.list_manifests()))
 
     # Ensure MongoDB indexes at startup. Skipped when the application
     # MongoDB isn't configured (local smoke tests, docs builds).
@@ -89,7 +86,6 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    await registry.stop_background_refresh()
     await app.state.plugin_http.aclose()
     _logger.info("Classify v2 shutting down")
 
