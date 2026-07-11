@@ -154,7 +154,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "batch_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_url}/v1/batch/{{batch_id}}/status",
+                        "address": classify_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Batch status"}},
@@ -169,7 +169,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "batch_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_url}/v1/batch/{{batch_id}}/results",
+                        "address": classify_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Batch results"}},
@@ -229,7 +229,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "key_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_url}/v1/user/api-keys/{{key_id}}",
+                        "address": classify_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "CORS preflight"}},
@@ -242,7 +242,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "key_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_url}/v1/user/api-keys/{{key_id}}",
+                        "address": classify_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "Revoked"}},
@@ -322,7 +322,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "key_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/user/api-keys/{{key_id}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "CORS preflight"}},
@@ -335,7 +335,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "key_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/user/api-keys/{{key_id}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "Revoked"}},
@@ -389,7 +389,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "CORS preflight"}},
@@ -402,7 +402,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Pipeline"}},
@@ -416,7 +416,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "body", "name": "body", "schema": {"type": "object"}},
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Updated"}},
@@ -429,7 +429,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "Deleted"}},
@@ -443,7 +443,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}/activate",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "CORS preflight"}},
@@ -456,7 +456,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}/activate",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Activated"}},
@@ -470,7 +470,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}/clone",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "CORS preflight"}},
@@ -483,7 +483,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/pipelines/{{pipeline_id}}/clone",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"201": {"description": "Cloned"}},
@@ -513,7 +513,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "plugin_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/plugins/{{plugin_id}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "CORS preflight"}},
@@ -526,7 +526,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "plugin_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/plugins/{{plugin_id}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Plugin detail"}},
@@ -541,7 +541,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "field", "type": "string", "required": True},
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/plugins/{{plugin_id}}/options/{{field}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "CORS preflight"}},
@@ -555,7 +555,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "field", "type": "string", "required": True},
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_v2_url}/v2/plugins/{{plugin_id}}/options/{{field}}",
+                        "address": classify_v2_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Plugin options"}},
