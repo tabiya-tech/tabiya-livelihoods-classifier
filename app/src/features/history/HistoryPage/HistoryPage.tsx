@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/EmptyState/EmptyState";
 import { Spinner } from "@/components/Spinner/Spinner";
 import { Table } from "@/components/Table/Table";
 import { useClassifications } from "@/features/dashboard/hooks/useClassifications";
+import { usePipelineNames } from "@/features/dashboard/hooks/usePipelineNames";
 
 const uniqueId = "d7c4e891-5a23-4b67-f018-3e9a2c5d8b12";
 
@@ -37,6 +38,7 @@ export function HistoryPage() {
   const { status, items, nextCursor, loadMore } = useClassifications({
     limit: 20,
   });
+  const pipelineNames = usePipelineNames();
 
   return (
     <div
@@ -85,8 +87,12 @@ export function HistoryPage() {
                   {items.map((item) => (
                     <Table.Row key={item.classification_id}>
                       <Table.Cell>{formatDate(item.created_at)}</Table.Cell>
-                      <Table.Cell className="font-mono text-[12px] text-muted">
-                        {item.pipeline_id}
+                      <Table.Cell>
+                        {pipelineNames.get(item.pipeline_id) ?? (
+                          <span className="font-mono text-[12px] text-muted">
+                            {item.pipeline_id}
+                          </span>
+                        )}
                       </Table.Cell>
                       <Table.Cell>{item.entity_count}</Table.Cell>
                       <Table.Cell className="text-muted">

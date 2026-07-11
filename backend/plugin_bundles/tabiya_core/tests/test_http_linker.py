@@ -19,41 +19,48 @@ def _make_async_client(handler) -> httpx.AsyncClient:
 
 
 @pytest.mark.asyncio
-async def test_link_posts_to_v1_nel_and_maps_matches():
-    # GIVEN a fake NEL service that returns one linked entity with two matches
-    givenBaseUrl = "http://nel-service:5003"
+async def test_link_posts_to_v2_nel_and_maps_matches():
+    # GIVEN a fake NEL v2 service returning one linked entity with two matches
+    # in the v2 shape (nested `entity`, `similarity_score`).
+    givenBaseUrl = "http://nel-v2-service:5003"
     givenEntities = [("data scientist", "occupation")]
-    expectedRequestPath = "/v1/nel"
-    expectedLegacyResponse = {
+    expectedRequestPath = "/v2/nel"
+    expectedV2Response = {
         "linked_entities": [
             {
                 "input_text": "data scientist",
                 "entity_type": "occupation",
                 "matches": [
                     {
+                        "entity_type": "occupation",
                         "similarity_score": 0.92,
-                        "taxonomy": "esco",
-                        "label": "data scientist",
-                        "code": "2529.4",
-                        "uri": "http://data.europa.eu/esco/occupation/xyz",
+                        "entity": {
+                            "uuid": "u-1",
+                            "preferred_label": "data scientist",
+                            "origin_uri": "http://data.europa.eu/esco/occupation/xyz",
+                            "esco_code": "2529.4",
+                        },
                     },
                     {
+                        "entity_type": "occupation",
                         "similarity_score": 0.81,
-                        "taxonomy": "esco",
-                        "label": "data analyst",
-                        "code": "2529.5",
-                        "uri": "http://data.europa.eu/esco/occupation/abc",
+                        "entity": {
+                            "uuid": "u-2",
+                            "preferred_label": "data analyst",
+                            "origin_uri": "http://data.europa.eu/esco/occupation/abc",
+                            "esco_code": "2529.5",
+                        },
                     },
                 ],
             }
         ],
-        "metadata": {"linker_model": "all-MiniLM-L6-v2", "taxonomy": "esco", "processing_time_ms": 12.3},
+        "metadata": {"nel_model_id": "all-MiniLM-L6-v2", "taxonomy_model_id": "tax-1", "processing_time_ms": 12.3},
     }
     receivedRequests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         receivedRequests.append(request)
-        return httpx.Response(200, json=expectedLegacyResponse)
+        return httpx.Response(200, json=expectedV2Response)
 
     givenLinker = HttpEntityLinker(
         base_url=givenBaseUrl, http_client=_make_async_client(handler)
@@ -63,21 +70,58 @@ async def test_link_posts_to_v1_nel_and_maps_matches():
     matchesPerEntity = await givenLinker.link(
         entities=givenEntities,
         nel_model_id="all-MiniLM-L6-v2",
-        taxonomy_model_id="esco-v1.2",
+        taxonomy_model_id="tax-1",
         top_k=5,
         min_similarity=0.0,
     )
 
-    # THEN one HTTP POST hit /v1/nel
+    # THEN one HTTP POST hit /v2/nel
     assert len(receivedRequests) == 1
     assert receivedRequests[0].url.path == expectedRequestPath
-    # AND the response was reshaped into a list of Match lists
+    # AND the nested v2 match shape was reshaped into contract Matches
     assert len(matchesPerEntity) == 1
     assert len(matchesPerEntity[0]) == 2
     firstMatch = matchesPerEntity[0][0]
     assert firstMatch.preferred_label == "data scientist"
     assert firstMatch.score == pytest.approx(0.92)
     assert firstMatch.uri == "http://data.europa.eu/esco/occupation/xyz"
+    assert firstMatch.id == "2529.4"  # esco_code preferred as the id
+
+
+@pytest.mark.asyncio
+async def test_link_forwards_user_identity_for_model_resolution():
+    # GIVEN a user id — nel_v2 resolves models from the authenticated user, so
+    # the linker must forward it as the x-apigateway-api-userinfo header.
+    import base64
+    import json
+
+    givenBaseUrl = "http://nel-v2-service:5003"
+    givenUserId = "firebase-uid-123"
+    receivedHeaders: list[httpx.Headers] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        receivedHeaders.append(request.headers)
+        return httpx.Response(200, json={"linked_entities": [], "metadata": {}})
+
+    givenLinker = HttpEntityLinker(
+        base_url=givenBaseUrl, http_client=_make_async_client(handler)
+    )
+
+    # WHEN link runs with a user_id
+    await givenLinker.link(
+        entities=[("nurse", "occupation")],
+        nel_model_id="any",
+        taxonomy_model_id="any",
+        top_k=5,
+        min_similarity=0.0,
+        user_id=givenUserId,
+    )
+
+    # THEN the outbound request carries the user identity nel_v2 reads
+    header = receivedHeaders[0].get("x-apigateway-api-userinfo")
+    assert header is not None
+    decoded = json.loads(base64.b64decode(header).decode())
+    assert decoded["user_id"] == givenUserId
 
 
 @pytest.mark.asyncio
@@ -163,11 +207,10 @@ async def test_link_forwards_top_k_and_min_similarity():
         min_similarity=expectedMinSimilarity,
     )
 
-    # THEN the outbound request body carries them under `options`
-    assert receivedBodies[0]["options"]["top_k"] == expectedTopK
-    assert receivedBodies[0]["options"]["min_similarity"] == pytest.approx(
-        expectedMinSimilarity
-    )
+    # THEN the outbound request body carries them at the top level
+    # (nel_v2's NELRequest, not the legacy v1 `options` nesting)
+    assert receivedBodies[0]["top_k"] == expectedTopK
+    assert receivedBodies[0]["min_similarity"] == pytest.approx(expectedMinSimilarity)
 
 
 def test_constructor_rejects_empty_base_url():
