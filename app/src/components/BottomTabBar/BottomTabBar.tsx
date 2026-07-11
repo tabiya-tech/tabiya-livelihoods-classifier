@@ -12,6 +12,8 @@ export const DATA_TEST_ID = {
 export interface BottomTabItem {
   id: string;
   label: string;
+  /** Shorter label for narrow viewports. Falls back to `label` if omitted. */
+  shortLabel?: string;
   icon: IconName;
 }
 
@@ -51,7 +53,7 @@ export function BottomTabBar({
             )}
           >
             <Icon name={item.icon} size={18} />
-            <span>{item.label}</span>
+            <span className="w-full truncate text-center">{item.shortLabel ?? item.label}</span>
           </button>
         );
       })}

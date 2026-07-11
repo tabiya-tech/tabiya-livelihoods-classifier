@@ -220,7 +220,7 @@ export function PipelineEditorPage() {
       className="flex h-full flex-col overflow-hidden"
     >
       {/* Page header — title on the left, save toolbar on the right */}
-      <header className="flex items-center justify-between gap-4 border-b border-line px-8 py-4">
+      <header className="flex items-center justify-between gap-4 border-b border-line px-4 py-3 sm:px-8 sm:py-4">
         <div className="flex flex-col gap-1">
           <span className="eyebrow">{t("pipelines.editor.eyebrow")}</span>
           <InlineEditableTitle
