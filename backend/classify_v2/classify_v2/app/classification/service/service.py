@@ -89,11 +89,13 @@ class ClassifyService(IClassifyService):
         user_id: Optional[str],
     ) -> ClassifyResponse:
         source_overrides = _build_source_overrides(pipeline, input_text, options)
+        stage_config_overrides = _build_stage_config_overrides(pipeline, options)
         started = time.monotonic()
         try:
             result = await self._executor.run(
                 pipeline=pipeline,
                 source_overrides=source_overrides,
+                stage_config_overrides=stage_config_overrides,
                 request_id=request_id,
                 user_id=user_id,
             )
@@ -189,6 +191,36 @@ def _build_source_overrides(
     # to do with it. That way an admin experimenting with a new source
     # doesn't need code changes here to run their first pipeline.
     return {"text": input_text}
+
+
+_NEL_PLUGIN_ID = "tabiya.nel.v1"
+
+
+def _build_stage_config_overrides(
+    pipeline: PipelineDocument,
+    options: Optional[ClassifyOptions],
+) -> dict[int, dict[str, Any]]:
+    """Return per-stage config overrides keyed by stage index.
+
+    Currently only injects top_k / min_similarity into the NEL stage when
+    the caller's options include them. The stage's own persisted config is
+    the base; these overrides win on conflict.
+    """
+
+    if not options:
+        return {}
+
+    overrides: dict[int, dict[str, Any]] = {}
+    for index, stage in enumerate(pipeline.stages):
+        if stage.plugin_id == _NEL_PLUGIN_ID:
+            nel_overrides: dict[str, Any] = {}
+            if options.top_k is not None:
+                nel_overrides["top_k"] = options.top_k
+            if options.min_similarity is not None:
+                nel_overrides["min_similarity"] = options.min_similarity
+            if nel_overrides:
+                overrides[index] = nel_overrides
+    return overrides
 
 
 def _entities_from_executor_result(result: ExecutorResult) -> list[ClassifiedEntity]:
