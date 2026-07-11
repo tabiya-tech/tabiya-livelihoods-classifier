@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { PluginCategory, PluginSummary } from "@/lib/api";
 import { usePluginCatalog } from "../../hooks/usePluginCatalog";
 
@@ -74,6 +75,7 @@ export function PluginPalette({
   className,
   onPluginClick,
 }: PluginPaletteProps) {
+  const { t } = useTranslation();
   const { status, plugins, error } = usePluginCatalog();
 
   if (status === "loading") {
@@ -87,7 +89,7 @@ export function PluginPalette({
           fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif',
         }}
       >
-        Loading plugins...
+        {t("pipelines.editor.palette.loading")}
       </div>
     );
   }
@@ -103,7 +105,7 @@ export function PluginPalette({
           fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif',
         }}
       >
-        {error?.message ?? "Failed to load plugins."}
+        {error?.message ?? t("pipelines.editor.palette.error")}
       </div>
     );
   }
@@ -190,6 +192,7 @@ interface PluginRowProps {
 }
 
 function PluginRow({ plugin, onClick }: PluginRowProps) {
+  const { t } = useTranslation();
   // A plugin can't be added to a pipeline when it's a "coming soon" placeholder
   // or when its bundle is unreachable (status "unavailable" — no URL or the
   // manifest fetch failed). "degraded" plugins keep a cached manifest and stay
@@ -281,14 +284,14 @@ function PluginRow({ plugin, onClick }: PluginRowProps) {
               flexShrink: 0,
             }}
           >
-            Soon
+            {t("pipelines.editor.palette.comingSoon")}
           </span>
         )}
 
         {isUnavailable && (
           <span
             data-testid={DATA_TEST_ID.UNAVAILABLE_PILL}
-            title={plugin.last_error ?? "Plugin bundle is unreachable"}
+            title={plugin.last_error ?? t("pipelines.editor.palette.unreachableTooltip")}
             style={{
               fontSize: "9px",
               fontWeight: 600,
@@ -301,7 +304,7 @@ function PluginRow({ plugin, onClick }: PluginRowProps) {
               flexShrink: 0,
             }}
           >
-            Unavailable
+            {t("pipelines.editor.palette.unavailable")}
           </span>
         )}
       </div>

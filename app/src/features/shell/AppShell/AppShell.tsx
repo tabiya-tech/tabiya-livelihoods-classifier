@@ -11,9 +11,11 @@ import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "@/react-i18next";
 import {
   AppLayout,
+  BottomTabBar,
   Sidebar,
   StatusPill,
   Topbar,
+  type BottomTabItem,
   type SidebarNavGroup,
   type BreadcrumbItem,
 } from "@/components";
@@ -29,6 +31,18 @@ export const DATA_TEST_ID = {
   CONTAINER: `app-shell-container-${uniqueId}`,
   HEALTH_PILL: `app-shell-health-pill-${uniqueId}`,
 };
+
+function buildBottomTabItems(
+  t: (key: TranslationKey, opts?: Record<string, unknown>) => string,
+): BottomTabItem[] {
+  return [
+    { id: "dashboard", label: t("shell.nav.items.dashboard"), icon: "dashboard" },
+    { id: "classifier", label: t("shell.nav.items.classifier"), icon: "classify" },
+    { id: "pipelines", label: t("shell.nav.items.pipelines"), icon: "pipelines" },
+    { id: "keys", label: t("shell.nav.items.keys"), icon: "key" },
+    { id: "configuration", label: t("shell.nav.items.configuration"), icon: "config" },
+  ];
+}
 
 function buildNavGroups(
   t: (key: TranslationKey, opts?: Record<string, unknown>) => string,
@@ -168,6 +182,7 @@ export function AppShell() {
   const { requestNavigate } = useNavigationGuard();
 
   const navGroups = buildNavGroups(t);
+  const bottomTabItems = buildBottomTabItems(t);
   const activeNavId = deriveActiveNavId(location.pathname);
   const breadcrumbs = buildBreadcrumbsForPath(
     location.pathname,
@@ -229,6 +244,15 @@ export function AppShell() {
       >
         <Outlet />
       </AppLayout>
+      <BottomTabBar
+        items={bottomTabItems}
+        activeId={activeNavId}
+        onNavigate={(navItemId) => {
+          void requestNavigate(() =>
+            navigate(navItemIdToRoutePath(navItemId)),
+          );
+        }}
+      />
     </div>
   );
 }

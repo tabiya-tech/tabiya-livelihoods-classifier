@@ -326,6 +326,9 @@
         "new": "Nouveau pipeline",
         "edit": "Modifier le pipeline"
       },
+      "titlePlaceholder": "Pipeline sans titre",
+      "titleClickToRename": "Cliquez pour renommer",
+      "stageValidationError": "Erreur de validation",
       "saveBar": {
         "saveButton": "Enregistrer",
         "cancelButton": "Annuler",
@@ -333,6 +336,19 @@
         "valid": "Valide",
         "issuesCount": "{{count}} problème",
         "issuesCount_plural": "{{count}} problèmes"
+      },
+      "palette": {
+        "loading": "Chargement des plugins…",
+        "error": "Impossible de charger les plugins.",
+        "comingSoon": "Bientôt",
+        "unavailable": "Indisponible",
+        "unreachableTooltip": "Bundle du plugin inaccessible"
+      },
+      "configForm": {
+        "errorOptions": "Impossible de charger les options",
+        "loading": "Chargement…",
+        "selectPlaceholder": "— sélectionner —",
+        "noOptions": "Aucune option de configuration pour cette étape."
       },
       "drawer": {
         "deleteButton": "Supprimer l'étape",

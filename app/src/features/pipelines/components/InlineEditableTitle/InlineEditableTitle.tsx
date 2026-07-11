@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const uniqueId = "e3b1c9a7-2d4f-4e6a-9b8c-1f0a2b3c4d5e";
 
@@ -30,10 +31,12 @@ export interface InlineEditableTitleProps {
 export function InlineEditableTitle({
   value,
   onChange,
-  placeholder = "Untitled pipeline",
+  placeholder: placeholderProp,
   readOnly = false,
   className = "h-page m-0",
 }: InlineEditableTitleProps) {
+  const { t } = useTranslation();
+  const placeholder = placeholderProp ?? t("pipelines.editor.titlePlaceholder");
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -118,7 +121,7 @@ export function InlineEditableTitle({
       className={className}
       role="button"
       tabIndex={0}
-      title="Click to rename"
+      title={t("pipelines.editor.titleClickToRename")}
       onClick={() => setIsEditing(true)}
       onKeyDown={(keyEvent) => {
         if (keyEvent.key === "Enter" || keyEvent.key === " ") {

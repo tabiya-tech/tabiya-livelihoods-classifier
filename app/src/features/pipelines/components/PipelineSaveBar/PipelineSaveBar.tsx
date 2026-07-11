@@ -87,6 +87,7 @@ export function PipelineSaveBar({
   onSave,
   onCancel,
 }: PipelineSaveBarProps) {
+  const { t } = useTranslation();
   const isSaveDisabled =
     isSaving || issues.length > 0 || !isDirty || isReadonly;
 
@@ -106,7 +107,7 @@ export function PipelineSaveBar({
           disabled={isSaving}
           onClick={onCancel}
         >
-          {"Cancel"}
+          {t("pipelines.editor.saveBar.cancelButton")}
         </Button>
         <Button
           data-testid={DATA_TEST_ID.SAVE_BUTTON}
@@ -115,7 +116,7 @@ export function PipelineSaveBar({
           loading={isSaving}
           onClick={onSave}
         >
-          {"Save"}
+          {t("pipelines.editor.saveBar.saveButton")}
         </Button>
       </div>
     </div>
