@@ -30,7 +30,7 @@ import type {
 } from "@/lib/api";
 import { mergeClassNames } from "@/lib/mergeClassNames";
 import { EntityDetailDrawer } from "../components/EntityDetailDrawer/EntityDetailDrawer";
-import { PipelineSelectorChip } from "../components/PipelineSelectorChip/PipelineSelectorChip";
+import { PipelineSelectorChip, PipelineStageChips } from "../components/PipelineSelectorChip/PipelineSelectorChip";
 import {
   ENTITY_TYPES,
   SourcePane,
@@ -154,7 +154,10 @@ export function ClassifierPage() {
 
   const pipelineSelectorSlot = useMemo(
     () => (
-      <div data-testid={DATA_TEST_ID.PIPELINE_SELECTOR_SLOT}>
+      <div
+        data-testid={DATA_TEST_ID.PIPELINE_SELECTOR_SLOT}
+        className="flex flex-col gap-2 sm:flex-row sm:items-center"
+      >
         <PipelineSelectorChip
           pipelines={activePipelineState.pipelines}
           selectedPipelineId={
@@ -165,6 +168,12 @@ export function ClassifierPage() {
           }}
           isLoading={activePipelineState.status === "loading"}
         />
+        {activePipelineState.activePipeline &&
+          activePipelineState.activePipeline.stages.length > 0 && (
+            <PipelineStageChips
+              stages={activePipelineState.activePipeline.stages}
+            />
+          )}
       </div>
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps

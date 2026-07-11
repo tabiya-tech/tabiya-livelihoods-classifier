@@ -561,6 +561,37 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                     "responses": {"200": {"description": "Plugin options"}},
                 },
             },
+            # ── Classifications history + usage ───────────────────────────
+            "/v2/classifications": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsClassificationsV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classifications"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "List classification history",
+                    "operationId": "listClassificationsV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classifications"},
+                    "responses": {"200": {"description": "Classification list"}},
+                },
+            },
+            "/v2/usage": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUsageV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/usage"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get usage stats",
+                    "operationId": "getUsageV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/usage"},
+                    "responses": {"200": {"description": "Usage data"}},
+                },
+            },
             "/v2/nel": {
                 "options": {
                     "summary": "CORS preflight",
