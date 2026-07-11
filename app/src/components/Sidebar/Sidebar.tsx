@@ -53,7 +53,7 @@ export function Sidebar({
     <aside
       data-testid={DATA_TEST_ID.CONTAINER}
       className={mergeClassNames(
-        "sticky top-0 flex h-screen w-[232px] flex-col gap-1 bg-navy px-4 py-7 text-cream",
+        "sticky top-0 hidden h-screen w-[232px] flex-col gap-1 bg-navy px-4 py-7 text-cream md:flex",
         className,
       )}
     >
