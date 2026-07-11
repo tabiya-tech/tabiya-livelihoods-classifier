@@ -364,7 +364,7 @@ export interface UpdatePipelineRequest {
   stages: PipelineStage[];
 }
 
-/** One issue surfaced by the backend validator (design §7). */
+/** One issue surfaced by the backend validator. */
 export interface PipelineValidationIssue {
   code: string;
   message: string;
