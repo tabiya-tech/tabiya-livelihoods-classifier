@@ -202,6 +202,11 @@ def make_http_adapter(
             )
             return JSONResponse(status_code=500, content=envelope.model_dump())
 
+        # Core may return (output_slot, metadata_dict) or just output_slot.
+        plugin_metadata: Optional[dict[str, Any]] = None
+        if isinstance(typed_output, tuple) and len(typed_output) == 2:
+            typed_output, plugin_metadata = typed_output
+
         # Validate that what the Core returned matches the declared output slot.
         try:
             validated_output = output_slot_model.model_validate(
@@ -215,8 +220,8 @@ def make_http_adapter(
             )
             return JSONResponse(status_code=500, content=envelope.model_dump())
 
-        response = InvokeResponse(output=validated_output.model_dump())
-        return response.model_dump()
+        response = InvokeResponse(output=validated_output.model_dump(), metadata=plugin_metadata)
+        return response.model_dump(exclude_none=True)
 
     return router
 
