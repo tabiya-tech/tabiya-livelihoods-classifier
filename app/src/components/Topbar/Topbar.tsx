@@ -22,7 +22,7 @@ export function Topbar({ breadcrumbs, right, className }: TopbarProps) {
     <div
       data-testid={DATA_TEST_ID.CONTAINER}
       className={mergeClassNames(
-        "sticky top-0 z-10 flex items-center justify-between border-b border-line bg-cream px-8 py-4",
+        "sticky top-0 z-10 flex items-center justify-between border-b border-line bg-cream px-4 py-3 sm:px-8 sm:py-4",
         className,
       )}
     >
