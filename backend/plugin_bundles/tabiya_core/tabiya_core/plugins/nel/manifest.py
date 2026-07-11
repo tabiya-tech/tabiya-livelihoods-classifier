@@ -16,19 +16,6 @@ MANIFEST = Manifest(
     config_schema={
         "type": "object",
         "properties": {
-            "nel_model_id": {
-                "type": "string",
-                "title": "Embedding model",
-                # Resolved by classify_v2's options proxy against the NEL v2
-                # service. Must NOT point back at the /v2/plugins/.../options
-                # endpoint that reads this field — that recurses infinitely.
-                "x-source": "/v2/nel/models",
-            },
-            "taxonomy_model_id": {
-                "type": "string",
-                "title": "Taxonomy model",
-                "x-source": "/v2/nel/taxonomy-models",
-            },
             "top_k": {
                 "type": "integer",
                 "title": "Top K",
@@ -44,7 +31,6 @@ MANIFEST = Manifest(
                 "default": 0.0,
             },
         },
-        "required": ["nel_model_id", "taxonomy_model_id"],
         "additionalProperties": False,
     },
     timeout_ms=45_000,

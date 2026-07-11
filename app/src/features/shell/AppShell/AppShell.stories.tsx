@@ -30,16 +30,19 @@ const DEFAULT_SIGNED_IN_USER: AuthenticatedUser = {
 const HEALTHY_SNAPSHOT: ApiHealthSnapshot = {
   status: "healthy",
   version: "1.0.0",
+  isRefreshing: false,
   lastCheckedAt: new Date("2026-06-15T12:00:00Z"),
 };
 
 const DEGRADED_SNAPSHOT: ApiHealthSnapshot = {
   status: "degraded",
+  isRefreshing: false,
   lastCheckedAt: null,
 };
 
 const DOWN_SNAPSHOT: ApiHealthSnapshot = {
   status: "down",
+  isRefreshing: false,
   lastCheckedAt: null,
 };
 

@@ -136,14 +136,6 @@ def test_manifest_declares_entities_input_and_linked_entities_output() -> None:
     assert givenManifest.category == PluginCategory.CORE
 
 
-def test_manifest_config_schema_requires_model_and_taxonomy_ids() -> None:
-    # GIVEN the config_schema on the manifest
-    givenSchema = NEL_MANIFEST.config_schema
-
-    # THEN the required fields are declared
-    expectedRequired = {"nel_model_id", "taxonomy_model_id"}
-    assert set(givenSchema["required"]) == expectedRequired
-
 
 def test_invoke_links_each_linkable_entity_via_the_linker(fake_linker) -> None:
     # GIVEN two linkable entities
@@ -187,24 +179,6 @@ def test_invoke_surfaces_backend_resolved_model_ids_in_metadata(fake_linker) -> 
     assert metadata["nel_model_id"] == "resolved-nel"
     assert metadata["taxonomy_model_id"] == "resolved-tax"
 
-
-def test_invoke_falls_back_to_config_ids_when_backend_omits_metadata(fake_linker) -> None:
-    # GIVEN a backend that returns no metadata (empty)
-    givenEntities = [("Statistician", "occupation")]
-    givenConfig = {"nel_model_id": "cfg-nel", "taxonomy_model_id": "cfg-tax"}
-    client = _client()
-
-    # WHEN we invoke
-    response = client.post(
-        f"/plugin/{NEL_MANIFEST.plugin_id}/invoke",
-        json=_invoke_body(givenEntities, config=givenConfig),
-    )
-
-    # THEN metadata falls back to the stage config's ids
-    assert response.status_code == 200
-    metadata = response.json()["metadata"]
-    assert metadata["nel_model_id"] == "cfg-nel"
-    assert metadata["taxonomy_model_id"] == "cfg-tax"
 
 
 def test_invoke_passes_non_linkable_entities_through_with_empty_matches(fake_linker) -> None:
@@ -289,22 +263,6 @@ def test_invoke_maps_embeddings_cache_not_ready_to_upstream_unavailable_503(
     assert response.status_code == expectedStatus
     assert response.json()["code"] == "UPSTREAM_UNAVAILABLE"
 
-
-def test_invoke_with_missing_required_config_returns_config_invalid(fake_linker) -> None:
-    # GIVEN a config missing taxonomy_model_id
-    givenConfig = {"nel_model_id": "all-MiniLM-L6-v2"}
-    client = _client()
-
-    # WHEN we invoke
-    response = client.post(
-        f"/plugin/{NEL_MANIFEST.plugin_id}/invoke",
-        json=_invoke_body([("Python", "skill")], config=givenConfig),
-    )
-
-    # THEN we get CONFIG_INVALID 400
-    expectedStatus = 400
-    assert response.status_code == expectedStatus
-    assert response.json()["code"] == "CONFIG_INVALID"
 
 
 def test_invoke_with_linker_returning_wrong_length_maps_to_bad_input(fake_linker) -> None:

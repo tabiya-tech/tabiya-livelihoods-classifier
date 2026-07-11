@@ -231,10 +231,13 @@ export function AppShell() {
                 <StatusPill
                   data-testid={DATA_TEST_ID.HEALTH_PILL}
                   status={
-                    health.status === "unknown" ? "unknown" : health.status
+                    health.isRefreshing ? "unknown" : health.status === "unknown" ? "unknown" : health.status
                   }
+                  onClick={health.refresh}
+                  style={{ cursor: "pointer" }}
+                  title={t("shell.topbar.apiHealthCheckTooltip")}
                 >
-                  {getStatusPillLabel(health.status, health.version, t)}
+                  {health.isRefreshing ? t("shell.topbar.apiChecking") : getStatusPillLabel(health.status, health.version, t)}
                 </StatusPill>
                 <LanguageMenu />
               </>

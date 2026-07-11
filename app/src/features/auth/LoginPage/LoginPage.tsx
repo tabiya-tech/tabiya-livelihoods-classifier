@@ -15,6 +15,7 @@ import { useState, type FormEvent } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Button, FormField, Icon, Input } from "@/components";
 import { useFirebaseAuth } from "@/lib/auth/useFirebaseAuth";
+import { LanguageMenu } from "@/i18n/LanguageMenu/LanguageMenu";
 
 const uniqueId = "1c6f0d6d-fb1c-4f7e-a6ed-6b9a9a3eebbd";
 
@@ -122,8 +123,11 @@ export function LoginPage() {
 
       <main
         data-testid={DATA_TEST_ID.RIGHT_PANEL}
-        className="grid place-items-center px-8 py-12"
+        className="relative grid place-items-center px-8 py-12"
       >
+        <div className="absolute right-6 top-6">
+          <LanguageMenu />
+        </div>
         <div className="w-full max-w-sm rounded-lg border border-line bg-paper p-9">
           <h1
             data-testid={DATA_TEST_ID.HEADING}
