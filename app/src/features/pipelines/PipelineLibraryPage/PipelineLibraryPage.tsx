@@ -107,14 +107,15 @@ export function PipelineLibraryPage() {
         </p>
       </header>
 
-      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
-        <aside className="shrink-0 overflow-y-auto border-b border-line bg-paper md:w-[250px] md:border-b-0 md:border-r">
+      {/* Mobile: natural scroll, stacked. Desktop: fixed-height side-by-side. */}
+      <div className="flex flex-col md:flex-1 md:flex-row md:overflow-hidden">
+        <aside className="shrink-0 border-b border-line bg-paper md:w-[250px] md:overflow-y-auto md:border-b-0 md:border-r">
           <PluginPalette onPluginClick={handlePluginClick} />
         </aside>
 
         <main
           data-testid={DATA_TEST_ID.DETAIL_PANEL}
-          className="flex-1 overflow-y-auto px-4 py-4 sm:px-8 sm:py-6"
+          className="px-4 py-4 sm:px-8 sm:py-6 md:flex-1 md:overflow-y-auto"
         >
           <PluginDetailContent
             selectedPluginId={selectedPluginId}

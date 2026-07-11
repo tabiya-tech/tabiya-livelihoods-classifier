@@ -22,9 +22,10 @@ import {
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Icon, Tag } from "@/components";
-import type { Pipeline } from "@/lib/api";
+import type { Pipeline, PipelineStage } from "@/lib/api";
 import { mergeClassNames } from "@/lib/mergeClassNames";
 import { routerPaths } from "@/routes/routerPaths";
+import { pluginIcon } from "@/features/pipelines/lib/pluginIcon";
 
 const uniqueId = "e2a1c9d4-7b8f-4d3a-a6c5-1f9b8e2d7c4a";
 
@@ -200,6 +201,46 @@ export function PipelineSelectorChip({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function stageLabel(pluginId: string): string {
+  const segments = pluginId.split(".");
+  const lastSegment = segments[segments.length - 1];
+  return lastSegment.replace(/_/g, " ");
+}
+
+export interface PipelineStageChipsProps {
+  stages: PipelineStage[];
+  className?: string;
+}
+
+export function PipelineStageChips({ stages, className }: PipelineStageChipsProps) {
+  return (
+    <div className={mergeClassNames("flex flex-wrap items-center gap-1", className)}>
+      {stages.map((stage, stageIndex) => {
+        const iconName = pluginIcon(undefined, undefined, stage.plugin_id);
+        const label = stageLabel(stage.plugin_id);
+        const isLast = stageIndex === stages.length - 1;
+        return (
+          <div
+            key={`${stage.plugin_id}-${stageIndex}`}
+            className="flex items-center gap-1"
+          >
+            <span
+              title={stage.plugin_id}
+              className="inline-flex items-center gap-1 rounded border border-line bg-paper px-2 py-1 font-mono text-[10px] text-muted"
+            >
+              <Icon name={iconName} size={10} aria-hidden />
+              {label}
+            </span>
+            {!isLast && (
+              <Icon name="arrowRight" size={10} className="shrink-0 text-line-strong" aria-hidden />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
