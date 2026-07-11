@@ -42,6 +42,7 @@ import {
 import { useActivePipeline } from "../hooks/useActivePipeline";
 import { useClassify } from "../hooks/useClassify";
 import { useClassifierUrlState } from "../hooks/useClassifierUrlState";
+import { usePipelineOutputSlot } from "../hooks/usePipelineOutputSlot";
 import { normalizeClassifyInput } from "../lib/normalizeClassifyInput";
 
 const uniqueId = "8d3e1b6c-4f9a-4c5d-9e2f-7a6b3d8c1e4f";
@@ -75,6 +76,10 @@ export function ClassifierPage() {
   // ── Backend hooks ────────────────────────────────────────────────────
   const classifyState = useClassify();
   const activePipelineState = useActivePipeline();
+  const pipelineOutputSlot = usePipelineOutputSlot(
+    activePipelineState.activePipeline,
+  );
+  const showMatches = pipelineOutputSlot.outputSlotType !== "Entities";
 
   const isRunning = classifyState.status === "running";
   const response = classifyState.response;
@@ -222,7 +227,8 @@ export function ClassifierPage() {
               activeTabId={activeTabId}
               onActiveTabChange={setActiveTabId}
               selectedEntityIndex={selectedEntityIndex}
-              onEntityClick={handleEntityClickFromResults}
+              onEntityClick={showMatches ? handleEntityClickFromResults : undefined}
+              showMatches={showMatches}
             />
           ) : (
             <PlaceholderPanel isRunning={isRunning} />
@@ -230,11 +236,13 @@ export function ClassifierPage() {
         </aside>
       </div>
 
-      <EntityDetailDrawer
-        open={selectedEntity !== null}
-        entity={selectedEntity}
-        onClose={() => setSelectedEntityIndex(null)}
-      />
+      {showMatches && (
+        <EntityDetailDrawer
+          open={selectedEntity !== null}
+          entity={selectedEntity}
+          onClose={() => setSelectedEntityIndex(null)}
+        />
+      )}
     </div>
   );
 }

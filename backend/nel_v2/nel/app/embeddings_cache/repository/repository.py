@@ -40,6 +40,11 @@ class IEmbeddingsCacheRepository(ABC):
     ) -> int: ...
 
     @abstractmethod
+    async def get_existing_uuids(
+        self, taxonomy_model_id: str, nel_model_id: str, entity_type: str
+    ) -> set[str]: ...
+
+    @abstractmethod
     async def insert_embeddings_batch(
         self, entity_type: str, documents: list[EmbeddingDocument]
     ) -> int: ...
@@ -104,6 +109,25 @@ class EmbeddingsCacheRepository(IEmbeddingsCacheRepository):
             "nel_model_id": {"$eq": nel_model_id},
         })
         return result.deleted_count
+
+    async def get_existing_uuids(
+        self, taxonomy_model_id: str, nel_model_id: str, entity_type: str
+    ) -> set[str]:
+        """Return the entity_uuids already embedded for this combination.
+
+        Used for item-level resume: the generator skips re-embedding items whose
+        uuid is already present, so an interrupted run continues where it left
+        off without re-spending embedding compute/cost. Backed by the unique
+        (taxonomy_model_id, nel_model_id, entity_uuid) index.
+        """
+        uuids = await self._embedding_col(entity_type).distinct(
+            "entity_uuid",
+            {
+                "taxonomy_model_id": {"$eq": taxonomy_model_id},
+                "nel_model_id": {"$eq": nel_model_id},
+            },
+        )
+        return {u for u in uuids if u}
 
     async def insert_embeddings_batch(
         self, entity_type: str, documents: list[EmbeddingDocument]
