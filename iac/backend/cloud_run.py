@@ -3,7 +3,7 @@
 NER can optionally run on GPU (L4). NEL and Classify use CPU.
 All services are internal-only except via the API Gateway.
 
-The two plugin bundles (Step 11 §9) are thin HTTP services:
+The two plugin bundles are thin HTTP services:
   - tabiya-core-bundle proxies to the existing NER (/v1/ner) and NEL
     (/v1/nel) services; it runs no models of its own.
   - tabiya-io-bundle hosts the text_input source and results sink; pure

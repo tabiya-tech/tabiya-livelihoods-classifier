@@ -1,10 +1,9 @@
 """Pipeline service.
 
-Composes the repository (11.4), validator (11.5), and registry (11.2)
-into a single facade the routes call into. Every mutation validates
-first so the DB never holds a pipeline that would fail at invoke time
-(minus the invoke-time re-check the executor still does for post-save
-manifest drift — design §7).
+Composes the repository, validator, and registry into a single facade
+the routes call into. Every mutation validates first so the DB never
+holds a pipeline that would fail at invoke time (minus the invoke-time
+re-check the executor still does for post-save manifest drift).
 """
 
 from __future__ import annotations
@@ -99,7 +98,7 @@ class IPipelineService(ABC):
         """Seed a Default Tabiya pipeline for the user if one doesn't exist.
 
         Returns the (possibly pre-existing) default. Idempotent — safe to
-        call on every list/classify request per design §10.
+        call on every list/classify request. Idempotent — safe to
         """
 
 

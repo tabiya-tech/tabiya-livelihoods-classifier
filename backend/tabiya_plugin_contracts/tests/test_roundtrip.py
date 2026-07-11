@@ -150,7 +150,7 @@ def test_error_envelope_covers_every_error_code() -> None:
         assert dumped == reparsed
         assert dumped["code"] == code.value
 
-    # AND we have exactly the six codes locked in design §1
+    # AND we have exactly the six error codes
     expectedCodeCount = 6
     assert len(givenCodes) == expectedCodeCount
 

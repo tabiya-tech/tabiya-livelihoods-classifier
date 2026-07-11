@@ -1,7 +1,7 @@
 """Observability tests for the executor.
 
-Verifies design §11 log shape: one line per plugin /invoke, on the
-`classify_v2.pipeline_stage` logger, with the pinned field set.
+Verifies log shape: one line per plugin /invoke, on the
+`classify_v2.pipeline_stage` logger, with the expected field set.
 """
 
 from __future__ import annotations
@@ -203,7 +203,7 @@ async def test_stage_log_record_carries_pinned_field_set(caplog) -> None:
             user_id="uid-1",
         )
 
-    # THEN every design-§11 field is present on each record
+    # THEN every expected field is present on each record
     stage_records = _stage_log_records(caplog)
     expectedFields = {
         "pipeline_id",

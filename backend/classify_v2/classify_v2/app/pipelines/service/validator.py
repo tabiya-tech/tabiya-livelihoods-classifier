@@ -1,7 +1,7 @@
 """Pipeline validator.
 
-Enforces every rule from design doc §7. Runs at save time (POST/PUT and
-the standalone /validate endpoint) and at invoke time (11.6). Kept as a
+Enforces pipeline validation rules. Runs at save time (POST/PUT and
+the standalone /validate endpoint) and at invoke time. Kept as a
 plain synchronous class over already-fetched registry state so a single
 invoke call doesn't fan out network reads for every stage — the caller
 passes in the registry and the validator reads from the in-memory cache.

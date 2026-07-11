@@ -50,7 +50,7 @@ def create_artifact_registry(project: str, region: str):
         display_name="Classify v2 Cloud Run Service Account",
     )
 
-    # Plugin bundles (Step 11 §9): one Cloud Run service per plugin category.
+    # Plugin bundles: one Cloud Run service per plugin category.
     tabiya_core_sa = gcp.serviceaccount.Account(
         "tabiya-core-sa",
         project=project,

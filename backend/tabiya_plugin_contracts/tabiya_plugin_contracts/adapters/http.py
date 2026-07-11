@@ -8,7 +8,7 @@ Every bundle imports `make_http_adapter` and mounts the returned router under
     model resolved from the manifest's `input_slot.type`.
   * Timeout enforcement — hard `asyncio.wait_for` on `timeout_ms`.
   * Error mapping — turns `PluginError` subclasses into the six-value
-    `ErrorCode` taxonomy with the correct HTTP status from design §1.
+    `ErrorCode` taxonomy with the correct HTTP status.
   * Health forwarding.
 
 The Core function signature the adapter expects:
