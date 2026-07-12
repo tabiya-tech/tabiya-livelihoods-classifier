@@ -63,6 +63,9 @@ vertex_api_region = config.get("vertexApiRegion") or region
 # Warm-instance floor for the Cloud Run services. Per-environment: dev sets 0
 # (scale to zero), prod can pin 1. Defaults to 0 when unset.
 min_instances = config.get_int("minInstances") or 0
+# Optional env-wide instance ceiling. 0 (unset) keeps each service's tuned
+# per-service default; a positive value overrides all with one cap.
+max_instances = config.get_int("maxInstances") or 0
 
 # CORS allow-list passed to every service (comma-split by each service's
 # config). Always the deployed app origin; on non-prod stacks we also allow
@@ -151,6 +154,7 @@ ner, nel, classify, nel_v2, classify_v2, tabiya_core, tabiya_io = create_cloud_r
     vertex_api_region=vertex_api_region,
     env=env,
     min_instances=min_instances,
+    max_instances=max_instances,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)

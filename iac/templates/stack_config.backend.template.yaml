@@ -40,6 +40,11 @@ config:
   # Set "1"+ in prod to keep the orchestrators warm. Optional; defaults to 0.
   tabiya-classifier-backend:minInstances: <count>
 
+  # Instance ceiling (max_instance_count) applied to every Cloud Run service.
+  # "0" (or unset) keeps each service's tuned per-service default; a positive
+  # value overrides all services with one cap. Optional; defaults to 0.
+  tabiya-classifier-backend:maxInstances: <count>
+
   # Docker image URIs — injected by CI; set as placeholders here
   tabiya-classifier-backend:nerImage: <image-uri>
   tabiya-classifier-backend:nelImage: <image-uri>
