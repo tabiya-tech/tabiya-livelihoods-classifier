@@ -36,7 +36,7 @@ class HttpEntityExtractor:
     def __init__(
         self,
         base_url: str,
-        http_client: httpx.Client | None = None,
+        http_client: httpx.AsyncClient | None = None,
         request_timeout_seconds: float = 30.0,
     ) -> None:
         if not base_url:
@@ -44,17 +44,17 @@ class HttpEntityExtractor:
         self._base_url = base_url.rstrip("/")
         self._request_timeout_seconds = request_timeout_seconds
         self._owned_client = http_client is None
-        self._http_client = http_client or httpx.Client(
+        self._http_client = http_client or httpx.AsyncClient(
             timeout=request_timeout_seconds
         )
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close the internal http client if this instance owns it."""
 
         if self._owned_client:
-            self._http_client.close()
+            await self._http_client.aclose()
 
-    def extract(self, text: str, model_id: str) -> list[Entity]:
+    async def extract(self, text: str, model_id: str) -> list[Entity]:
         request_body = {"text": text}
         endpoint_url = f"{self._base_url}/v1/ner"
         log.debug(
@@ -64,7 +64,7 @@ class HttpEntityExtractor:
         )
         # Private Cloud Run: attach a GCP identity token (no-op off-GCP).
         headers = bearer_headers(self._base_url)
-        response = self._http_client.post(endpoint_url, json=request_body, headers=headers)
+        response = await self._http_client.post(endpoint_url, json=request_body, headers=headers)
         response.raise_for_status()
         payload = response.json()
 
