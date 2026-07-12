@@ -49,7 +49,7 @@ class NerConfig(BaseModel):
 
 
 class IEntityExtractor(Protocol):
-    def extract(self, text: str, model_id: str) -> list[Entity]: ...
+    async def extract(self, text: str, model_id: str) -> list[Entity]: ...
 
 
 _extractor: Optional[IEntityExtractor] = None
@@ -87,7 +87,7 @@ async def invoke(input: RawText, config: dict, context: Context) -> tuple[Entiti
         ) from exc
 
     extractor = get_extractor()
-    all_entities = extractor.extract(input.text, _DEFAULT_MODEL_ID)
+    all_entities = await extractor.extract(input.text, _DEFAULT_MODEL_ID)
 
     if parsed_config.entity_types:
         allowed = {label.lower() for label in parsed_config.entity_types}

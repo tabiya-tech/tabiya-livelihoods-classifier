@@ -13,11 +13,12 @@ import pytest
 from tabiya_core.plugins.ner.http_extractor import HttpEntityExtractor
 
 
-def _make_client(handler) -> httpx.Client:
-    return httpx.Client(transport=httpx.MockTransport(handler))
+def _make_async_client(handler) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
 
-def test_extract_posts_to_v1_ner_and_maps_entities():
+@pytest.mark.asyncio
+async def test_extract_posts_to_v1_ner_and_maps_entities():
     # GIVEN a fake NER service that returns two occupation entities
     givenBaseUrl = "http://ner-service:5002"
     givenText = "Data scientist wanted"
@@ -41,11 +42,11 @@ def test_extract_posts_to_v1_ner_and_maps_entities():
         return httpx.Response(200, json={"entities": expectedEntities, "metadata": {}})
 
     givenExtractor = HttpEntityExtractor(
-        base_url=givenBaseUrl, http_client=_make_client(handler)
+        base_url=givenBaseUrl, http_client=_make_async_client(handler)
     )
 
     # WHEN the plugin core calls extract
-    resultEntities = givenExtractor.extract(givenText, model_id="tabiya/roberta-base-job-ner")
+    resultEntities = await givenExtractor.extract(givenText, model_id="tabiya/roberta-base-job-ner")
 
     # THEN one HTTP POST hit /v1/ner with the text in the body
     assert len(receivedRequests) == 1
@@ -60,7 +61,8 @@ def test_extract_posts_to_v1_ner_and_maps_entities():
     assert resultEntities[1].entity_type == expectedEntities[1]["entity_type"]
 
 
-def test_extract_does_not_forward_entity_types_filter():
+@pytest.mark.asyncio
+async def test_extract_does_not_forward_entity_types_filter():
     # GIVEN a fake service that echoes any received body back for inspection
     givenBaseUrl = "http://ner-service:5002"
     receivedRequests: list[dict] = []
@@ -72,11 +74,11 @@ def test_extract_does_not_forward_entity_types_filter():
         return httpx.Response(200, json={"entities": [], "metadata": {}})
 
     givenExtractor = HttpEntityExtractor(
-        base_url=givenBaseUrl, http_client=_make_client(handler)
+        base_url=givenBaseUrl, http_client=_make_async_client(handler)
     )
 
     # WHEN extract is called with a model_id (which is metadata to this adapter)
-    givenExtractor.extract("hello", model_id="tabiya/roberta-large-job-ner")
+    await givenExtractor.extract("hello", model_id="tabiya/roberta-large-job-ner")
 
     # THEN the request body contains only `text`; entity_types filtering is
     # owned by the plugin Core and must not leak into the HTTP call.
@@ -84,7 +86,8 @@ def test_extract_does_not_forward_entity_types_filter():
     assert set(receivedRequests[0].keys()) == expectedRequestKeys
 
 
-def test_extract_raises_on_500_response():
+@pytest.mark.asyncio
+async def test_extract_raises_on_500_response():
     # GIVEN a fake NER service that returns 500
     givenBaseUrl = "http://ner-service:5002"
 
@@ -92,14 +95,14 @@ def test_extract_raises_on_500_response():
         return httpx.Response(500, text="internal error")
 
     givenExtractor = HttpEntityExtractor(
-        base_url=givenBaseUrl, http_client=_make_client(handler)
+        base_url=givenBaseUrl, http_client=_make_async_client(handler)
     )
 
     # WHEN extract runs
     # THEN httpx.HTTPStatusError bubbles up — the plugin adapter maps this
     # into a PLUGIN_INTERNAL envelope one layer above.
     with pytest.raises(httpx.HTTPStatusError):
-        givenExtractor.extract("hello", model_id="any")
+        await givenExtractor.extract("hello", model_id="any")
 
 
 def test_constructor_rejects_empty_base_url():

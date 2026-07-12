@@ -25,7 +25,7 @@ class _FakeExtractor:
         self.entity_type = entity_type
         self.seen_model_ids: list[str] = []
 
-    def extract(self, text: str, model_id: str) -> list[Entity]:
+    async def extract(self, text: str, model_id: str) -> list[Entity]:
         self.seen_model_ids.append(model_id)
         entities: list[Entity] = []
         cursor = 0
