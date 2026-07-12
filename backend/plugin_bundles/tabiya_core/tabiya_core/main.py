@@ -107,7 +107,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         if _ner_http_extractor is not None:
-            _ner_http_extractor.close()
+            await _ner_http_extractor.close()
         if _nel_http_linker is not None:
             await _nel_http_linker.close()
 

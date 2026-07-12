@@ -7,6 +7,7 @@ with ``NER_MODEL_<LANG>``), loaded at startup for ``ENABLED_LANGUAGES`` and lazi
 the rest.
 """
 
+import asyncio
 import logging
 import os
 import threading
@@ -141,7 +142,13 @@ async def extract_entities(req: NERRequest, service: INERService = Depends(get_n
         )
     language = normalise_language(req.language)
     try:
-        return service.extract_entities(req.text, req.entity_types, language=language)
+        # The model forward pass is synchronous, CPU-bound, and GIL-holding.
+        # Run it in a worker thread so the event loop stays free to service
+        # other requests (health checks, concurrent NER calls) instead of
+        # blocking the whole process for the duration of inference.
+        return await asyncio.to_thread(
+            service.extract_entities, req.text, req.entity_types, language=language
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
