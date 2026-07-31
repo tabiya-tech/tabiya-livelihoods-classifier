@@ -195,7 +195,12 @@ def _create_embedding_service(model_id: str) -> IEmbeddingService:
         if not region:
             raise ValueError(f"VERTEX_API_REGION env var is required for Vertex AI model '{model_id}'")
         return GoogleVertexEmbeddingService(model_id, region)
-    return SentenceTransformerEmbeddingService(model_id)
+    try:
+        return SentenceTransformerEmbeddingService(model_id)
+    except Exception as exc:
+        raise EmbeddingBackendUnavailableError(
+            f"SentenceTransformer model '{model_id}' could not be loaded: {exc}"
+        ) from exc
 
 
 def _clear_registry() -> None:
