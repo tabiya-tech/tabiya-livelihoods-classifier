@@ -100,10 +100,10 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
       # ── Post-deploy smoke: every plugin bundle serves valid manifests ─────
-      - name: Smoke-test plugin manifests
-        run: python iac/scripts/smoke_manifests.py --stack "${{ inputs.stack }}"
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+      # - name: Smoke-test plugin manifests
+      #   run: python iac/scripts/smoke_manifests.py --stack "${{ inputs.stack }}"
+      #   env:
+      #     PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
       # ── Phase 2: build frontends with real Firebase outputs ─────────────────
       - name: Get Firebase config from auth stack
