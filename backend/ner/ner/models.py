@@ -21,6 +21,15 @@ class NERRequest(BaseModel):
             "Allowed values: 'occupation', 'skill', 'qualification'."
         ),
     )
+    language: Optional[str] = Field(
+        None,
+        description=(
+            "Language of the text, selecting which extraction model runs. "
+            "Accepts a language code ('en', 'es') or a locale ('AR-es'). "
+            "Omit to use the service default (TARGET_LANGUAGE, else 'en')."
+        ),
+        examples=["es"],
+    )
 
 
 class EntitySpan(BaseModel):
@@ -38,6 +47,14 @@ class NERMetadata(BaseModel):
     model_name: str
     entity_count: int
     processing_time_ms: float
+    language: Optional[str] = Field(None, description="Language the text was processed as.")
+    model_is_language_specific: Optional[bool] = Field(
+        None,
+        description=(
+            "False when this language has no checkpoint of its own and was served by "
+            "another language's model — expect degraded extraction."
+        ),
+    )
 
 
 class NERResponse(BaseModel):

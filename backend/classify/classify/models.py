@@ -43,6 +43,16 @@ class ClassifyOptions(BaseModel):
         le=1.0,
         description="Minimum cosine similarity score for a match to be included (0.0–1.0).",
     )
+    language: Optional[str] = Field(
+        None,
+        description=(
+            "Language of the job text. Selects both the extraction model and the taxonomy "
+            "label pack entities are linked against. Accepts a language code ('en', 'es') "
+            "or a locale ('AR-es'). Omit to use the API key's configured language, else "
+            "the service default."
+        ),
+        examples=["es"],
+    )
 
 
 class ClassifyRequest(BaseModel):
@@ -57,6 +67,11 @@ class BatchJob(BaseModel):
     text: Optional[str] = Field(None, description="Raw job ad text. Use this OR title + description.")
     title: Optional[str] = Field(None, description="Job title.")
     description: Optional[str] = Field(None, description="Job description body.")
+    language: Optional[str] = Field(
+        None,
+        description="Per-job language override for a mixed-language batch. Defaults to options.language.",
+        examples=["es"],
+    )
 
 
 class BatchRequest(BaseModel):
@@ -87,6 +102,10 @@ class ClassifyMetadata(BaseModel):
     linker_model: str = Field(..., description="Sentence-transformer model used for NEL similarity.")
     processing_time_ms: float
     input_text_hash: str = Field(..., description="SHA-256 hash of the input text, for deduplication.")
+    language: Optional[str] = Field(None, description="Language the text was classified as.")
+    taxonomy_locale: Optional[str] = Field(
+        None, description="Locale of the taxonomy the entities were linked against (e.g. 'AR-es')."
+    )
 
 
 class ClassifyResponse(BaseModel):

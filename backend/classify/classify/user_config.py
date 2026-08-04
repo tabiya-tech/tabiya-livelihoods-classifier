@@ -42,6 +42,7 @@ from classify.config import (
     TARGET_ENVIRONMENT_TYPE,
 )
 from classify.db import ApplicationDBProvider
+from shared.languages import default_language
 
 log = logging.getLogger("classify-api")
 
@@ -145,6 +146,10 @@ def _build_config(user_id: str, config_doc: Optional[dict]) -> dict:
             "taxonomy_model_id": config_doc.get("taxonomy_model_id", "generic"),
             "ner_type": config_doc.get("ner_type", "SELF_HOSTED_LLM"),
             "nel_type": config_doc.get("nel_type", "generic"),
+            # Default language for this key's requests — the per-country pattern the
+            # pipeline uses (an Argentina key classifies Spanish without every caller
+            # having to say so). A request's own `options.language` still wins.
+            "language": config_doc.get("language") or default_language(),
         }
     return {**base, **_default_config()}
 
@@ -157,6 +162,7 @@ def _default_config() -> dict:
         "taxonomy_model_id": "generic",
         "ner_type": "SELF_HOSTED_LLM",
         "nel_type": "generic",
+        "language": default_language(),
     }
 
 
@@ -220,7 +226,7 @@ async def get_user_config_for_uid(uid: str) -> dict:
 
 
 async def set_user_config_for_uid(uid: str, updates: dict) -> None:
-    allowed = {"ner_type", "nel_type", "ner_model_name", "nel_model_name", "taxonomy_model_id"}
+    allowed = {"ner_type", "nel_type", "ner_model_name", "nel_model_name", "taxonomy_model_id", "language"}
     safe = {k: v for k, v in updates.items() if k in allowed}
     col = await _get_collection("user_configs")
     await col.update_one(

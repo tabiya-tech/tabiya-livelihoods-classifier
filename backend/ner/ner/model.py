@@ -1,28 +1,64 @@
 """NER model: extracts entity spans from job-related text."""
 
+import logging
 import os
-from typing import List
+from collections import Counter
+from typing import List, Optional
 
 import torch
 from nltk.tokenize import sent_tokenize
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
+from ner.models import EntityType
 from shared.bio_utils import extract_entities, fix_bio_tags, remove_special_tokens_and_tags
 from shared.transformers_crf import AutoModelCrfForNer
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 
+log = logging.getLogger(__name__)
+
+# The entity types the pipeline speaks: NER's response model, NEL's request model and
+# every consumer downstream accept exactly these. A checkpoint may tag more than this
+# — `tabiya/roberta-base-job-ner` also emits Experience and Domain — and those spans
+# cannot be linked to the taxonomy, so they are dropped rather than returned.
+PIPELINE_ENTITY_TYPES = frozenset(t.value for t in EntityType)
+
+
+def resolve_entity_type(raw_label: str, label_map: Optional[dict] = None) -> Optional[str]:
+    """Map a checkpoint's own label onto a pipeline entity type.
+
+    Returns ``None`` when the label has no pipeline equivalent — the caller drops the
+    span. Returning it instead would fail ``NERResponse`` validation and turn the whole
+    request into a 400, losing the entities that *were* usable.
+    """
+    label = raw_label.lower()
+    mapped = (label_map or {}).get(label, label)
+    return mapped if mapped in PIPELINE_ENTITY_TYPES else None
+
 
 class NERModel:
-    """Extracts entity spans from job-related text using a fine-tuned transformer."""
+    """Extracts entity spans from job-related text using a fine-tuned transformer.
+
+    ``sentence_tokenizer_language`` picks the NLTK punkt model used to split the text
+    into sentences (abbreviations and clause punctuation differ per language).
+
+    ``label_map`` renames a checkpoint's own entity labels to the pipeline's types
+    (occupation / skill / qualification), so a language can be pointed at a model with a
+    different label vocabulary through config alone. Labels that still do not name a
+    pipeline type after mapping are dropped — see ``resolve_entity_type``.
+    """
 
     def __init__(
         self,
         model_name: str = "tabiya/roberta-base-job-ner",
         crf: bool = False,
+        sentence_tokenizer_language: str = "english",
+        label_map: Optional[dict] = None,
     ):
         self.model_name = model_name
         self.crf = crf
+        self.sentence_tokenizer_language = sentence_tokenizer_language
+        self.label_map = {k.lower(): v.lower() for k, v in (label_map or {}).items()}
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         if self.crf:
@@ -38,8 +74,9 @@ class NERModel:
     def extract(self, text: str) -> List[dict]:
         """Extract entities from text, returning entity_type, surface_form, and span."""
         text = text.replace("\n", " ")
-        sentences = sent_tokenize(text)
+        sentences = self._split_sentences(text)
         all_entities: List[dict] = []
+        dropped: Counter = Counter()
         char_offset = 0
 
         for sentence in sentences:
@@ -47,13 +84,17 @@ class NERModel:
             raw_entities = self._ner_pipeline(sentence)
 
             for entity in raw_entities:
+                entity_type = resolve_entity_type(entity["type"], self.label_map)
+                if entity_type is None:
+                    dropped[entity["type"].lower()] += 1
+                    continue
                 surface = entity["tokens"]
                 entity_start = text.find(surface, sent_start)
                 entity_end = entity_start + len(surface) if entity_start != -1 else sent_start
 
                 all_entities.append(
                     {
-                        "entity_type": entity["type"].lower(),
+                        "entity_type": entity_type,
                         "surface_form": surface,
                         "span": {
                             "start": max(entity_start, 0),
@@ -64,7 +105,28 @@ class NERModel:
 
             char_offset = sent_start + len(sentence)
 
+        if dropped:
+            log.debug(
+                "Dropped %d span(s) whose label has no pipeline entity type: %s",
+                sum(dropped.values()),
+                dict(dropped),
+            )
         return all_entities
+
+    def _split_sentences(self, text: str) -> List[str]:
+        """Sentence-split with this language's punkt model, falling back to English.
+
+        A missing punkt model for a language must not fail the request — the fallback
+        splits slightly worse, it does not change the entity vocabulary.
+        """
+        try:
+            return sent_tokenize(text, language=self.sentence_tokenizer_language)
+        except LookupError:
+            log.warning(
+                "No punkt sentence tokenizer for %r; falling back to English",
+                self.sentence_tokenizer_language,
+            )
+            return sent_tokenize(text)
 
     def _ner_pipeline(self, text: str) -> List[dict]:
         """Run NER on a single sentence."""

@@ -16,6 +16,7 @@ from nel.app.user_config.repository.repository import UserConfigRepository
 from nel.app.user_config.routes.auth import get_firebase_uid
 from nel.app.user_config.service.service import UserConfigService
 from nel.app.user_config.service.types import UserConfig
+from shared.languages import get_language_config, normalise_language
 
 _logger = logging.getLogger(__name__)
 
@@ -50,7 +51,25 @@ async def link_entities(
     svc: INELService = Depends(_get_service),
 ):
     from nel.config import DEFAULT_NEL_MODEL_ID, DEFAULT_TAXONOMY_MODEL_ID
-    taxonomy_model_id = user_config.taxonomy_model_id or DEFAULT_TAXONOMY_MODEL_ID
+
+    # A language on the request is an explicit instruction, so its configured taxonomy
+    # model wins over the caller's stored config. Without it, nothing changes.
+    language_taxonomy_model_id = ""
+    language = None
+    if request.language:
+        language = normalise_language(request.language)
+        language_taxonomy_model_id = get_language_config(language).get("taxonomy_model_id") or ""
+        if not language_taxonomy_model_id:
+            _logger.warning(
+                "language=%s requested but TAXONOMY_MODEL_ID_%s is not set; "
+                "falling back to the caller's taxonomy model",
+                language,
+                language.upper(),
+            )
+
+    taxonomy_model_id = (
+        language_taxonomy_model_id or user_config.taxonomy_model_id or DEFAULT_TAXONOMY_MODEL_ID
+    )
     nel_model_id = user_config.nel_model_id or DEFAULT_NEL_MODEL_ID
 
     if not taxonomy_model_id:

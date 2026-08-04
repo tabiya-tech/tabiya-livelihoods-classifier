@@ -70,8 +70,17 @@ def create_cloud_run_services(
                                 ),
                             ),
                         ),
+                        # One image serves every registered language; the request's
+                        # `language` picks the checkpoint. NER_MODEL is intentionally not
+                        # set — the bare variable applies to every language and would force
+                        # a non-English one onto the English model. Per-language defaults
+                        # live in shared/languages/<lang>_config.py; override a single
+                        # language with NER_MODEL_<LANG>.
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="NER_MODEL", value="tabiya/roberta-base-job-ner"
+                            name="TARGET_LANGUAGE", value="en"
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="ENABLED_LANGUAGES", value="all"
                         ),
                     ],
                     liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
@@ -125,11 +134,16 @@ def create_cloud_run_services(
                                 ),
                             ),
                         ),
+                        # LINKER_MODEL and NEL_FILES_PATH are intentionally not set:
+                        # both are global overrides that would pin every language to one
+                        # model / one data directory. Each language's model and pack come
+                        # from shared/languages/<lang>_config.py and
+                        # nel/nel/files/<lang>/; override one with LINKER_MODEL_<LANG>.
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="LINKER_MODEL", value="all-MiniLM-L6-v2"
+                            name="TARGET_LANGUAGE", value="en"
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="NEL_FILES_PATH", value="/app/nel/nel/files"
+                            name="ENABLED_LANGUAGES", value="all"
                         ),
                     ],
                     liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(

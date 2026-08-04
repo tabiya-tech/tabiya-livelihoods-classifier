@@ -114,10 +114,30 @@ class UserConfigUpdate(BaseModel):
     ner_model_name: str | None = None
     nel_model_name: str | None = None
     taxonomy_model_id: str | None = None
+    # Default language for this key's requests ('en', 'es', or a locale like 'AR-es').
+    language: str | None = None
 
 
 class CreateApiKeyRequest(BaseModel):
     label: str = Field(..., min_length=1, max_length=100)
+
+
+def describe_upstream_error(exc: Exception) -> str:
+    """Error text for a failed NER/NEL call, including the peer's own response body.
+
+    ``str(httpx.HTTPStatusError)`` is only "Client error '400 Bad Request' for url …",
+    which says nothing about *why* the peer rejected the request. The body carries the
+    peer's ``detail``, and without it a caller sees a bare 502 and has to go read the
+    other service's log to find out what happened.
+    """
+    response = getattr(exc, "response", None)
+    body = ""
+    if response is not None:
+        try:
+            body = (response.text or "").strip()
+        except Exception:  # a streamed/closed response has no readable text
+            body = ""
+    return f"{exc}: {body[:500]}" if body else str(exc)
 
 
 # ── Classify endpoints ─────────────────────────────────────────────────────
@@ -137,10 +157,13 @@ async def classify(
     log.info("Classify request: %d chars (user: %s)", len(input_text), user_config["user_id"])
 
     try:
-        result = await service.classify(input_text, req.options)
+        result = await service.classify(
+            input_text, req.options, language=user_config.get("language")
+        )
     except Exception as e:
-        log.error("Classify failed: %s", e)
-        raise HTTPException(status_code=502, detail=str(e))
+        detail = describe_upstream_error(e)
+        log.error("Classify failed: %s", detail)
+        raise HTTPException(status_code=502, detail=detail)
 
     await record_usage_event(user_config["user_id"])
     entity_count = sum(result.classification.entity_counts.values())
@@ -162,7 +185,16 @@ async def submit_batch(
 
     batch_id = str(uuid.uuid4())
     await create_batch(batch_id, user_config["user_id"], len(req.jobs))
-    asyncio.create_task(_process_batch(batch_id, req.jobs, req.options, user_config["user_id"], service))
+    asyncio.create_task(
+        _process_batch(
+            batch_id,
+            req.jobs,
+            req.options,
+            user_config["user_id"],
+            service,
+            default_language_for_user=user_config.get("language"),
+        )
+    )
 
     log.info("Batch %s submitted: %d jobs (user: %s)", batch_id, len(req.jobs), user_config["user_id"])
     return BatchSubmitResponse(batch_id=batch_id, total=len(req.jobs), status=BatchStatus.processing)
@@ -174,6 +206,7 @@ async def _process_batch(
     options: ClassifyOptions | None,
     user_id: str,
     service: IClassifyService,
+    default_language_for_user: str | None = None,
 ) -> None:
     try:
         for i, job in enumerate(jobs):
@@ -186,11 +219,24 @@ async def _process_batch(
                 result = {"job_id": job_id, "status": JobStatus.error, "error": f"Text exceeds {MAX_TEXT_LENGTH} char limit"}
             else:
                 try:
-                    classify_result = await service.classify(input_text, options)
+                    # A per-job language lets one batch mix languages, and beats the
+                    # batch-wide options; otherwise options, then the API key's
+                    # language, decide.
+                    job_options = options
+                    if job.language:
+                        job_options = (options or ClassifyOptions()).model_copy(
+                            update={"language": job.language}
+                        )
+                    classify_result = await service.classify(
+                        input_text,
+                        job_options,
+                        language=default_language_for_user,
+                    )
                     result = {"job_id": job_id, "status": JobStatus.completed, **classify_result.model_dump()}
                 except Exception as e:
-                    log.error("[batch-%s] Job %s failed: %s", batch_id, job_id, e)
-                    result = {"job_id": job_id, "status": JobStatus.error, "error": str(e)}
+                    detail = describe_upstream_error(e)
+                    log.error("[batch-%s] Job %s failed: %s", batch_id, job_id, detail)
+                    result = {"job_id": job_id, "status": JobStatus.error, "error": detail}
 
             await update_batch(batch_id, result)
 

@@ -7,7 +7,12 @@ services:
       - "5002:5002"
     env_file: .env
     environment:
-      - NER_MODEL=${NER_MODEL:-tabiya/roberta-base-job-ner}
+      # NER_MODEL / NER_MODEL_<LANG>: unset uses each language's configured checkpoint
+      # (shared/languages/). Setting the bare variable pins EVERY language to one model.
+      - NER_MODEL=${NER_MODEL:-}
+      - NER_MODEL_ES=${NER_MODEL_ES:-}
+      - TARGET_LANGUAGE=${TARGET_LANGUAGE:-en}
+      - ENABLED_LANGUAGES=${ENABLED_LANGUAGES:-all}
       - HF_TOKEN=${HF_TOKEN}
       - MAX_TEXT_LENGTH=${MAX_TEXT_LENGTH:-50000}
     volumes:
@@ -27,13 +32,20 @@ services:
       - "5003:5003"
     env_file: .env
     environment:
-      - LINKER_MODEL=${LINKER_MODEL:-all-MiniLM-L6-v2}
+      # Unset uses each language's configured model (shared/languages/); the bare variable
+      # would pin every language to one.
+      - LINKER_MODEL=${LINKER_MODEL:-}
+      - LINKER_MODEL_ES=${LINKER_MODEL_ES:-}
+      - TARGET_LANGUAGE=${TARGET_LANGUAGE:-en}
+      - ENABLED_LANGUAGES=${ENABLED_LANGUAGES:-all}
       - MAX_ENTITIES_PER_REQUEST=${MAX_ENTITIES_PER_REQUEST:-200}
       - MAX_TOP_K=${MAX_TOP_K:-50}
-      - NEL_FILES_PATH=/app/files
+      # NEL_FILES_PATH unset: the data packs are per language under nel/nel/files/<lang>/,
+      # and setting it pins every language to one directory. Mount over that path instead
+      # if you need to supply packs from outside the image.
+      - NEL_FILES_PATH=${NEL_FILES_PATH:-}
     volumes:
       - model-cache:/root/.cache/huggingface
-      - ./data:/app/files
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v1/health')"]
       interval: 30s

@@ -24,6 +24,15 @@ class NELOptions(BaseModel):
 class NELRequest(BaseModel):
     entities: List[EntityInput] = Field(..., min_length=1, description="List of entities to link. Minimum 1 item.")
     options: Optional[NELOptions] = None
+    language: Optional[str] = Field(
+        None,
+        description=(
+            "Language of the entity text, selecting the taxonomy label pack to link against. "
+            "Accepts a language code ('en', 'es') or a taxonomy locale ('AR-es'). "
+            "Omit to use the service default (TARGET_LANGUAGE, else 'en')."
+        ),
+        examples=["es"],
+    )
 
 
 class TaxonomyMatch(BaseModel):
@@ -45,6 +54,10 @@ class NELMetadata(BaseModel):
     linker_model: str = Field(..., description="Sentence-transformer model used for similarity scoring.")
     taxonomy: Literal["esco"] = Field(..., description="Taxonomy used for linking. Always 'esco'.")
     processing_time_ms: float
+    language: Optional[str] = Field(None, description="Language the entities were linked in.")
+    taxonomy_locale: Optional[str] = Field(
+        None, description="Locale of the taxonomy label pack used (e.g. 'en', 'AR-es')."
+    )
 
 
 class NELResponse(BaseModel):

@@ -5,4 +5,7 @@ from ner.service import INERService, NERService
 
 def get_ner_service() -> INERService:
     import ner.main as _main_module
-    return NERService(model=_main_module.ner_model)
+
+    # A provider rather than a fixed model: one service instance serves every language,
+    # and a language's model is loaded on the first request that needs it.
+    return NERService(model_provider=_main_module.get_model)
