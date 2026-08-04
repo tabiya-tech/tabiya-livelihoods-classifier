@@ -56,7 +56,7 @@ def in_memory_db_name(in_memory_mongo_server) -> str:
 # ── FastAPI test client helpers ────────────────────────────────────────────
 
 class MockClassifyService(IClassifyService):
-    async def classify(self, input_text, options=None):
+    async def classify(self, input_text, options=None, language=None):
         raise NotImplementedError()
 
 

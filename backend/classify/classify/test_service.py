@@ -32,12 +32,12 @@ def _make_nel_response(linked_entities: list[dict] | None = None) -> dict:
 
 
 class MockNERClient(INERClient):
-    async def extract(self, text, entity_types=None):
+    async def extract(self, text, entity_types=None, language=None):
         raise NotImplementedError()
 
 
 class MockNELClient(INELClient):
-    async def link(self, entities, top_k, min_similarity):
+    async def link(self, entities, top_k, min_similarity, language=None):
         raise NotImplementedError()
 
 
@@ -62,7 +62,9 @@ class TestClassifyService:
             assert result.metadata.linker_model == "all-MiniLM-L6-v2"
 
             # AND NER was called with the text
-            mock_ner.extract.assert_called_once_with("We need a Head Chef who can plan menus.", None)
+            mock_ner.extract.assert_called_once_with(
+                "We need a Head Chef who can plan menus.", None, language="en"
+            )
 
             # AND NEL was called only for linkable entity types (occupation, skill)
             mock_nel.link.assert_called_once()
@@ -104,7 +106,9 @@ class TestClassifyService:
             await service.classify("We need a Head Chef.", options=options)
 
             # THEN NER is called with the entity type filter
-            mock_ner.extract.assert_called_once_with("We need a Head Chef.", ["occupation"])
+            mock_ner.extract.assert_called_once_with(
+                "We need a Head Chef.", ["occupation"], language="en"
+            )
 
             # AND NEL is called with the custom top_k and min_similarity
             mock_nel.link.assert_called_once()

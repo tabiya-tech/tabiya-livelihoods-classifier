@@ -1,5 +1,6 @@
 """NEL linker: links entity text to ESCO taxonomy entries via embedding similarity."""
 
+import logging
 import os
 import pickle
 from typing import List, Optional, Tuple
@@ -8,11 +9,42 @@ import torch
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 
+from shared.languages import DEFAULT_LANGUAGE, get_language_config
 from shared.unpickler import CPU_Unpickler
+
+log = logging.getLogger(__name__)
+
+FILES_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "files"))
+
+
+def resolve_files_path(language: str, files_root: Optional[str] = None) -> str:
+    """Directory holding a language's data pack.
+
+    ``files/<subdir>/`` per the language config, falling back to the flat ``files/``
+    layout that predates language packs so an un-migrated checkout still starts.
+    """
+    root = files_root or FILES_ROOT
+    subdir = get_language_config(language).get("nel_files_subdir") or language
+    candidate = os.path.join(root, subdir)
+    if os.path.isdir(candidate):
+        return candidate
+    if os.path.isfile(os.path.join(root, "skills.csv")):
+        log.warning(
+            "No data pack at %s; using the flat legacy layout %s for language %r",
+            candidate,
+            root,
+            language,
+        )
+        return root
+    return candidate
 
 
 class NELLinker:
-    """Links entity text to ESCO taxonomy entries using embedding similarity."""
+    """Links entity text to ESCO taxonomy entries using embedding similarity.
+
+    One instance serves one language: its data pack (label CSVs) and the
+    sentence-transformer that embeds them. ``nel.main`` keeps one per language.
+    """
 
     def __init__(
         self,
@@ -20,21 +52,42 @@ class NELLinker:
         k: int = 32,
         from_cache: bool = True,
         files_path: Optional[str] = None,
+        language: str = DEFAULT_LANGUAGE,
     ):
         self.similarity_model_name = similarity_model
         self.similarity_model = SentenceTransformer(similarity_model)
         self.k = k
         self.from_cache = from_cache
+        self.language = language
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.path_to_files = files_path or os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "files")
-        )
+        self.path_to_files = files_path or resolve_files_path(language)
 
-        self.df_occ = pd.read_csv(os.path.join(self.path_to_files, "occupations_augmented.csv"))
-        self.df_skill = pd.read_csv(os.path.join(self.path_to_files, "skills.csv"))
-        self.df_qual = pd.read_csv(os.path.join(self.path_to_files, "qualifications.csv"))
+        self.df_occ = pd.read_csv(self._pack_file("occupations_augmented.csv"))
+        self.df_skill = pd.read_csv(self._pack_file("skills.csv"))
+        self.df_qual = pd.read_csv(self._pack_file("qualifications.csv"))
 
         self.occupation_emb, self.skill_emb, self.qualification_emb = self._load_tensors()
+
+    def _pack_file(self, name: str) -> str:
+        """Path to one file of this language's pack.
+
+        Falls back to the English pack for files a language does not ship — taxonomy
+        exports carry no qualifications, and the ESCO qualification list is
+        country + EQF level rather than translated label text.
+        """
+        path = os.path.join(self.path_to_files, name)
+        if os.path.isfile(path):
+            return path
+        fallback = os.path.join(FILES_ROOT, DEFAULT_LANGUAGE, name)
+        if os.path.isfile(fallback):
+            log.warning(
+                "Language %r has no %s; falling back to the %s pack",
+                self.language,
+                name,
+                DEFAULT_LANGUAGE,
+            )
+            return fallback
+        return path  # let pandas raise with the language-specific path
 
     def link(
         self,

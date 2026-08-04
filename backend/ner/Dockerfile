@@ -22,10 +22,18 @@ WORKDIR /app/ner
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --without dev
 
-# Download NLTK data
+# Download NLTK data. punkt_tab carries the per-language sentence tokenizers the
+# service selects from (see shared/languages/<lang>_config.py:sentence_tokenizer_language).
 RUN python -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('punkt_tab', quiet=True)"
 
-ENV NER_MODEL="tabiya/roberta-base-job-ner"
+# Languages this image serves. `all` = every entry in shared.languages.LANGUAGE_REGISTRY,
+# loaded at startup rather than on the first request that needs them.
+ENV ENABLED_LANGUAGES="all"
+# Default language for requests that don't carry one.
+ENV TARGET_LANGUAGE="en"
+# NER_MODEL is deliberately NOT set: the bare variable applies to every language, which
+# would force a non-English language onto the English checkpoint. Per-language defaults
+# live in shared/languages/<lang>_config.py; override one with NER_MODEL_<LANG>.
 ENV MAX_TEXT_LENGTH="50000"
 
 EXPOSE 5002

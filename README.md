@@ -27,6 +27,7 @@ Environments follow the pattern `<env>.classifier.tabiya.tech`. The `dev` enviro
 - **[Job Analysis Application](app/README.md)**: A web application for analyzing job descriptions and extracting and linking relevant entities.
 - **[Training](train/README.md)**: Details on how to train the model.
 - **[Model's Architecture](#models-architecture)**
+- **[Languages](#languages)**
 - **[Datasets](#datasets)**
 - **[License](#license)**
 - **[Bibliography](#bibliography)**
@@ -134,6 +135,70 @@ HF_TOKEN=<YOUR_HF_TOKEN>
 ## Model's Architecture
 
 ![Model Architecture](./pics/entity_linker.png)
+
+## Languages
+
+Every service image serves **every** registered language. The language is an *input*, not
+a property of the deployment, so one deployment classifies English and Spanish job ads:
+
+```bash
+# English (default — unchanged behaviour when no language is sent)
+curl -X POST localhost:5001/v1/classify -H 'content-type: application/json' \
+  -d '{"text": "We need a head chef who can plan menus."}'
+
+# Spanish — also accepts the taxonomy locale, e.g. "language": "AR-es"
+curl -X POST localhost:5001/v1/classify -H 'content-type: application/json' \
+  -d '{"text": "Se busca cocinero con experiencia en cocina.", "options": {"language": "es"}}'
+```
+
+Resolution order for a request: `options.language` → the API key's configured `language`
+(set it per country in `user_configs`) → `TARGET_LANGUAGE` → `en`. An unregistered
+language falls back with a warning rather than failing the job. The response's
+`metadata.language` and `metadata.taxonomy_locale` record what actually ran.
+
+Registered languages live in `backend/shared/shared/languages/`:
+
+| File | What it holds |
+|---|---|
+| `__init__.py` | `LANGUAGE_REGISTRY` + locale normalisation (`AR-es`, `es_AR`, `spanish` → `es`) |
+| `en_config.py` | English models and data-pack directory — the pre-language defaults |
+| `es_config.py` | Spanish (Argentina, taxonomy locale `AR-es`) |
+
+Per-language data and models are config, not code. `NER_MODEL_<LANG>`,
+`LINKER_MODEL_<LANG>` and `TAXONOMY_MODEL_ID_<LANG>` override the config file; the bare
+`NER_MODEL` / `LINKER_MODEL` still apply to every language, so existing deployments are
+unaffected. `ENABLED_LANGUAGES` decides which models are loaded at startup rather than on
+first use.
+
+### Adding a language
+
+1. Add the code to `LANGUAGE_REGISTRY` in `backend/shared/shared/languages/__init__.py`.
+2. Copy `es_config.py` to `<code>_config.py` and set its models, locales and
+   `taxonomy_locale`.
+3. Generate its NEL v1 data pack from a taxonomy CSV export:
+
+```bash
+cd backend/nel
+python scripts/build_nel_files.py --taxonomy-dir <taxonomy-export-dir> --language <code>
+# optional: pre-compute the embedding caches instead of paying for them on first start
+python scripts/build_nel_embeddings.py --language <code>
+```
+
+Packs live in `backend/nel/nel/files/<language>/` (`occupations_augmented.csv`,
+`skills.csv`, `qualifications.csv`). Their `uuid` column is `UUIDHISTORY[-1]`, which is
+**identical across taxonomy locales** — that is what lets a Spanish-linked entity resolve
+to the same taxonomy entry in the reranker and matching service. A language that ships no
+`qualifications.csv` falls back to the English one.
+
+For `nel_v2` there is no data pack: point `TAXONOMY_MODEL_ID_<LANG>` at that locale's
+model in the taxonomy platform and make sure its embeddings exist in the taxonomy Atlas
+cluster.
+
+> **Known gap for Spanish.** There is no Spanish job-NER checkpoint, so `es` extraction
+> currently runs on `tabiya/roberta-base-job-ner` and will find few entities. This is
+> flagged loudly at model load and per response
+> (`metadata.model_is_language_specific: false`). Closing it is a `NER_MODEL_ES` change,
+> not a code change.
 
 ## License
 

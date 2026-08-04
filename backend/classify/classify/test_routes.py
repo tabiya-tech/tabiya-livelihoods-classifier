@@ -3,6 +3,7 @@
 from http import HTTPStatus
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -60,7 +61,9 @@ class TestClassifyRoute:
         assert response.json() == given_response.model_dump()
 
         # AND the service was called with the text and no options
-        mock_service.classify.assert_called_once_with(given_text, None)
+        # language=None: this API key has no configured language, so the service
+        # falls back to its default (TARGET_LANGUAGE, else en).
+        mock_service.classify.assert_called_once_with(given_text, None, language=None)
 
     @pytest.mark.asyncio
     async def test_classify_with_options(self, client_with_mocks: tuple[TestClient, IClassifyService]):
@@ -117,6 +120,27 @@ class TestClassifyRoute:
 
         # THEN the response is BAD GATEWAY
         assert response.status_code == HTTPStatus.BAD_GATEWAY
+
+    @pytest.mark.asyncio
+    async def test_classify_502_carries_the_peers_own_error_detail(
+        self, client_with_mocks: tuple[TestClient, IClassifyService]
+    ):
+        client, mock_service = client_with_mocks
+        # GIVEN NER rejects the request and says why in its response body
+        error = httpx.HTTPStatusError(
+            "Client error '400 Bad Request' for url 'http://ner/v1/ner'",
+            request=httpx.Request("POST", "http://ner/v1/ner"),
+            response=httpx.Response(400, json={"detail": "1 validation error for NERResponse"}),
+        )
+        mock_service.classify = AsyncMock(side_effect=error)
+
+        # WHEN a POST request is made
+        response = client.post("/v1/classify", json={"text": "some text"})
+
+        # THEN the 502 detail names the upstream reason, not just the status line —
+        # otherwise the caller has to go read the NER service's log to find out why.
+        assert response.status_code == HTTPStatus.BAD_GATEWAY
+        assert "validation error for NERResponse" in response.json()["detail"]
 
 
 class TestBatchRoutes:

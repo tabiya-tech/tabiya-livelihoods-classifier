@@ -9,7 +9,7 @@ from ner.main import app
 
 
 class MockNERService(INERService):
-    def extract_entities(self, text, entity_types=None):
+    def extract_entities(self, text, entity_types=None, language=None):
         raise NotImplementedError()
 
 

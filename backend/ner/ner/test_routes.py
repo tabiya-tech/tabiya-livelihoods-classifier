@@ -37,7 +37,7 @@ class TestExtractEntitiesRoute:
         assert response.json() == given_response.model_dump()
 
         # AND the service was called with the correct arguments
-        mock_service.extract_entities.assert_called_once_with(given_text, None)
+        mock_service.extract_entities.assert_called_once_with(given_text, None, language="en")
 
     def test_extract_entities_with_entity_type_filter(self, client_with_mocks: tuple[TestClient, INERService]):
         client, mock_service = client_with_mocks
@@ -61,7 +61,11 @@ class TestExtractEntitiesRoute:
         assert response.status_code == HTTPStatus.OK
 
         # AND the service was called with the entity_types filter
-        mock_service.extract_entities.assert_called_once_with(given_text, given_entity_types)
+        # (entity types arrive as the EntityType enum; language is resolved by the route)
+        call_args = mock_service.extract_entities.call_args
+        assert call_args[0][0] == given_text
+        assert [e.value for e in call_args[0][1]] == given_entity_types
+        assert call_args.kwargs["language"] == "en"
 
     def test_extract_entities_empty_text_returns_400(self, client_with_mocks: tuple[TestClient, INERService]):
         client, mock_service = client_with_mocks

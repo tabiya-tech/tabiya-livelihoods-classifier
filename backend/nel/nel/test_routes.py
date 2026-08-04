@@ -41,7 +41,7 @@ class TestLinkEntitiesRoute:
         assert response.json() == given_response.model_dump()
 
         # AND the service was called with the serialized entities and no options
-        mock_service.link_entities.assert_called_once_with(given_entities, None)
+        mock_service.link_entities.assert_called_once_with(given_entities, None, language="en")
 
     def test_link_entities_with_options(self, client_with_mocks: tuple[TestClient, INELService]):
         client, mock_service = client_with_mocks

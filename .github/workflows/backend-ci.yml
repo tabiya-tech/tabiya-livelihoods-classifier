@@ -20,6 +20,8 @@ jobs:
     strategy:
       matrix:
         include:
+          - service: shared
+            needs_shared: false
           - service: ner
             needs_shared: false
           - service: nel
@@ -47,7 +49,9 @@ jobs:
         run: poetry install --no-root
 
       - name: Install dependencies
-        run: poetry install --no-interaction ${{ matrix.service == 'nel_v2' && '--extras inference' || '' }}
+        # `shared` is a library, not a service: install it without its own root package
+        # so its language-registry tests run without pulling a service's deps.
+        run: poetry install --no-interaction ${{ matrix.service == 'nel_v2' && '--extras inference' || '' }} ${{ matrix.service == 'shared' && '--no-root' || '' }}
         working-directory: backend/${{ matrix.service }}
 
       - name: Run tests

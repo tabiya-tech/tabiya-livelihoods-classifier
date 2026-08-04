@@ -7,6 +7,7 @@ from typing import Optional
 
 from classify.models import ClassifyMetadata, ClassifyOptions, ClassifyResponse, Classification
 from shared.job_text import compute_hash
+from shared.languages import get_language_config, normalise_language
 from classify.config import CLASSIFIER_VERSION
 
 log = logging.getLogger("classify-service")
@@ -16,7 +17,12 @@ class INERClient(ABC):
     """HTTP client interface for the NER service."""
 
     @abstractmethod
-    async def extract(self, text: str, entity_types: Optional[list[str]] = None) -> dict:
+    async def extract(
+        self,
+        text: str,
+        entity_types: Optional[list[str]] = None,
+        language: Optional[str] = None,
+    ) -> dict:
         """
         Call the NER service and return the raw response dict.
         :raises httpx.HTTPStatusError: on non-2xx responses.
@@ -29,7 +35,13 @@ class INELClient(ABC):
     """HTTP client interface for the NEL service."""
 
     @abstractmethod
-    async def link(self, entities: list[dict], top_k: int, min_similarity: float) -> dict:
+    async def link(
+        self,
+        entities: list[dict],
+        top_k: int,
+        min_similarity: float,
+        language: Optional[str] = None,
+    ) -> dict:
         """
         Call the NEL service and return the raw response dict.
         :raises httpx.HTTPStatusError: on non-2xx responses.
@@ -40,11 +52,18 @@ class INELClient(ABC):
 
 class IClassifyService(ABC):
     @abstractmethod
-    async def classify(self, input_text: str, options: Optional[ClassifyOptions] = None) -> ClassifyResponse:
+    async def classify(
+        self,
+        input_text: str,
+        options: Optional[ClassifyOptions] = None,
+        language: Optional[str] = None,
+    ) -> ClassifyResponse:
         """
         Orchestrate NER → NEL and return a merged classification result.
         :param input_text: The job text to classify.
         :param options: Optional classification settings.
+        :param language: Language of the text. ``options.language`` wins when both are
+            set; None on both uses the service default.
         :raises ValueError: if input_text is empty.
         """
         raise NotImplementedError()
@@ -56,15 +75,24 @@ class ClassifyService(IClassifyService):
         self._nel = nel_client
         self._logger = logging.getLogger(self.__class__.__name__)
 
-    async def classify(self, input_text: str, options: Optional[ClassifyOptions] = None) -> ClassifyResponse:
+    async def classify(
+        self,
+        input_text: str,
+        options: Optional[ClassifyOptions] = None,
+        language: Optional[str] = None,
+    ) -> ClassifyResponse:
         if not input_text:
             raise ValueError("input_text cannot be empty")
 
         opts = options or ClassifyOptions()
         start = time.time()
 
+        # Precedence: request options > caller default (API key config) > service default.
+        # Resolved here rather than in NER/NEL so both stages see the same language.
+        lang = normalise_language(opts.language or language)
+
         entity_type_filter = [e.value for e in opts.extract_entities] if opts.extract_entities else None
-        ner_data = await self._ner.extract(input_text, entity_type_filter)
+        ner_data = await self._ner.extract(input_text, entity_type_filter, language=lang)
         ner_entities = ner_data.get("entities", [])
 
         linkable_types = {"occupation", "skill", "qualification"}
@@ -77,7 +105,12 @@ class ClassifyService(IClassifyService):
         linked_map: dict = {}
         nel_metadata: dict = {}
         if nel_input:
-            nel_data = await self._nel.link(nel_input, top_k=opts.top_k, min_similarity=opts.min_similarity)
+            nel_data = await self._nel.link(
+                nel_input,
+                top_k=opts.top_k,
+                min_similarity=opts.min_similarity,
+                language=lang,
+            )
             nel_metadata = nel_data.get("metadata", {})
             for item in nel_data.get("linked_entities", []):
                 key = (item["input_text"], item["entity_type"])
@@ -99,7 +132,12 @@ class ClassifyService(IClassifyService):
             merged_entities.append(merged)
 
         processing_time = round((time.time() - start) * 1000, 1)
-        self._logger.info("Classify done: %d entities in %.1fms", len(merged_entities), processing_time)
+        self._logger.info(
+            "Classify done: %d entities in %.1fms (language=%s)",
+            len(merged_entities),
+            processing_time,
+            lang,
+        )
 
         return ClassifyResponse(
             classification=Classification(
@@ -112,5 +150,8 @@ class ClassifyService(IClassifyService):
                 linker_model=nel_metadata.get("linker_model", "unknown"),
                 processing_time_ms=processing_time,
                 input_text_hash=compute_hash(input_text),
+                language=lang,
+                taxonomy_locale=nel_metadata.get("taxonomy_locale")
+                or get_language_config(lang).get("taxonomy_locale", lang),
             ),
         )

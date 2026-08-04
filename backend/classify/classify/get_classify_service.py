@@ -25,10 +25,17 @@ def _gcp_identity_token(audience: str) -> str | None:
 
 
 class _NERHttpClient(INERClient):
-    async def extract(self, text: str, entity_types: Optional[list[str]] = None) -> dict:
+    async def extract(
+        self,
+        text: str,
+        entity_types: Optional[list[str]] = None,
+        language: Optional[str] = None,
+    ) -> dict:
         payload: dict = {"text": text}
         if entity_types:
             payload["entity_types"] = entity_types
+        if language:
+            payload["language"] = language
         headers = {}
         token = _gcp_identity_token(NER_API_URL)
         if token:
@@ -40,15 +47,27 @@ class _NERHttpClient(INERClient):
 
 
 class _NELHttpClient(INELClient):
-    async def link(self, entities: list[dict], top_k: int, min_similarity: float) -> dict:
+    async def link(
+        self,
+        entities: list[dict],
+        top_k: int,
+        min_similarity: float,
+        language: Optional[str] = None,
+    ) -> dict:
         headers = {}
         token = _gcp_identity_token(NEL_API_URL)
         if token:
             headers["Authorization"] = f"Bearer {token}"
+        payload: dict = {
+            "entities": entities,
+            "options": {"top_k": top_k, "min_similarity": min_similarity},
+        }
+        if language:
+            payload["language"] = language
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
                 f"{NEL_API_URL}/v1/nel",
-                json={"entities": entities, "options": {"top_k": top_k, "min_similarity": min_similarity}},
+                json=payload,
                 headers=headers,
             )
             resp.raise_for_status()

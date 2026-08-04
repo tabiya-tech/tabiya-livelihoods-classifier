@@ -8,7 +8,7 @@ from nel.main import app
 
 
 class MockNELService(INELService):
-    def link_entities(self, entities, options=None):
+    def link_entities(self, entities, options=None, language=None):
         raise NotImplementedError()
 
 

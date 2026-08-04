@@ -245,5 +245,9 @@ iac/*/Pulumi.*.yaml
 # NEL taxonomy files and embedding caches (large binary/data files)
 data/
 backend/nel/nel/files/**
+# Per-language data packs: keep the CSVs (LFS), never the embedding caches. The bare
+# `files/*.csv` rule stays for the pre-language layout.
+!backend/nel/nel/files/*/
 !backend/nel/nel/files/*.csv
+!backend/nel/nel/files/*/*.csv
 /app/.vite/*
