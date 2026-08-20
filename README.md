@@ -116,7 +116,7 @@ EOF
 
 The repo uses the following environment variable:
 
-- `HF_TOKEN`: To use the project, you need access to the HuggingFace 🤗 entity extraction model. Contact the administrators via [tabiya@benisis.de]. From there, you need to create a read access token to use the model. Find or create your read access token [here](https://huggingface.co/settings/tokens).
+- `HF_TOKEN`: To use the project, you need access to the HuggingFace 🤗 entity extraction model. Contact the administrators via [hi@tabiya.org]. From there, you need to create a read access token to use the model. Find or create your read access token [here](https://huggingface.co/settings/tokens).
 The backend supports the use of a `.env` file to set the environment variable. Create a `.env` file in the root
 directory of the backend project and set the environment variables as follows:
 
