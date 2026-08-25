@@ -4,7 +4,10 @@ import pulumi_gcp as gcp
 
 
 def create_artifact_registry(project: str, region: str):
-    # Docker repository in Artifact Registry
+    # Docker repository in Artifact Registry.
+    # Cleanup policy: keep the 5 most recent versions of each image tag and
+    # delete everything older than 30 days. Cloud Run pins deployed revisions
+    # by digest, so the running image is never deleted even if the tag moves.
     registry = gcp.artifactregistry.Repository(
         "tabiya-classifier",
         project=project,
@@ -12,6 +15,23 @@ def create_artifact_registry(project: str, region: str):
         repository_id="tabiya-classifier",
         format="DOCKER",
         description="Tabiya Livelihoods Classifier Docker images",
+        cleanup_policy_dry_run=False,
+        cleanup_policies=[
+            gcp.artifactregistry.RepositoryCleanupPolicyArgs(
+                id="keep-5-most-recent",
+                action="KEEP",
+                most_recent_versions=gcp.artifactregistry.RepositoryCleanupPolicyMostRecentVersionsArgs(
+                    keep_count=5,
+                ),
+            ),
+            gcp.artifactregistry.RepositoryCleanupPolicyArgs(
+                id="delete-older-than-30d",
+                action="DELETE",
+                condition=gcp.artifactregistry.RepositoryCleanupPolicyConditionArgs(
+                    older_than="2592000s",  # 30 days
+                ),
+            ),
+        ],
     )
 
     # One service account per Cloud Run service (least-privilege)

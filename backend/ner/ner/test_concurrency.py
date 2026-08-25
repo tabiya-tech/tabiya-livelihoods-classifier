@@ -42,7 +42,7 @@ class _BlockingNERService(INERService):
     def __init__(self, block_seconds: float) -> None:
         self._block_seconds = block_seconds
 
-    def extract_entities(self, text, entity_types=None) -> NERResponse:
+    def extract_entities(self, text, entity_types=None, language=None) -> NERResponse:
         time.sleep(self._block_seconds)
         return NERResponse(
             entities=[],
