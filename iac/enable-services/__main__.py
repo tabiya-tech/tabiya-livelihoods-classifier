@@ -30,6 +30,7 @@ REQUIRED_SERVICES = [
     # ── Backend ────────────────────────────────────────────────────────────
     "artifactregistry.googleapis.com",
     "run.googleapis.com",
+    "aiplatform.googleapis.com",          # required by nel_v2 Vertex AI embeddings
     "secretmanager.googleapis.com",
     "apigateway.googleapis.com",
     "servicemanagement.googleapis.com",  # required by API Gateway

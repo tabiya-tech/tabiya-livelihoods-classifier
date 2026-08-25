@@ -261,7 +261,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_v2_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
+                min_instance_count=0,
                 max_instance_count=10,
             ),
             containers=[
@@ -344,7 +344,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
+                min_instance_count=0,
                 max_instance_count=10,
             ),
             containers=[
