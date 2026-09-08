@@ -34,7 +34,7 @@ from .types import CatalogEntry, PluginStatus, ResolvedPlugin
 _logger = logging.getLogger(__name__)
 
 DEFAULT_CATALOG_PATH = Path(__file__).parent / "catalog.json"
-DEFAULT_FETCH_TIMEOUT_SECONDS = 5.0
+DEFAULT_FETCH_TIMEOUT_SECONDS = 30.0
 
 
 class IHttpClient(Protocol):
@@ -313,9 +313,12 @@ class PluginRegistry:
         if plugin is None:
             return None
 
-        # Already loaded (or previously failed and cached as UNAVAILABLE with
-        # a last_error — don't retry on every request).
-        if plugin.last_refreshed_at is not None:
+        # Already successfully loaded — return the cached manifest.
+        if plugin.status == PluginStatus.ENABLED:
+            return plugin
+
+        # Coming-soon plugins never become available — no point retrying.
+        if plugin.coming_soon:
             return plugin
 
         lock = self._fetch_locks.get(plugin_id)
@@ -324,7 +327,7 @@ class PluginRegistry:
 
         async with lock:
             # Re-check inside the lock in case another coroutine just loaded it.
-            if self._plugins[plugin_id].last_refreshed_at is not None:
+            if self._plugins[plugin_id].status == PluginStatus.ENABLED:
                 return self._plugins[plugin_id]
             entry = next(e for e in self._catalog if e.plugin_id == plugin_id)
             await self._refresh_one(entry)
@@ -352,5 +355,5 @@ class PluginRegistry:
         return entry.manifest
 
     async def get_status(self, plugin_id: str) -> PluginStatus:
-        entry = await self.get(plugin_id)
-        return entry.status if entry is not None else PluginStatus.UNAVAILABLE
+        plugin = self._plugins.get(plugin_id)
+        return plugin.status if plugin is not None else PluginStatus.UNAVAILABLE
