@@ -135,7 +135,7 @@ class _StubService(IPipelineService):
                 return clone_doc
         raise PipelineNotFoundError(pipeline_id, user_id)
 
-    def validate(self, stages: list[StageDocument]) -> list[ValidationIssue]:
+    async def validate(self, stages: list[StageDocument]) -> list[ValidationIssue]:
         self.calls.append(("validate", {"stages": [stage.model_dump() for stage in stages]}))
         if "validate" in self.raise_on:
             raise self.raise_on["validate"]

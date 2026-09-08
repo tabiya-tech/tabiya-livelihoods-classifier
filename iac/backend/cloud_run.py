@@ -371,7 +371,7 @@ def create_cloud_run_services(
                         ),
                         initial_delay_seconds=5,
                         period_seconds=5,
-                        failure_threshold=12,
+                        failure_threshold=24,
                     ),
                     liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
                         http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
