@@ -1,7 +1,14 @@
-"""Cloud Run services: NER, NEL, Classify.
+"""Cloud Run services: NER, NEL, Classify, plugin bundles.
 
 NER can optionally run on GPU (L4). NEL and Classify use CPU.
 All services are internal-only except via the API Gateway.
+
+The two plugin bundles are thin HTTP services:
+  - tabiya-core-bundle proxies to the existing NER (/v1/ner) and NEL
+    (/v1/nel) services; it runs no models of its own.
+  - tabiya-io-bundle hosts the text_input source and results sink; pure
+    transforms, no external calls.
+classify_v2 discovers them via TABIYA_CORE_BUNDLE_URL / TABIYA_IO_BUNDLE_URL.
 """
 
 import pulumi_gcp as gcp
@@ -16,6 +23,8 @@ def create_cloud_run_services(
     classify_image: str,
     nel_v2_image: str,
     classify_v2_image: str,
+    tabiya_core_image: str,
+    tabiya_io_image: str,
     hf_token_secret: gcp.secretmanager.Secret,
     mongodb_uri_secret: gcp.secretmanager.Secret,
     taxonomy_mongodb_uri_secret: gcp.secretmanager.Secret,
@@ -30,12 +39,29 @@ def create_cloud_run_services(
     gateway_base_url: str,
     vertex_api_region: str = "us-central1",
     env: str = "dev",
+    min_instances: int = 0,
+    max_instances: int = 0,
 ):
+    # Warm-instance floor for every service in the chain. Kept in stack config
+    # (see `minInstances`) so each environment sets its own policy: dev runs at
+    # 0 (scale to zero, no idle cost — first request after idle cold-starts),
+    # prod can pin 1 to keep the orchestrators warm.
+    #
+    # `max_instances` is an OPTIONAL env-wide ceiling: unlike min (uniform),
+    # each service has a deliberately tuned per-service cap below, so 0 (unset)
+    # means "keep each service's own default". A positive value overrides every
+    # service with a single ceiling (e.g. to bound cost in dev). Use
+    # `_max_instances(default)` per service to apply this rule.
+    def _max_instances(service_default: int) -> int:
+        return max_instances if max_instances > 0 else service_default
+
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
     classify_sa = service_accounts["classify_sa"]
     nel_v2_sa = service_accounts["nel_v2_sa"]
     classify_v2_sa = service_accounts["classify_v2_sa"]
+    tabiya_core_sa = service_accounts["tabiya_core_sa"]
+    tabiya_io_sa = service_accounts["tabiya_io_sa"]
 
     # ── NER service ───────────────────────────────────────────────────────────
     ner = gcp.cloudrunv2.Service(
@@ -47,8 +73,8 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=ner_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
-                max_instance_count=3,
+                min_instance_count=min_instances,
+                max_instance_count=_max_instances(3),
             ),
             containers=[
                 gcp.cloudrunv2.ServiceTemplateContainerArgs(
@@ -113,8 +139,8 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=nel_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
-                max_instance_count=5,
+                min_instance_count=min_instances,
+                max_instance_count=_max_instances(5),
             ),
             containers=[
                 gcp.cloudrunv2.ServiceTemplateContainerArgs(
@@ -176,8 +202,8 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=nel_v2_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
-                max_instance_count=5,
+                min_instance_count=min_instances,
+                max_instance_count=_max_instances(5),
             ),
             containers=[
                 gcp.cloudrunv2.ServiceTemplateContainerArgs(
@@ -251,6 +277,114 @@ def create_cloud_run_services(
         ),
     )
 
+    # ── Tabiya-Core plugin bundle ─────────────────────────────────────────────
+    # Thin proxy: NER plugin → ner-service /v1/ner, NEL plugin → nel-service
+    # /v1/nel. No models loaded here, so it's light and starts fast. Audience
+    # for the identity token is the bundle's own URL (self-reference resolved
+    # after creation).
+    tabiya_core = gcp.cloudrunv2.Service(
+        "tabiya-core-bundle",
+        project=project,
+        location=region,
+        name="tabiya-core-bundle",
+        ingress="INGRESS_TRAFFIC_ALL",
+        template=gcp.cloudrunv2.ServiceTemplateArgs(
+            service_account=tabiya_core_sa.email,
+            scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
+                min_instance_count=min_instances,
+                max_instance_count=_max_instances(3),
+            ),
+            containers=[
+                gcp.cloudrunv2.ServiceTemplateContainerArgs(
+                    image=tabiya_core_image,
+                    ports=[gcp.cloudrunv2.ServiceTemplateContainerPortArgs(container_port=5010)],
+                    resources=gcp.cloudrunv2.ServiceTemplateContainerResourcesArgs(
+                        limits={"cpu": "1", "memory": "1Gi"},
+                        startup_cpu_boost=True,
+                    ),
+                    envs=[
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="NER_API_URL", value=ner.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="NEL_V2_API_URL", value=nel_v2.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TARGET_ENVIRONMENT_TYPE", value=env
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="CORS_ALLOWED_ORIGINS", value=app_origin
+                        ),
+                    ],
+                    startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(
+                            path="/health", port=5010
+                        ),
+                        initial_delay_seconds=5,
+                        period_seconds=5,
+                        failure_threshold=12,
+                    ),
+                    liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
+                            path="/health", port=5010
+                        ),
+                        initial_delay_seconds=10,
+                        period_seconds=30,
+                    ),
+                )
+            ],
+        ),
+    )
+
+    # ── Tabiya-IO plugin bundle ───────────────────────────────────────────────
+    tabiya_io = gcp.cloudrunv2.Service(
+        "tabiya-io-bundle",
+        project=project,
+        location=region,
+        name="tabiya-io-bundle",
+        ingress="INGRESS_TRAFFIC_ALL",
+        template=gcp.cloudrunv2.ServiceTemplateArgs(
+            service_account=tabiya_io_sa.email,
+            scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
+                min_instance_count=min_instances,
+                max_instance_count=_max_instances(3),
+            ),
+            containers=[
+                gcp.cloudrunv2.ServiceTemplateContainerArgs(
+                    image=tabiya_io_image,
+                    ports=[gcp.cloudrunv2.ServiceTemplateContainerPortArgs(container_port=5011)],
+                    resources=gcp.cloudrunv2.ServiceTemplateContainerResourcesArgs(
+                        limits={"cpu": "1", "memory": "512Mi"},
+                        startup_cpu_boost=True,
+                    ),
+                    envs=[
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TARGET_ENVIRONMENT_TYPE", value=env
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="CORS_ALLOWED_ORIGINS", value=app_origin
+                        ),
+                    ],
+                    startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeHttpGetArgs(
+                            path="/health", port=5011
+                        ),
+                        initial_delay_seconds=5,
+                        period_seconds=5,
+                        failure_threshold=24,
+                    ),
+                    liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
+                        http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
+                            path="/health", port=5011
+                        ),
+                        initial_delay_seconds=10,
+                        period_seconds=30,
+                    ),
+                )
+            ],
+        ),
+    )
+
     # ── Classify v2 service ───────────────────────────────────────────────────
     classify_v2 = gcp.cloudrunv2.Service(
         "classify-v2-service",
@@ -261,8 +395,8 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_v2_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
-                max_instance_count=10,
+                min_instance_count=min_instances,
+                max_instance_count=_max_instances(10),
             ),
             containers=[
                 gcp.cloudrunv2.ServiceTemplateContainerArgs(
@@ -280,10 +414,47 @@ def create_cloud_run_services(
                             name="NEL_V2_API_URL", value=nel_v2.uri
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TABIYA_CORE_BUNDLE_URL", value=tabiya_core.uri
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TABIYA_IO_BUNDLE_URL", value=tabiya_io.uri
+                        ),
+                        # Defaults for lazy "Default Tabiya" pipeline seeding.
+                        # classify_v2 reads these to populate the seeded NEL
+                        # stage; without them, ensure_default() no-ops and a
+                        # fresh user gets no default pipeline.
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="DEFAULT_NEL_MODEL_ID", value=default_nel_model_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="DEFAULT_TAXONOMY_MODEL_ID", value=default_taxonomy_model_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="TARGET_ENVIRONMENT_TYPE", value=env
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="CORS_ALLOWED_ORIGINS", value=app_origin
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="APPLICATION_MONGODB_URI",
+                            value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                                secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                                    secret=mongodb_uri_secret.secret_id,
+                                    version="latest",
+                                ),
+                            ),
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="APPLICATION_DATABASE_NAME", value=mongodb_db_name
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="FIREBASE_PROJECT_ID", value=firebase_project_id
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GCP_PROJECT_ID", value=project
+                        ),
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="GCP_API_MANAGED_SERVICE", value=managed_service
                         ),
                     ],
                     startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
@@ -325,6 +496,45 @@ def create_cloud_run_services(
         member=classify_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
     )
 
+    # classify_v2 invokes the plugin bundles (executor → /plugin/*/invoke).
+    # The identity token it mints is only accepted if its SA has run.invoker.
+    gcp.cloudrunv2.ServiceIamMember(
+        "tabiya-core-classify-v2-invoker",
+        project=project,
+        location=region,
+        name=tabiya_core.name,
+        role="roles/run.invoker",
+        member=classify_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    gcp.cloudrunv2.ServiceIamMember(
+        "tabiya-io-classify-v2-invoker",
+        project=project,
+        location=region,
+        name=tabiya_io.name,
+        role="roles/run.invoker",
+        member=classify_v2_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    # The core bundle proxies to ner (v1) and nel_v2; grant it invoker on both.
+    gcp.cloudrunv2.ServiceIamMember(
+        "ner-tabiya-core-invoker",
+        project=project,
+        location=region,
+        name=ner.name,
+        role="roles/run.invoker",
+        member=tabiya_core_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
+    gcp.cloudrunv2.ServiceIamMember(
+        "nel-v2-tabiya-core-invoker",
+        project=project,
+        location=region,
+        name=nel_v2.name,
+        role="roles/run.invoker",
+        member=tabiya_core_sa.email.apply(lambda e: f"serviceAccount:{e}"),
+    )
+
     # Allow NEL v2 SA to call Vertex AI for embeddings
     gcp.projects.IAMMember(
         "nel-v2-vertex-ai-user",
@@ -344,8 +554,8 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
-                max_instance_count=10,
+                min_instance_count=min_instances,
+                max_instance_count=_max_instances(10),
             ),
             containers=[
                 gcp.cloudrunv2.ServiceTemplateContainerArgs(
@@ -436,4 +646,4 @@ def create_cloud_run_services(
             member=classify_sa.email.apply(lambda e: f"serviceAccount:{e}"),
         )
 
-    return ner, nel, classify, nel_v2, classify_v2
+    return ner, nel, classify, nel_v2, classify_v2, tabiya_core, tabiya_io

@@ -248,11 +248,14 @@ async def main(args: argparse.Namespace) -> None:
     hot_run: bool = args.hot_run
     indexes_only: bool = args.indexes_only
 
+    # Use `.get(...) or default` (not just a `.get` default) so a present-but-
+    # EMPTY env var (common in .env files with `KEY=`) falls back to the
+    # default rather than producing an empty database name / URL.
     app_uri = os.environ["APPLICATION_MONGODB_URI"]
-    app_db_name = os.environ.get("APPLICATION_DATABASE_NAME", "tabiya-classifier")
+    app_db_name = os.environ.get("APPLICATION_DATABASE_NAME") or "tabiya-classifier"
     taxonomy_uri = os.environ["TAXONOMY_MONGODB_URI"]
-    taxonomy_db_name = os.environ.get("TAXONOMY_DATABASE_NAME", "tabiya-taxonomy")
-    taxonomy_base_url = os.environ.get("TAXONOMY_API_BASE_URL", "https://taxonomy.tabiya.tech")
+    taxonomy_db_name = os.environ.get("TAXONOMY_DATABASE_NAME") or "tabiya-taxonomy"
+    taxonomy_base_url = os.environ.get("TAXONOMY_API_BASE_URL") or "https://taxonomy.tabiya.tech"
     taxonomy_api_key = os.environ.get("TAXONOMY_API_KEY", "")
 
     mode_label = "HOT-RUN (writes enabled)" if hot_run else "DRY-RUN (no writes)"

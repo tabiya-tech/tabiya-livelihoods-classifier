@@ -119,5 +119,5 @@ class TestEntityFilteringStillApplies:
         result = service.extract_entities("cocinero cocinar", entity_types=["occupation"], language="es")
 
         # THEN the filter is applied as it is for English
-        assert [e.entity_type.value for e in result.entities] == ["occupation"]
+        assert [e.entity_type for e in result.entities] == ["occupation"]
         assert result.metadata.entity_count == 1

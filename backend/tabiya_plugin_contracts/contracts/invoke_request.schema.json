@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "Context": {
+      "description": "Per-invoke context passed to Core functions.\n\nAdapters populate this from the HTTP request (or from a test fixture in\nthe in-process adapter).",
+      "properties": {
+        "deadline_ms": {
+          "default": 30000,
+          "description": "Wall-clock deadline the plugin SHOULD respect. Adapter enforces a hard timeout on top.",
+          "title": "Deadline Ms",
+          "type": "integer"
+        },
+        "pipeline_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pipeline Id"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "stage_index": {
+          "default": 0,
+          "title": "Stage Index",
+          "type": "integer"
+        },
+        "user_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "User Id"
+        }
+      },
+      "required": [
+        "request_id"
+      ],
+      "title": "Context",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "config": {
+      "additionalProperties": true,
+      "title": "Config",
+      "type": "object"
+    },
+    "context": {
+      "$ref": "#/$defs/Context"
+    },
+    "input": {
+      "additionalProperties": true,
+      "description": "Slot payload matching manifest.input_slot.type. Adapter parses this against SLOT_MODEL_BY_TYPE.",
+      "title": "Input",
+      "type": "object"
+    }
+  },
+  "required": [
+    "context"
+  ],
+  "title": "InvokeRequest",
+  "type": "object"
+}

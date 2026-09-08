@@ -1,0 +1,212 @@
+{
+  "$defs": {
+    "Entities": {
+      "properties": {
+        "entities": {
+          "items": {
+            "$ref": "#/$defs/Entity"
+          },
+          "title": "Entities",
+          "type": "array"
+        },
+        "source_text": {
+          "title": "Source Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entities",
+        "source_text"
+      ],
+      "title": "Entities",
+      "type": "object"
+    },
+    "Entity": {
+      "properties": {
+        "entity_type": {
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/EntitySpan"
+        },
+        "surface_form": {
+          "title": "Surface Form",
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface_form",
+        "entity_type",
+        "span"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "EntitySpan": {
+      "properties": {
+        "end": {
+          "title": "End",
+          "type": "integer"
+        },
+        "start": {
+          "title": "Start",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "EntitySpan",
+      "type": "object"
+    },
+    "LinkedEntities": {
+      "properties": {
+        "entities": {
+          "items": {
+            "$ref": "#/$defs/LinkedEntity"
+          },
+          "title": "Entities",
+          "type": "array"
+        },
+        "source_text": {
+          "title": "Source Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entities",
+        "source_text"
+      ],
+      "title": "LinkedEntities",
+      "type": "object"
+    },
+    "LinkedEntity": {
+      "properties": {
+        "entity_type": {
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "matches": {
+          "items": {
+            "$ref": "#/$defs/Match"
+          },
+          "title": "Matches",
+          "type": "array"
+        },
+        "span": {
+          "$ref": "#/$defs/EntitySpan"
+        },
+        "surface_form": {
+          "title": "Surface Form",
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface_form",
+        "entity_type",
+        "span"
+      ],
+      "title": "LinkedEntity",
+      "type": "object"
+    },
+    "Match": {
+      "description": "A single ESCO/taxonomy match for a linked entity.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "preferred_label": {
+          "title": "Preferred Label",
+          "type": "string"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
+        }
+      },
+      "required": [
+        "id",
+        "preferred_label",
+        "score"
+      ],
+      "title": "Match",
+      "type": "object"
+    },
+    "NoneSlot": {
+      "description": "Sentinel payload for Source inputs and Sink outputs.",
+      "properties": {
+        "kind": {
+          "const": "None",
+          "default": "None",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "NoneSlot",
+      "type": "object"
+    },
+    "RawText": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "RawText",
+      "type": "object"
+    },
+    "RawTextStream": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/RawTextStreamItem"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "RawTextStream",
+      "type": "object"
+    },
+    "RawTextStreamItem": {
+      "properties": {
+        "job_id": {
+          "title": "Job Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id",
+        "text"
+      ],
+      "title": "RawTextStreamItem",
+      "type": "object"
+    }
+  },
+  "title": "SlotPayloads"
+}

@@ -9,7 +9,7 @@ Routes:
   /v1/classify            → API key required
   /v1/classify/batch      → API key required
   /v1/batch/**            → API key required
-  /v2/classify            → API key required
+  /v2/classify            → Firebase Bearer OR API key (dashboard + programmatic)
   /v2/nel                 → API key required
   /v1/user/**             → Firebase Bearer token required
   /v2/nel/user/**         → Firebase Bearer token required
@@ -154,7 +154,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "batch_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_url}/v1/batch/{{batch_id}}/status",
+                        "address": classify_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Batch status"}},
@@ -169,7 +169,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "batch_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_url}/v1/batch/{{batch_id}}/results",
+                        "address": classify_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"200": {"description": "Batch results"}},
@@ -229,7 +229,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "key_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_url}/v1/user/api-keys/{{key_id}}",
+                        "address": classify_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "CORS preflight"}},
@@ -242,7 +242,7 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                         {"in": "path", "name": "key_id", "type": "string", "required": True}
                     ],
                     "x-google-backend": {
-                        "address": f"{classify_url}/v1/user/api-keys/{{key_id}}",
+                        "address": classify_url,
                         "pathTranslation": "APPEND_PATH_TO_ADDRESS",
                     },
                     "responses": {"204": {"description": "Revoked"}},
@@ -274,9 +274,21 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                 "post": {
                     "summary": "Classify a job description (v2 — full taxonomy schema)",
                     "operationId": "classifyV2",
-                    "security": [{"api_key": []}],
+                    # Accept EITHER a Firebase JWT (dashboard users) OR an API key
+                    # (programmatic callers). The web app is Firebase-authed, so it
+                    # sends a Bearer token; api_key stays valid for scripted access.
+                    "security": [{"firebase": []}, {"api_key": []}],
                     "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
-                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classify"},
+                    # A single classify fans out to several plugin services
+                    # (source → NER → NEL → sink), any of which may be cold and
+                    # loading an ML model. The gateway's default backend deadline
+                    # (~15s) cuts the first request off mid-cold-start, which is
+                    # why it "fails the first time then works". Raise it well
+                    # above the chained cold-start + per-stage budget.
+                    "x-google-backend": {
+                        "address": f"{classify_v2_url}/v2/classify",
+                        "deadline": 120.0,
+                    },
                     "responses": {"200": {"description": "Classification result"}},
                 },
             },
@@ -287,6 +299,307 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                     "x-google-backend": {"address": f"{classify_v2_url}/v2/classify/health"},
                     "responses": {"200": {"description": "OK"}},
                 }
+            },
+            "/v2/user/api-keys": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUserApiKeysV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/user/api-keys"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "List API keys (v2)",
+                    "operationId": "listApiKeysV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/user/api-keys"},
+                    "responses": {"200": {"description": "API key list"}},
+                },
+                "post": {
+                    "summary": "Create an API key (v2)",
+                    "operationId": "createApiKeyV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/user/api-keys"},
+                    "responses": {"201": {"description": "Created"}},
+                },
+            },
+            "/v2/user/api-keys/{key_id}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUserApiKeyByIdV2",
+                    "parameters": [
+                        {"in": "path", "name": "key_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "delete": {
+                    "summary": "Revoke an API key (v2)",
+                    "operationId": "deleteApiKeyV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "key_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "Revoked"}},
+                },
+            },
+            # ── Pipelines routes ──────────────────────────────────────────
+            "/v2/pipelines": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelinesV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "List pipelines",
+                    "operationId": "listPipelinesV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines"},
+                    "responses": {"200": {"description": "Pipeline list"}},
+                },
+                "post": {
+                    "summary": "Create a pipeline",
+                    "operationId": "createPipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines"},
+                    "responses": {"201": {"description": "Created"}},
+                },
+            },
+            "/v2/pipelines/validate": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelinesValidateV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines/validate"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "post": {
+                    "summary": "Validate a pipeline",
+                    "operationId": "validatePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/pipelines/validate"},
+                    "responses": {"200": {"description": "Validation result"}},
+                },
+            },
+            "/v2/pipelines/{pipeline_id}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelineByIdV2",
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get a pipeline",
+                    "operationId": "getPipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Pipeline"}},
+                },
+                "put": {
+                    "summary": "Update a pipeline",
+                    "operationId": "updatePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True},
+                        {"in": "body", "name": "body", "schema": {"type": "object"}},
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Updated"}},
+                },
+                "delete": {
+                    "summary": "Delete a pipeline",
+                    "operationId": "deletePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "Deleted"}},
+                },
+            },
+            "/v2/pipelines/{pipeline_id}/activate": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelineActivateV2",
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "post": {
+                    "summary": "Activate a pipeline",
+                    "operationId": "activatePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Activated"}},
+                },
+            },
+            "/v2/pipelines/{pipeline_id}/clone": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPipelineCloneV2",
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "post": {
+                    "summary": "Clone a pipeline",
+                    "operationId": "clonePipelineV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "pipeline_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"201": {"description": "Cloned"}},
+                },
+            },
+            # ── Plugins routes ────────────────────────────────────────────
+            "/v2/plugins": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPluginsV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/plugins"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "List plugins",
+                    "operationId": "listPluginsV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/plugins"},
+                    "responses": {"200": {"description": "Plugin list"}},
+                },
+            },
+            "/v2/plugins/{plugin_id}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPluginByIdV2",
+                    "parameters": [
+                        {"in": "path", "name": "plugin_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get plugin detail",
+                    "operationId": "getPluginV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "plugin_id", "type": "string", "required": True}
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Plugin detail"}},
+                },
+            },
+            "/v2/plugins/{plugin_id}/options/{field}": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsPluginOptionsV2",
+                    "parameters": [
+                        {"in": "path", "name": "plugin_id", "type": "string", "required": True},
+                        {"in": "path", "name": "field", "type": "string", "required": True},
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get plugin field options",
+                    "operationId": "getPluginOptionsV2",
+                    "security": [{"firebase": []}],
+                    "parameters": [
+                        {"in": "path", "name": "plugin_id", "type": "string", "required": True},
+                        {"in": "path", "name": "field", "type": "string", "required": True},
+                    ],
+                    "x-google-backend": {
+                        "address": classify_v2_url,
+                        "pathTranslation": "APPEND_PATH_TO_ADDRESS",
+                    },
+                    "responses": {"200": {"description": "Plugin options"}},
+                },
+            },
+            # ── Classifications history + usage ───────────────────────────
+            "/v2/classifications": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsClassificationsV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classifications"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "List classification history",
+                    "operationId": "listClassificationsV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/classifications"},
+                    "responses": {"200": {"description": "Classification list"}},
+                },
+            },
+            "/v2/usage": {
+                "options": {
+                    "summary": "CORS preflight",
+                    "operationId": "corsUsageV2",
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/usage"},
+                    "responses": {"204": {"description": "CORS preflight"}},
+                },
+                "get": {
+                    "summary": "Get usage stats",
+                    "operationId": "getUsageV2",
+                    "security": [{"firebase": []}],
+                    "x-google-backend": {"address": f"{classify_v2_url}/v2/usage"},
+                    "responses": {"200": {"description": "Usage data"}},
+                },
             },
             "/v2/nel": {
                 "options": {

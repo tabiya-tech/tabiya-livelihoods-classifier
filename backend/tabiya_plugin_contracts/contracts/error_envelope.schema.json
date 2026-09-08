@@ -1,0 +1,44 @@
+{
+  "$defs": {
+    "ErrorCode": {
+      "enum": [
+        "PLUGIN_INTERNAL",
+        "BAD_INPUT",
+        "TIMEOUT",
+        "UPSTREAM_UNAVAILABLE",
+        "CONFIG_INVALID",
+        "UNAVAILABLE"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "code": {
+      "$ref": "#/$defs/ErrorCode"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "message"
+  ],
+  "title": "ErrorEnvelope",
+  "type": "object"
+}

@@ -26,6 +26,14 @@ class ClassifyRequest(BaseModel):
     title: Optional[str] = Field(None, description="Job title.")
     description: Optional[str] = Field(None, description="Job description.")
     options: Optional[ClassifyOptions] = None
+    pipeline_id: Optional[str] = Field(
+        None,
+        description=(
+            "Override the caller's active pipeline for this request. When "
+            "unset, the caller's active pipeline is used (or the seeded "
+            "Default Tabiya if none)."
+        ),
+    )
 
 
 # ── Entity types (mirrors nel_v2 types) ──────────────────────────────────────
@@ -87,12 +95,24 @@ class ClassifiedEntity(BaseModel):
     matches: list[TaxonomyMatch] = []
 
 
+class PipelineStageSummary(BaseModel):
+    plugin_id: str
+    category: str
+
+
+class PipelineSummary(BaseModel):
+    pipeline_id: str
+    name: str
+    stages: list[PipelineStageSummary]
+
+
 class ClassifyMetadata(BaseModel):
     classifier_version: str
     ner_model: str
     nel_model_id: str
     taxonomy_model_id: str
     processing_time_ms: float
+    pipeline: Optional[PipelineSummary] = None
 
 
 class ClassifyResponse(BaseModel):

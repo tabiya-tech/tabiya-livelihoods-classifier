@@ -1,0 +1,407 @@
+{
+  "common": {
+    "buttons": {
+      "signIn": "Se connecter",
+      "signOut": "Se déconnecter",
+      "createAccount": "Créer un compte",
+      "save": "Enregistrer",
+      "discard": "Annuler les modifications",
+      "keepEditing": "Continuer la modification",
+      "cancel": "Annuler",
+      "copy": "Copier",
+      "copied": "Copié"
+    },
+    "fields": {
+      "email": "E-mail",
+      "password": "Mot de passe"
+    },
+    "loading": "Chargement",
+    "loadingSession": "Chargement de la session"
+  },
+  "auth": {
+    "login": {
+      "signInHeading": "Connexion",
+      "signUpHeading": "Créez votre compte",
+      "signInSubheading": "Bon retour parmi nous.",
+      "signUpSubheading": "Créez un compte en 30 secondes.",
+      "emailPlaceholder": "vous@tabiya.org",
+      "passwordPlaceholder": "••••••••",
+      "toggleToSignUp": "Pas de compte ? Créez-en un",
+      "toggleToSignIn": "Vous avez déjà un compte ? Connectez-vous",
+      "tagline": {
+        "eyebrow": "Du texte d'offre à ESCO",
+        "body": "Extrayez <occupations>les métiers</occupations>, <skills>les compétences</skills> et <qualifications>les qualifications</qualifications> de toute description de poste — et reliez-les à la taxonomie européenne en quelques millisecondes."
+      },
+      "errorFallback": "La connexion a échoué. Veuillez réessayer.",
+      "versionFooter": "v1.0.0 · classifier.tabiya.tech"
+    }
+  },
+  "shell": {
+    "brand": {
+      "name": "Tabiya",
+      "product": "Classifier"
+    },
+    "nav": {
+      "groups": {
+        "workspace": "Espace de travail",
+        "settings": "Paramètres"
+      },
+      "items": {
+        "classifier": "Classifier",
+        "dashboard": "Tableau de bord",
+        "history": "Historique",
+        "configuration": "Configuration",
+        "keys": "Clés",
+        "documentation": "Documentation",
+        "pipelines": "Pipelines"
+      }
+    },
+    "topbar": {
+      "apiHealthy": "API opérationnelle",
+      "apiDegraded": "API dégradée",
+      "apiOffline": "API hors ligne",
+      "apiChecking": "Vérification de l'API…",
+      "apiHealthCheckTooltip": "Cliquer pour vérifier la santé de l'API"
+    },
+    "languageMenu": {
+      "selectLanguage": "Choisir la langue"
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Espace de travail · Tableau de bord",
+    "welcomeBack": "Bon retour, {{name}}",
+    "fallbackName": "vous",
+    "stats": {
+      "callsThisWeek": "Appels cette semaine",
+      "callsDelta": "{{delta}} vs semaine dernière",
+      "activeKeys": "Clés API actives",
+      "activePipeline": "Pipeline actif"
+    },
+    "usageChart": {
+      "title": "Classifications · 30 jours",
+      "emptyTitle": "Aucune classification",
+      "emptyDescription": "Lancez une classification depuis la page Classifier pour voir les données d'utilisation ici.",
+      "tooltipLabel": "appels"
+    },
+    "recentClassifications": {
+      "title": "Classifications récentes",
+      "viewAll": "Tout voir",
+      "empty": "Aucune classification"
+    }
+  },
+  "history": {
+    "eyebrow": "Espace de travail · Historique",
+    "title": "Historique des classifications",
+    "intro": "Un enregistrement de chaque classification effectuée sur votre compte.",
+    "table": {
+      "headerDate": "Date",
+      "headerPipeline": "Pipeline",
+      "headerEntities": "Entités",
+      "headerDuration": "Durée",
+      "empty": "Aucune classification",
+      "emptyDescription": "Les classifications apparaissent ici après avoir utilisé le Classifier."
+    },
+    "loadMore": "Charger plus",
+    "toasts": {
+      "loadError": "Impossible de charger l'historique des classifications."
+    }
+  },
+  "configuration": {
+    "eyebrow": "Paramètres · Configuration du pipeline",
+    "title": "Configuration",
+    "intro": "Choisissez les modèles qui pilotent vos classifications. Les paramètres s'appliquent à chaque appel d'API et au Classifier intégré — les traitements par lots déjà lancés conservent leur configuration d'origine.",
+    "stages": {
+      "nel": {
+        "number": "01",
+        "label": "NEL",
+        "subLabel": "Liaison d'entités",
+        "panelEyebrow": "Étape 01",
+        "panelTitle": "Liaison d'entités nommées",
+        "panelIntro": "Le modèle d'embedding qui associe chaque entité détectée au concept ESCO le plus proche par similarité vectorielle. Des dimensions plus élevées améliorent le rappel sur les termes ambigus ; des dimensions plus faibles sont plus rapides et économiques.",
+        "sectionLabel": "Modèle d'embedding"
+      },
+      "taxonomy": {
+        "number": "02",
+        "label": "Taxonomie",
+        "subLabel": "Vocabulaire de référence",
+        "panelEyebrow": "Données de référence",
+        "panelTitle": "Taxonomie",
+        "panelIntro": "Le vocabulaire de référence auquel les entités sont reliées. Les versions ESCO récentes étendent la couverture ; les versions plus anciennes préservent la compatibilité avec les pipelines en aval qui ciblent des URI précises.",
+        "sectionLabel": "Taxonomie active"
+      }
+    },
+    "modelOption": {
+      "recommendedBadge": "recommandé",
+      "dimensionsSuffix": "{{dimensions}} dimensions"
+    },
+    "saveBar": {
+      "dirtyTitle": "Modifications non enregistrées",
+      "dirtyHelp": "S'appliqueront aux appels d'API et au Classifier après enregistrement.",
+      "savedTitle": "Configuration enregistrée",
+      "savedHelp": "S'applique à tous les appels d'API suivants.",
+      "savingTitle": "Enregistrement…",
+      "savingHelp": "Envoi des modifications au serveur.",
+      "savedIndicator": "Enregistré"
+    },
+    "toasts": {
+      "saveError": "Impossible d'enregistrer la configuration. Veuillez réessayer.",
+      "saveSuccess": "Configuration enregistrée"
+    },
+    "unsavedGuard": {
+      "title": "Annuler les modifications non enregistrées ?",
+      "description": "Si vous quittez cette page maintenant, les modifications apportées à votre configuration seront perdues.",
+      "confirmLabel": "Annuler les modifications"
+    },
+    "errors": {
+      "loadFailed": "Impossible de charger votre configuration. Actualisez pour réessayer."
+    }
+  },
+  "keys": {
+    "eyebrow": "Paramètres · Clés API",
+    "title": "Clés API",
+    "intro": "Les clés authentifient l'accès programmatique à l'API Classifier. La valeur en clair n'est affichée qu'une seule fois lors de la création — copiez-la avant de quitter la page.",
+    "tabiyaSectionTitle": "Clés API Tabiya",
+    "tabiyaSectionIntro": "À utiliser avec l'en-tête {{header}} sur {{endpoint}}.",
+    "tabiyaSectionHeader": "x-api-key",
+    "tabiyaSectionEndpoint": "/v1/classify",
+    "createForm": {
+      "labelLabel": "Libellé",
+      "labelPlaceholder": "ex. ordinateur-analyste",
+      "submit": "Créer la clé",
+      "maxReachedHelp": "Vous avez atteint la limite de {{max}} clés. Révoquez-en une pour en créer une autre."
+    },
+    "table": {
+      "headerLabel": "Libellé",
+      "headerCreated": "Créée le",
+      "headerLastUsed": "Dernière utilisation",
+      "headerActions": "Actions",
+      "lastUsedNever": "Jamais",
+      "revokeButton": "Révoquer"
+    },
+    "revealBanner": {
+      "title": "Copiez votre nouvelle clé",
+      "description": "C'est la seule fois que la valeur en clair sera affichée. Conservez-la en lieu sûr — vous ne pourrez plus la consulter.",
+      "dismiss": "Je l'ai copiée"
+    },
+    "revokeModal": {
+      "title": "Révoquer cette clé ?",
+      "description": "Les appels authentifiés avec « {{label}} » échoueront immédiatement. Cette action est irréversible.",
+      "confirmLabel": "Révoquer la clé"
+    },
+    "empty": {
+      "title": "Aucune clé API",
+      "description": "Créez votre première clé pour commencer à authentifier vos appels à l'API Classifier.",
+      "actionLabel": "Créer votre première clé"
+    },
+    "toasts": {
+      "createError": "Impossible de créer la clé. Veuillez réessayer.",
+      "revokeError": "Impossible de révoquer la clé. Veuillez réessayer.",
+      "loadError": "Impossible de charger vos clés API.",
+      "copySuccess": "Clé copiée dans le presse-papiers"
+    }
+  },
+  "classifier": {
+    "eyebrow": "Espace · Classifier",
+    "title": "Classifier",
+    "intro": "Collez une offre d'emploi et nous extrairons les métiers, compétences et qualifications — chacun relié au concept ESCO le plus proche.",
+    "activeConfig": {
+      "tag": "config active",
+      "summary": "{{nel}} · {{taxonomy}}",
+      "loading": "Chargement de la config active…",
+      "configureLink": "Configurer"
+    },
+    "pipelineSelector": {
+      "loading": "Chargement des pipelines…",
+      "editLink": "Modifier dans Pipelines",
+      "activeBadge": "Actif",
+      "ariaLabel": "Sélectionner un pipeline"
+    },
+    "placeholder": {
+      "idleTitle": "Lancez une classification pour voir les résultats",
+      "idleHelp": "Collez une offre à gauche et cliquez sur Classifier.",
+      "runningTitle": "Classification en cours…",
+      "runningHelp": "Extraction des entités et liaison à ESCO."
+    },
+    "toasts": {
+      "runError": "Impossible de classifier ce texte. Veuillez réessayer."
+    },
+    "entityDetail": {
+      "spanLabel": "Étendue {{start}}–{{end}}",
+      "matchesHeading": "{{count}} correspondances ESCO",
+      "openInTaxonomy": "Ouvrir dans la taxonomie",
+      "attrEscoCode": "ESCO {{value}}",
+      "attrSkillType": "Type {{value}}",
+      "attrReuseLevel": "Réutilisation {{value}}",
+      "attrEqfLevel": "EQF {{value}}",
+      "attrCountry": "{{value}}",
+      "attrAltLabels": "Aussi : {{value}}"
+    },
+    "source": {
+      "placeholder": "Collez une offre d'emploi ici — ou déposez un fichier ci-dessous.",
+      "runButton": "Classifier",
+      "clearButton": "Effacer"
+    },
+    "upload": {
+      "prompt": "Déposez un fichier ou cliquez pour téléverser",
+      "subPrompt": ".txt, .md, .json — jusqu'à 1 Mo",
+      "errorTooLarge": "Fichier trop volumineux — maximum {{maxKb}} Ko.",
+      "errorRead": "Impossible de lire ce fichier."
+    },
+    "pipelineParams": {
+      "topKLabel": "Correspondances par entité",
+      "topKHint": "1 à 50",
+      "minSimilarityLabel": "Similarité minimale",
+      "minSimilarityHint": "Score cosinus entre 0,00 et 1,00"
+    },
+    "entityTypeFilter": {
+      "ariaLabel": "Filtrer les entités par type",
+      "types": {
+        "occupation": "Métiers",
+        "skill": "Compétences",
+        "qualification": "Qualifications",
+        "experience": "Expérience",
+        "domain": "Domaine"
+      }
+    },
+    "results": {
+      "downloadJson": "Télécharger le JSON",
+      "downloadCsv": "Télécharger le CSV",
+      "noMatches": "Aucune correspondance au-dessus du seuil",
+      "emptyTitle": "Rien à afficher",
+      "emptyDescription": "Ajustez le filtre des types d'entités pour voir les résultats ici."
+    },
+    "resultsTabs": {
+      "ariaLabel": "Vues des résultats",
+      "entities": "Entités",
+      "table": "Tableau",
+      "json": "JSON"
+    },
+    "entityGroup": {
+      "showMore": "Afficher {{count}} de plus",
+      "showLess": "Afficher moins"
+    },
+    "resultsTable": {
+      "headerType": "Type",
+      "headerSurfaceForm": "Forme de surface",
+      "headerTopMatch": "Meilleure correspondance",
+      "headerScore": "Score",
+      "openButton": "Ouvrir"
+    }
+  },
+  "pipelines": {
+    "list": {
+      "eyebrow": "Espace de travail · Pipelines",
+      "title": "Pipelines",
+      "intro": "Les pipelines définissent la séquence de plugins utilisée pour classifier le texte. Activez un pipeline pour en faire la valeur par défaut pour tous les appels d'API et le Classifier intégré.",
+      "newButton": "Nouveau pipeline",
+      "libraryButton": "Bibliothèque de plugins",
+      "table": {
+        "headerName": "Nom",
+        "headerActive": "Actif",
+        "headerUpdated": "Dernière mise à jour",
+        "headerActions": "Actions"
+      },
+      "badges": {
+        "default": "Par défaut",
+        "readonly": "Lecture seule"
+      },
+      "tabs": {
+        "activeBadge": "Actif"
+      },
+      "actions": {
+        "activate": "Activer",
+        "edit": "Modifier",
+        "clone": "Cloner",
+        "delete": "Supprimer"
+      },
+      "empty": {
+        "title": "Aucun pipeline",
+        "description": "Votre compte ne possède aucun pipeline. Le pipeline Tabiya par défaut sera utilisé pour toutes les classifications."
+      },
+      "toasts": {
+        "activateError": "Impossible d'activer ce pipeline. Veuillez réessayer.",
+        "cloneError": "Impossible de cloner ce pipeline. Veuillez réessayer.",
+        "deleteError": "Impossible de supprimer ce pipeline. Veuillez réessayer.",
+        "loadError": "Impossible de charger vos pipelines."
+      }
+    },
+    "editor": {
+      "eyebrow": "Espace de travail · Éditeur de pipeline",
+      "title": {
+        "new": "Nouveau pipeline",
+        "edit": "Modifier le pipeline"
+      },
+      "titlePlaceholder": "Pipeline sans titre",
+      "titleClickToRename": "Cliquez pour renommer",
+      "stageValidationError": "Erreur de validation",
+      "saveBar": {
+        "saveButton": "Enregistrer",
+        "cancelButton": "Annuler",
+        "validating": "Vérification…",
+        "valid": "Valide",
+        "issuesCount": "{{count}} problème",
+        "issuesCount_plural": "{{count}} problèmes"
+      },
+      "palette": {
+        "loading": "Chargement des plugins…",
+        "error": "Impossible de charger les plugins.",
+        "comingSoon": "Bientôt",
+        "unavailable": "Indisponible",
+        "unreachableTooltip": "Bundle du plugin inaccessible"
+      },
+      "configForm": {
+        "errorOptions": "Impossible de charger les options",
+        "loading": "Chargement…",
+        "selectPlaceholder": "— sélectionner —",
+        "noOptions": "Aucune option de configuration pour cette étape."
+      },
+      "drawer": {
+        "deleteButton": "Supprimer l'étape",
+        "closeButton": "Fermer",
+        "slots": {
+          "input": "Entrée",
+          "output": "Sortie"
+        }
+      },
+      "errors": {
+        "title": "Erreurs de validation",
+        "slotMismatch": "Types de slots incompatibles — impossible de connecter ces étapes."
+      },
+      "emptyPrompt": "Faites glisser des plugins depuis la palette pour commencer à construire votre pipeline.",
+      "toasts": {
+        "slotMismatch": "Types de slots incompatibles.",
+        "saveError": "Impossible d'enregistrer le pipeline. Veuillez réessayer.",
+        "loadError": "Impossible de charger le pipeline."
+      },
+      "unsavedGuard": {
+        "title": "Annuler les modifications ?",
+        "description": "Quitter cette page annulera les modifications apportées au pipeline.",
+        "discard": "Annuler les modifications",
+        "keepEditing": "Continuer la modification"
+      },
+      "runPreview": {
+        "playButton": "Lire l'aperçu",
+        "resetButton": "Réinitialiser",
+        "status": {
+          "idle": "Prêt",
+          "playing": "En cours",
+          "done": "Terminé"
+        }
+      }
+    },
+    "library": {
+      "eyebrow": "Espace de travail · Bibliothèque de plugins",
+      "title": "Bibliothèque de plugins",
+      "intro": "Parcourez les plugins disponibles dans ce déploiement. Cliquez sur un plugin pour voir son schéma de configuration et ses types de slots.",
+      "detail": {
+        "emptyPrompt": "Sélectionnez un plugin dans la liste pour voir son schéma.",
+        "slotsHeading": "Slots",
+        "slotInput": "Entrée",
+        "slotOutput": "Sortie",
+        "schemaHeading": "Schéma de configuration",
+        "capabilitiesHeading": "Fonctionnalités",
+        "timeoutLabel": "Délai d'attente"
+      }
+    }
+  }
+}

@@ -4,7 +4,10 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from nel.app.embedding.service.service import get_embedding_service
+from nel.app.embedding.service.service import (
+    EmbeddingBackendUnavailableError,
+    get_embedding_service,
+)
 from nel.app.embeddings_cache.repository.repository import EmbeddingsCacheRepository
 from nel.app.linking.repository.repository import EntityLinkingRepository
 from nel.app.linking.routes._types import NELRequest
@@ -35,7 +38,14 @@ async def _get_service(user_config: UserConfig = Depends(_get_user_config)) -> I
     app_db = await ClassifierDBProvider.get_application_db()
     taxonomy_db = await ClassifierDBProvider.get_taxonomy_db()
     cache_repo = EmbeddingsCacheRepository(app_db=app_db, taxonomy_db=taxonomy_db)
-    embedding_svc = await get_embedding_service(nel_model_id)
+    try:
+        embedding_svc = await get_embedding_service(nel_model_id)
+    except EmbeddingBackendUnavailableError as exc:
+        # e.g. Vertex AI not enabled / no access on the project. This is an
+        # operational/config problem, not a client error — surface it as 503
+        # so the classify pipeline's NEL stage maps it to a retryable failure
+        # rather than an opaque 500.
+        raise HTTPException(status_code=503, detail=str(exc))
     linking_repo = EntityLinkingRepository(cache_repo, dimensions=embedding_svc.dimensions)
     return NELService(
         linking_repository=linking_repo,
@@ -86,4 +96,7 @@ async def link_entities(
             options=NELOptions(top_k=request.top_k, min_similarity=request.min_similarity),
         )
     except EmbeddingsCacheNotReadyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except EmbeddingBackendUnavailableError as exc:
+        # Vertex became unavailable mid-request (embed call itself failed).
         raise HTTPException(status_code=503, detail=str(exc))
