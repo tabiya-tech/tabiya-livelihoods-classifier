@@ -127,7 +127,7 @@ async def validate_pipeline(
     _uid: str = Depends(get_firebase_uid),
     svc: IPipelineService = Depends(get_pipeline_service),
 ) -> ValidatePipelineResponse:
-    issues = svc.validate(request.stages)
+    issues = await svc.validate(request.stages)
     return ValidatePipelineResponse(valid=not issues, issues=issues)
 
 
