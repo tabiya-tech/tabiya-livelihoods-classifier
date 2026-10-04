@@ -63,6 +63,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
+          pip install poetry==1.8.3
           pip install \
             -r iac/scripts/requirements.txt \
             -r iac/enable-services/requirements.txt \
@@ -202,7 +203,9 @@ jobs:
           aws-region: us-east-1
 
       - name: Install Python dependencies
-        run: pip install -r iac/frontend/requirements.txt
+        run: |
+          pip install poetry==1.8.3
+          pip install -r iac/frontend/requirements.txt
 
       - name: Install Pulumi CLI
         uses: pulumi/actions@v5
@@ -256,7 +259,9 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Install Python dependencies
-        run: pip install -r iac/common/requirements.txt
+        run: |
+          pip install poetry==1.8.3
+          pip install -r iac/common/requirements.txt
 
       - name: Install Pulumi CLI
         uses: pulumi/actions@v5
@@ -296,7 +301,9 @@ jobs:
           aws-region: us-east-1
 
       - name: Install Python dependencies
-        run: pip install -r iac/aws-ns/requirements.txt
+        run: |
+          pip install poetry==1.8.3
+          pip install -r iac/aws-ns/requirements.txt
 
       - name: Install Pulumi CLI
         uses: pulumi/actions@v5
