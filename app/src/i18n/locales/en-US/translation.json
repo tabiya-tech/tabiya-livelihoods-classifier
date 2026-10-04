@@ -218,7 +218,7 @@
     },
     "noApiKey": {
       "title": "An API key is required to classify",
-      "description": "Create an API key on the API Keys page. Once created, it will be stored in your browser and used automatically for all classify requests.",
+      "description": "Create an API key on the API Keys page. The key is stored in your browser and used automatically. If you already have keys, create a new one — existing key strings can't be recovered.",
       "cta": "Go to API Keys"
     },
     "placeholder": {

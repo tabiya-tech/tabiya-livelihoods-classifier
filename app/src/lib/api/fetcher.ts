@@ -76,8 +76,17 @@ export async function request<TResponse>(
 
   const activeKey = resolveApiKey();
 
-  // API key mode: attach x-api-key, no token refresh needed.
-  if (activeKey) {
+  // API key mode: the actual inference endpoints (classify, ner, nel).
+  // Management routes (/v2/user/*, /v2/pipelines/*, /v2/nel/models, etc.)
+  // always require Firebase — keep them out of this branch.
+  const isApiKeyRoute =
+    path === "/v2/classify" ||
+    path === "/v1/classify" ||
+    path.startsWith("/v1/classify/") ||
+    path === "/v1/ner" ||
+    path === "/v1/nel" ||
+    path === "/v2/nel";
+  if (activeKey && isApiKeyRoute) {
     const init: RequestInit = {
       ...options,
       headers: {
