@@ -7,7 +7,7 @@ on:
 # Only one deploy at a time; cancel in-progress CI runs on the same branch
 # but never cancel a deploy that is already running.
 concurrency:
-  group: ${{ github.workflow }}-${{ contains(github.event.head_commit.message, '[deploy dev]') && 'deploying' || github.ref_name }}
+  group: ${{ github.workflow }}-${{ (contains(github.event.head_commit.message, '[deploy dev]') || github.ref_name == 'dev') && 'deploying' || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -16,8 +16,8 @@ jobs:
     uses: ./.github/workflows/backend-ci.yml
     secrets: inherit
     with:
-      # Build and push images only when deploying
-      upload-artifacts: ${{ contains(github.event.head_commit.message, '[deploy dev]') }}
+      # Build and push images when deploying to dev (via flag on any branch, or merge to dev)
+      upload-artifacts: ${{ contains(github.event.head_commit.message, '[deploy dev]') || github.ref_name == 'dev' }}
       stack: dev
 
   frontend-ci:
@@ -25,11 +25,20 @@ jobs:
     uses: ./.github/workflows/frontend-ci.yml
     secrets: inherit
 
-  deploy:
+  deploy-dev:
     name: Deploy dev
     needs: [backend-ci, frontend-ci]
-    if: contains(github.event.head_commit.message, '[deploy dev]')
+    if: contains(github.event.head_commit.message, '[deploy dev]') || github.ref_name == 'dev'
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
     with:
       stack: dev
+
+  # deploy-prod:
+  #   name: Deploy prod
+  #   needs: [backend-ci, frontend-ci]
+  #   if: github.ref_name == 'main'
+  #   uses: ./.github/workflows/deploy.yml
+  #   secrets: inherit
+  #   with:
+  #     stack: prod
