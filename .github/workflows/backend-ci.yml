@@ -58,15 +58,34 @@ jobs:
       - name: Install Poetry
         run: pip install poetry==1.8.3
 
+      # Cache the shared package's venv separately — services that need it
+      # install it first, so we key on shared's lock file.
+      - name: Cache shared Poetry venv
+        if: matrix.needs_shared
+        uses: actions/cache@v4
+        with:
+          path: backend/shared/.venv
+          key: poetry-shared-${{ runner.os }}-${{ hashFiles('backend/shared/poetry.lock') }}
+
       - name: Install shared
         if: matrix.needs_shared
         working-directory: backend/shared
-        run: poetry install --no-root
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry install --no-root
+
+      - name: Cache Poetry venv
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.path }}/.venv
+          key: poetry-${{ matrix.service }}-${{ runner.os }}-${{ hashFiles(format('{0}/poetry.lock', matrix.path)) }}
 
       - name: Install dependencies
         # `shared` is a library, not a service: install it without its own root package
         # so its language-registry tests run without pulling a service's deps.
-        run: poetry install --no-interaction ${{ matrix.service == 'nel_v2' && '--extras inference' || '' }} ${{ matrix.service == 'shared' && '--no-root' || '' }}
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction ${{ matrix.service == 'nel_v2' && '--extras inference' || '' }} ${{ matrix.service == 'shared' && '--no-root' || '' }}
         working-directory: ${{ matrix.path }}
 
       - name: Run tests
@@ -113,21 +132,21 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
-      - name: Build Docker image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
         run: |
           REGISTRY="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/tabiya-classifier"
           echo "${{ secrets.HF_TOKEN }}" > /tmp/hf_token
-          docker build \
-            -f ${{ matrix.dockerfile }} \
+          docker buildx build \
+            --cache-from type=registry,ref=${REGISTRY}/${{ matrix.service }}:cache \
+            --cache-to   type=registry,ref=${REGISTRY}/${{ matrix.service }}:cache,mode=max \
             --secret id=HF_TOKEN,src=/tmp/hf_token \
+            -f ${{ matrix.dockerfile }} \
             -t ${REGISTRY}/${{ matrix.service }}:${{ github.sha }} \
             -t ${REGISTRY}/${{ matrix.service }}:latest \
+            --push \
             .
           rm -f /tmp/hf_token
-
-      - name: Push Docker image
-        run: |
-          REGISTRY="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/tabiya-classifier"
-          docker push ${REGISTRY}/${{ matrix.service }}:${{ github.sha }}
-          docker push ${REGISTRY}/${{ matrix.service }}:latest
           echo "IMAGE=${REGISTRY}/${{ matrix.service }}:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
