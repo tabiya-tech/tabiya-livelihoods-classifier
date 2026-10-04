@@ -61,6 +61,7 @@ const apiMocks = vi.hoisted(() => {
   };
   return {
     classify: vi.fn(),
+    createApiKey: vi.fn(),
     getV2UserConfig: vi.fn(async () => ({
       nel_model_id: "all-MiniLM-L6-v2",
       taxonomy_model_id: "esco-1.1.1",
@@ -82,16 +83,7 @@ vi.mock("@/lib/activeApiKey", () => ({
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
-  return {
-    ...actual,
-    classify: apiMocks.classify,
-    getV2UserConfig: apiMocks.getV2UserConfig,
-    saveV2UserConfig: apiMocks.saveV2UserConfig,
-    listNelModels: apiMocks.listNelModels,
-    listTaxonomyModels: apiMocks.listTaxonomyModels,
-    listPipelines: apiMocks.listPipelines,
-    activatePipeline: apiMocks.activatePipeline,
-  };
+  return { ...actual, ...apiMocks };
 });
 
 import { ToastProvider } from "@/components";

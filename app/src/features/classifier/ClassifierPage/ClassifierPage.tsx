@@ -21,7 +21,6 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/components";
 import type {
@@ -29,9 +28,9 @@ import type {
   ClassifyEntityType,
   ClassifyRequest,
 } from "@/lib/api";
-import { getActiveApiKey } from "@/lib/activeApiKey";
+import { createApiKey } from "@/lib/api";
+import { getActiveApiKey, setActiveApiKey } from "@/lib/activeApiKey";
 import { mergeClassNames } from "@/lib/mergeClassNames";
-import { routerPaths } from "@/routes/routerPaths";
 import { EntityDetailDrawer } from "../components/EntityDetailDrawer/EntityDetailDrawer";
 import { PipelineSelectorChip, PipelineStageChips } from "../components/PipelineSelectorChip/PipelineSelectorChip";
 import {
@@ -60,8 +59,26 @@ export const DATA_TEST_ID = {
 };
 
 export function ClassifierPage() {
-  const hasActiveKey = getActiveApiKey() !== null;
-  if (!hasActiveKey) return <NoApiKeyBanner />;
+  const [ready, setReady] = useState(() => getActiveApiKey() !== null);
+
+  useEffect(() => {
+    if (ready) return;
+    let cancelled = false;
+    createApiKey("browser_key")
+      .then((response) => {
+        if (cancelled) return;
+        setActiveApiKey({ key_id: response.meta.key_id, key_string: response.key, label: response.meta.label });
+        setReady(true);
+      })
+      .catch(() => {
+        // Silent — if key creation fails the page stays blank; the user can
+        // refresh. We don't surface an error here because this is a background
+        // bootstrap step, not a user-initiated action.
+      });
+    return () => { cancelled = true; };
+  }, [ready]);
+
+  if (!ready) return null;
   return <ClassifierPageInner />;
 }
 
@@ -281,25 +298,6 @@ function ClassifierPageInner() {
   );
 }
 
-function NoApiKeyBanner() {
-  const { t } = useTranslation();
-  return (
-    <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-      <p className="m-0 text-sm font-medium text-navy">
-        {t("classifier.noApiKey.title")}
-      </p>
-      <p className="m-0 max-w-[420px] text-sm text-muted">
-        {t("classifier.noApiKey.description")}
-      </p>
-      <Link
-        to={routerPaths.KEYS}
-        className="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-      >
-        {t("classifier.noApiKey.cta")}
-      </Link>
-    </div>
-  );
-}
 
 interface PlaceholderPanelProps {
   isRunning: boolean;
