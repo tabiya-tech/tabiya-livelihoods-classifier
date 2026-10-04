@@ -6,6 +6,7 @@
 
 import { useCallback, useContext, useState } from "react";
 import { createApiKey, type CreateApiKeyResponse } from "@/lib/api";
+import { setActiveApiKey } from "@/lib/activeApiKey";
 import { CreateApiKeyOverrideContext } from "./apiKeysOverrides";
 
 export type CreateApiKeyStatus = "idle" | "submitting" | "success" | "error";
@@ -50,6 +51,9 @@ export function useCreateApiKey({
         const response = await createKey(label);
         setJustIssued(response);
         setStatus("success");
+        // Persist the plaintext key — it won't be retrievable from the server
+        // again, so we store it now so the fetcher can use it immediately.
+        setActiveApiKey({ key_id: response.meta.key_id, key_string: response.key, label: response.meta.label });
         if (onSuccess) await onSuccess(response);
         return response;
       } catch (caught: unknown) {

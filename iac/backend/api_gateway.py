@@ -274,10 +274,10 @@ def _build_spec(project: str, classify_url: str, ner_url: str, nel_url: str, nel
                 "post": {
                     "summary": "Classify a job description (v2 — full taxonomy schema)",
                     "operationId": "classifyV2",
-                    # Accept EITHER a Firebase JWT (dashboard users) OR an API key
-                    # (programmatic callers). The web app is Firebase-authed, so it
-                    # sends a Bearer token; api_key stays valid for scripted access.
-                    "security": [{"firebase": []}, {"api_key": []}],
+                    # API key required — both dashboard users (frontend key, referrer-restricted)
+                    # and programmatic callers. classify_v2 resolves the key to its owner
+                    # via MongoDB so per-user config applies regardless of caller type.
+                    "security": [{"api_key": []}],
                     "parameters": [{"in": "body", "name": "body", "schema": {"type": "object"}}],
                     # A single classify fans out to several plugin services
                     # (source → NER → NEL → sink), any of which may be cold and

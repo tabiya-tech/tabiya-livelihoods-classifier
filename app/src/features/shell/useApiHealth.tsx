@@ -136,7 +136,8 @@ function useLiveApiHealth({
       cancelled = true;
       clearInterval(intervalHandle);
     };
-  }, [pollIntervalMs, refreshTick]); // refreshTick re-mounts the effect, resetting the timer
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- isManualRefresh derives from refreshTick which is already listed
+  }, [pollIntervalMs, refreshTick]);
 
   const refresh = useCallback(() => {
     setRefreshTick((tick) => tick + 1);

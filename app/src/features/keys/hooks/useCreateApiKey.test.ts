@@ -3,6 +3,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { CreateApiKeyResponse } from "@/lib/api";
 import { useCreateApiKey } from "./useCreateApiKey";
 
+vi.mock("@/lib/activeApiKey", () => ({
+  setActiveApiKey: vi.fn(),
+  getActiveApiKey: vi.fn(() => null),
+  clearActiveApiKey: vi.fn(),
+}));
+
 const givenResponse: CreateApiKeyResponse = {
   key: "AIzaSyDEMO",
   meta: {

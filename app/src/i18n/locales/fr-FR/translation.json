@@ -216,6 +216,11 @@
       "activeBadge": "Actif",
       "ariaLabel": "Sélectionner un pipeline"
     },
+    "noApiKey": {
+      "title": "Une clé API est requise pour classifier",
+      "description": "Créez une clé API sur la page Clés API. Une fois créée, elle sera enregistrée dans votre navigateur et utilisée automatiquement pour toutes les demandes de classification.",
+      "cta": "Aller aux clés API"
+    },
     "placeholder": {
       "idleTitle": "Lancez une classification pour voir les résultats",
       "idleHelp": "Collez une offre à gauche et cliquez sur Classifier.",

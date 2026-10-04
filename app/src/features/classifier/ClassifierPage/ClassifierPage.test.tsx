@@ -74,6 +74,12 @@ const apiMocks = vi.hoisted(() => {
     activatePipeline: vi.fn(async () => recruiterPipeline),
   };
 });
+vi.mock("@/lib/activeApiKey", () => ({
+  getActiveApiKey: () => ({ key_id: "test-key", key_string: "test-key-string", label: "Test" }),
+  setActiveApiKey: vi.fn(),
+  clearActiveApiKey: vi.fn(),
+}));
+
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return {

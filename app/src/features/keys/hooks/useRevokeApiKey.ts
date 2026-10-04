@@ -5,6 +5,7 @@
 
 import { useCallback, useContext, useState } from "react";
 import { deleteApiKey } from "@/lib/api";
+import { clearActiveApiKey, getActiveApiKey } from "@/lib/activeApiKey";
 import { RevokeApiKeyOverrideContext } from "./apiKeysOverrides";
 
 export type RevokeApiKeyStatus = "idle" | "submitting" | "error";
@@ -41,6 +42,8 @@ export function useRevokeApiKey({
       setError(null);
       try {
         await revokeKey(keyId);
+        // If the revoked key was the active one, clear it from localStorage.
+        if (getActiveApiKey()?.key_id === keyId) clearActiveApiKey();
         setStatus("idle");
         setPendingKeyId(null);
         if (onSuccess) await onSuccess(keyId);

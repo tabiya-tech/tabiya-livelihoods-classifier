@@ -1,15 +1,19 @@
 /**
  * Authenticated fetch wrapper for the Tabiya Classifier backends.
  *
- * - Reads the Firebase ID token from `auth.currentUser` and sends it as
- *   `Authorization: Bearer …`.
- * - If the backend returns 401, refreshes the ID token once (forces a fresh
- *   token from Firebase) and retries the request a single time. A second 401
- *   bubbles up as an `ApiError`.
- * - Surfaces non-2xx responses as `ApiError` so callers can branch on status.
+ * Two auth modes, chosen per-request:
+ *  - API key mode: when the user has an active API key stored in localStorage
+ *    (via `setActiveApiKey`), sends it as `x-api-key`. The gateway validates
+ *    the key; classify_v2 resolves the owner so per-user config applies.
+ *  - Firebase mode: reads the ID token from `auth.currentUser` and sends it
+ *    as `Authorization: Bearer …`. On 401 the token is refreshed once and
+ *    the request is retried.
+ *
+ * Surfaces non-2xx responses as `ApiError`.
  */
 
 import { auth } from "../firebase";
+import { getActiveApiKey } from "../activeApiKey";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
@@ -36,6 +40,8 @@ export interface RequestContext {
   getIdToken: (forceRefresh?: boolean) => Promise<string | null>;
   /** Override for tests. Defaults to the global `fetch`. */
   fetchImpl?: typeof fetch;
+  /** Override the active API key lookup. Defaults to `getActiveApiKey()`. */
+  getApiKey?: () => { key_string: string } | null;
 }
 
 function defaultIdTokenSource(forceRefresh = false): Promise<string | null> {
@@ -43,7 +49,7 @@ function defaultIdTokenSource(forceRefresh = false): Promise<string | null> {
   if (!user) {
     // No signed-in user (e.g. Storybook / MSW, or a not-yet-authed render).
     // Return null rather than rejecting so the request still goes out — the
-    // mock layer answers it, and a real Firebase-gated backend replies 401.
+    // mock layer answers it, and a real gated backend replies 401.
     return Promise.resolve(null);
   }
   return user.getIdToken(forceRefresh);
@@ -66,21 +72,41 @@ export async function request<TResponse>(
 ): Promise<TResponse> {
   const baseUrl = options.baseUrl ?? API_BASE_URL;
   const fetchImpl = options.context?.fetchImpl ?? fetch;
+  const resolveApiKey = options.context?.getApiKey ?? getActiveApiKey;
+
+  const activeKey = resolveApiKey();
+
+  // API key mode: attach x-api-key, no token refresh needed.
+  if (activeKey) {
+    const init: RequestInit = {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": activeKey.key_string,
+        ...(options.headers ?? {}),
+      },
+    };
+    const response = await fetchImpl(`${baseUrl}${path}`, init);
+    if (!response.ok) {
+      const body = await response.text();
+      throw new ApiError(response.status, body);
+    }
+    if (response.status === 204) return undefined as TResponse;
+    return response.json() as Promise<TResponse>;
+  }
+
+  // Firebase mode: Bearer token with single 401-refresh retry.
   const getIdToken = options.context?.getIdToken ?? defaultIdTokenSource;
 
   const buildInit = (idToken: string | null): RequestInit => ({
     ...options,
     headers: {
       "Content-Type": "application/json",
-      // Only attach the bearer header when we actually have a token; without a
-      // signed-in user we send an unauthenticated request (mock layer answers;
-      // a real gated backend returns 401).
       ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
       ...(options.headers ?? {}),
     },
   });
 
-  // First attempt with the cached token.
   let idToken = await getIdToken(false);
   let response = await fetchImpl(`${baseUrl}${path}`, buildInit(idToken));
 
@@ -95,9 +121,6 @@ export async function request<TResponse>(
     throw new ApiError(response.status, body);
   }
 
-  // 204 No Content → return undefined (cast to TResponse for the void case).
-  if (response.status === 204) {
-    return undefined as TResponse;
-  }
-  return await response.json() as Promise<TResponse>;
+  if (response.status === 204) return undefined as TResponse;
+  return response.json() as Promise<TResponse>;
 }

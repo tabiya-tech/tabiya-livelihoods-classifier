@@ -216,6 +216,11 @@
       "activeBadge": "Active",
       "ariaLabel": "Select pipeline"
     },
+    "noApiKey": {
+      "title": "An API key is required to classify",
+      "description": "Create an API key on the API Keys page. Once created, it will be stored in your browser and used automatically for all classify requests.",
+      "cta": "Go to API Keys"
+    },
     "placeholder": {
       "idleTitle": "Run a classification to see results",
       "idleHelp": "Paste a job description on the left and click Classify.",
