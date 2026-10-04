@@ -134,6 +134,7 @@ jobs:
     name: Build ${{ matrix.app }}
     runs-on: ubuntu-latest
     needs: deploy-backend
+    environment: ${{ inputs.stack }}
     strategy:
       matrix:
         app: [app, docs]
