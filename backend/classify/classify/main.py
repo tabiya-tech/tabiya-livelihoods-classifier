@@ -64,7 +64,10 @@ def _build_peer_specs() -> list[PeerSpec]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await ensure_indexes()
+    try:
+        await ensure_indexes()
+    except Exception:
+        log.exception("Failed to ensure MongoDB indexes — continuing without them")
     peers = _build_peer_specs()
     if peers:
         peer_schemas = await fetch_all_peer_schemas(peers)
@@ -317,16 +320,17 @@ async def health():
     from classify.config import NEL_API_URL, NER_API_URL
     from classify.get_classify_service import _gcp_identity_token
 
+    loop = asyncio.get_event_loop()
+    ner_token, nel_token = await asyncio.gather(
+        loop.run_in_executor(None, _gcp_identity_token, NER_API_URL),
+        loop.run_in_executor(None, _gcp_identity_token, NEL_API_URL),
+    )
+
+    ner_headers = {"Authorization": f"Bearer {ner_token}"} if ner_token else {}
+    nel_headers = {"Authorization": f"Bearer {nel_token}"} if nel_token else {}
+
     ner_ok = False
     nel_ok = False
-    ner_headers = {}
-    nel_headers = {}
-    ner_token = _gcp_identity_token(NER_API_URL)
-    if ner_token:
-        ner_headers["Authorization"] = f"Bearer {ner_token}"
-    nel_token = _gcp_identity_token(NEL_API_URL)
-    if nel_token:
-        nel_headers["Authorization"] = f"Bearer {nel_token}"
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
             r = await client.get(f"{NER_API_URL}/v1/health", headers=ner_headers)
