@@ -1,0 +1,96 @@
+"""GCP identity-token auth dependency for plugin bundles.
+
+The orchestrator (classify_v2) mints an identity token via the GCP metadata
+server and sends it as `Authorization: Bearer <token>`. Each bundle Cloud
+Run service validates the token against its own service URL as the audience.
+
+Local dev short-circuit: when `TARGET_ENVIRONMENT_TYPE=local`, no token is
+required. This mirrors the pattern already used by the Firebase Auth
+dependency in classify_v2.
+
+Verifying the token requires `google-auth`, which we do not import at
+module load time so the contracts package itself stays dependency-light.
+The bundle's `pyproject.toml` declares `google-auth` as a dependency; the
+adapter grabs it lazily on the first request.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+from typing import Optional
+
+from fastapi import Header, HTTPException, Request, status
+
+_logger = logging.getLogger(__name__)
+
+
+def _is_local() -> bool:
+    return os.getenv("TARGET_ENVIRONMENT_TYPE", "").lower() == "local"
+
+
+def _audience_from_request(request: Request) -> Optional[str]:
+    """Derive the expected token audience from the incoming request's own URL.
+
+    A Cloud Run identity token's audience is the receiving service's base URL
+    (scheme + host, no path). Cloud Run sets `X-Forwarded-Proto` and the
+    `Host` header to the service's own hostname, so the audience the caller
+    minted for us is reconstructable here. This lets a bundle validate tokens
+    without being told its own URL via env var — which would be a Pulumi
+    self-reference cycle at deploy time.
+    """
+
+    host = request.headers.get("host")
+    if not host:
+        return None
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme or "https")
+    return f"{proto}://{host}"
+
+
+async def require_identity_token(
+    request: Request,
+    authorization: Optional[str] = Header(default=None),
+) -> None:
+    """FastAPI dependency: reject requests without a valid GCP identity token.
+
+    No-op when `TARGET_ENVIRONMENT_TYPE=local`. In production, the audience is
+    read from `PLUGIN_BUNDLE_AUDIENCE` when set; otherwise it is derived from
+    the request's own base URL (the bundle's Cloud Run hostname).
+    """
+
+    if _is_local():
+        _logger.warning("AUTH BYPASS ACTIVE — TARGET_ENVIRONMENT_TYPE=local, all identity token checks are skipped")
+        return
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing bearer token.",
+        )
+    token = authorization[len("bearer ") :].strip()
+    audience = os.getenv("PLUGIN_BUNDLE_AUDIENCE") or _audience_from_request(request)
+    if not audience:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="PLUGIN_BUNDLE_AUDIENCE not configured and request audience not derivable.",
+        )
+
+    try:
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"google-auth is required to verify identity tokens: {exc}",
+        ) from exc
+
+    try:
+        await asyncio.to_thread(
+            id_token.verify_oauth2_token, token, google_requests.Request(), audience
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid identity token: {exc}",
+        ) from exc

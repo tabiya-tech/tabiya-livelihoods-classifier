@@ -27,56 +27,123 @@ services:
   nel:
     build:
       context: .
-      dockerfile: backend/nel/Dockerfile
+      dockerfile: backend/nel_v2/Dockerfile
+      secrets:
+        - HF_TOKEN
     ports:
       - "5003:5003"
     env_file: .env
     environment:
-      # Unset uses each language's configured model (shared/languages/); the bare variable
-      # would pin every language to one.
-      - LINKER_MODEL=${LINKER_MODEL:-}
-      - LINKER_MODEL_ES=${LINKER_MODEL_ES:-}
-      - TARGET_LANGUAGE=${TARGET_LANGUAGE:-en}
-      - ENABLED_LANGUAGES=${ENABLED_LANGUAGES:-all}
-      - MAX_ENTITIES_PER_REQUEST=${MAX_ENTITIES_PER_REQUEST:-200}
-      - MAX_TOP_K=${MAX_TOP_K:-50}
-      # NEL_FILES_PATH unset: the data packs are per language under nel/nel/files/<lang>/,
-      # and setting it pins every language to one directory. Mount over that path instead
-      # if you need to supply packs from outside the image.
-      - NEL_FILES_PATH=${NEL_FILES_PATH:-}
+      - APPLICATION_MONGODB_URI=${APPLICATION_MONGODB_URI:-}
+      - APPLICATION_DATABASE_NAME=${APPLICATION_DATABASE_NAME:-classifier_application_dev}
+      - TAXONOMY_MONGODB_URI=${TAXONOMY_MONGODB_URI:-}
+      - TAXONOMY_DATABASE_NAME=${TAXONOMY_DATABASE_NAME:-classifier_taxonomy_dev}
+      - TAXONOMY_API_BASE_URL=${TAXONOMY_API_BASE_URL:-https://taxonomy.tabiya.tech}
+      - TAXONOMY_API_KEY=${TAXONOMY_API_KEY:-}
+      - DEFAULT_NEL_MODEL_ID=${DEFAULT_NEL_MODEL_ID:-all-MiniLM-L6-v2}
+      - DEFAULT_TAXONOMY_MODEL_ID=${DEFAULT_TAXONOMY_MODEL_ID:-}
+      - VERTEX_API_REGION=${VERTEX_API_REGION:-us-central1}
+      - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
     volumes:
       - model-cache:/root/.cache/huggingface
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v1/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/v2/nel/health')"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
 
+  tabiya_core_bundle:
+    build:
+      context: .
+      dockerfile: backend/plugin_bundles/tabiya_core/Dockerfile
+    ports:
+      - "5010:5010"
+    env_file: .env
+    environment:
+      - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      # The NER plugin's HTTP extractor delegates to the legacy `/v1/ner`
+      # service. The NEL plugin's HTTP linker delegates to `/v1/nel`.
+      # Values are hard-coded to the docker-compose service hostnames
+      # rather than pulling from `.env` — the `.env` values assume a host
+      # process, but inside this container `localhost` refers to the
+      # bundle itself, not to the legacy services.
+      # If either legacy service is not running the bundle still boots;
+      # the plugin's health endpoint just reports `down`.
+      - NER_API_URL=http://ner:5002
+      - NEL_V1_API_URL=http://nel:5003
+    healthcheck:
+      # Probes one plugin's health endpoint so the bundle only reports healthy
+      # once at least one plugin surface is reachable through the dispatcher.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5010/plugin/tabiya.ner.v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  tabiya_io_bundle:
+    build:
+      context: .
+      dockerfile: backend/plugin_bundles/tabiya_io/Dockerfile
+    ports:
+      - "5011:5011"
+    env_file: .env
+    environment:
+      - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5011/plugin/tabiya.source.text.v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
   classify:
     build:
       context: .
-      dockerfile: backend/classify/Dockerfile
+      dockerfile: backend/classify_v2/Dockerfile
+    # classify_v2 listens on 5004; we keep the external port 5001 so the
+    # frontend's VITE_API_BASE_URL stays portable across local and dev.
     ports:
-      - "5001:5001"
+      - "5001:5004"
     env_file: .env
     environment:
       - NER_API_URL=http://ner:5002
-      - NEL_API_URL=http://nel:5003
-      - CLASSIFIER_VERSION=${CLASSIFIER_VERSION:-1.0.0}
+      - NEL_V2_API_URL=http://nel:5003
+      - TABIYA_CORE_BUNDLE_URL=http://tabiya_core_bundle:5010
+      - TABIYA_IO_BUNDLE_URL=http://tabiya_io_bundle:5011
+      - DEFAULT_NEL_MODEL_ID=${DEFAULT_NEL_MODEL_ID:-}
+      - DEFAULT_TAXONOMY_MODEL_ID=${DEFAULT_TAXONOMY_MODEL_ID:-}
+      - CLASSIFIER_VERSION=${CLASSIFIER_VERSION:-2.0.0}
       - MAX_TEXT_LENGTH=${MAX_TEXT_LENGTH:-50000}
-      - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-500}
       - APPLICATION_MONGODB_URI=${APPLICATION_MONGODB_URI:-}
-      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-tabiya-classifier}
-      - API_KEY_CACHE_TTL=${API_KEY_CACHE_TTL:-300}
+      - APPLICATION_DATABASE_NAME=${APPLICATION_DATABASE_NAME:-classifier_application_dev}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-}
+      - GCP_API_MANAGED_SERVICE=${GCP_API_MANAGED_SERVICE:-}
+      - GCP_API_KEYS_PARENT_LOCATION=${GCP_API_KEYS_PARENT_LOCATION:-global}
+      - MAX_API_KEYS_PER_USER=${MAX_API_KEYS_PER_USER:-5}
       - TARGET_ENVIRONMENT_TYPE=${TARGET_ENVIRONMENT_TYPE:-local}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      # ADC for google-cloud-api-keys — must match the bind-mount below.
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp_service_account.json
+    volumes:
+      # Bind-mount a host-side service-account JSON to the path above.
+      # Set GCP_SERVICE_ACCOUNT_JSON in .env to the absolute host path.
+      - ${GCP_SERVICE_ACCOUNT_JSON:-/dev/null}:/run/secrets/gcp_service_account.json:ro
     depends_on:
       ner:
         condition: service_started
       nel:
         condition: service_started
+      tabiya_core_bundle:
+        condition: service_started
+      tabiya_io_bundle:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/v1/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5004/v2/classify/health')"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -84,3 +151,7 @@ services:
 
 volumes:
   model-cache:
+
+secrets:
+  HF_TOKEN:
+    environment: HF_TOKEN

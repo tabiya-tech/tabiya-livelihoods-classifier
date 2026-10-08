@@ -139,6 +139,8 @@ def _write_pulumi_yaml(
     classify_image: str = "",
     nel_v2_image: str = "",
     classify_v2_image: str = "",
+    tabiya_core_image: str = "",
+    tabiya_io_image: str = "",
 ):
     stack_dir, _, _ = STACKS[logical_stack]
     if logical_stack == "backend":
@@ -148,6 +150,8 @@ def _write_pulumi_yaml(
         config["config"]["tabiya-classifier-backend:classifyImage"] = classify_image
         config["config"]["tabiya-classifier-backend:nelV2Image"] = nel_v2_image
         config["config"]["tabiya-classifier-backend:classifyV2Image"] = classify_v2_image
+        config["config"]["tabiya-classifier-backend:tabiyaCoreImage"] = tabiya_core_image
+        config["config"]["tabiya-classifier-backend:tabiyaIoImage"] = tabiya_io_image
 
     path = os.path.join(REPO_ROOT, stack_dir, f"Pulumi.{stack}.yaml")
     with open(path, "w", encoding="utf-8") as f:
@@ -169,6 +173,8 @@ def _main():
     parser.add_argument("--classify-image", required=True, help="Classify Docker image URI")
     parser.add_argument("--nel-v2-image", required=True, help="NEL v2 Docker image URI")
     parser.add_argument("--classify-v2-image", required=True, help="Classify v2 Docker image URI")
+    parser.add_argument("--tabiya-core-image", required=True, help="Tabiya-Core plugin bundle image URI")
+    parser.add_argument("--tabiya-io-image", required=True, help="Tabiya-IO plugin bundle image URI")
     parser.add_argument(
         "--stacks",
         default="all",
@@ -205,6 +211,8 @@ def _main():
             classify_image=args.classify_image,
             nel_v2_image=args.nel_v2_image,
             classify_v2_image=args.classify_v2_image,
+            tabiya_core_image=args.tabiya_core_image,
+            tabiya_io_image=args.tabiya_io_image,
         )
 
     print(f"info: preparation complete for stack '{args.stack}'.")

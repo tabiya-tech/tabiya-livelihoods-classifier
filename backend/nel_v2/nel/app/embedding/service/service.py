@@ -20,6 +20,36 @@ from sentence_transformers import SentenceTransformer
 
 _logger = logging.getLogger(__name__)
 
+
+class EmbeddingBackendUnavailableError(Exception):
+    """The embedding backend could not be reached or is not provisioned.
+
+    Raised when a Vertex AI call fails for an operational reason the caller
+    can't fix in-request — the aiplatform API disabled on the project, the
+    service account lacking access, or Vertex being transiently unavailable.
+    Routes map this to 503 (not 500) so the failure reads as "try later /
+    fix config", not "the server is broken".
+    """
+
+
+def _as_embedding_backend_error(exc: Exception, model_id: str) -> Exception:
+    """Translate a Google API error into EmbeddingBackendUnavailableError.
+
+    Returns the original exception unchanged if it isn't a Google API call
+    error, so genuinely unexpected bugs still surface as 500s.
+    """
+    try:
+        from google.api_core.exceptions import GoogleAPICallError
+    except ImportError:
+        return exc
+    if isinstance(exc, GoogleAPICallError):
+        return EmbeddingBackendUnavailableError(
+            f"Vertex AI embedding backend unavailable for model "
+            f"{model_id!r}: {exc}"
+        )
+    return exc
+
+
 # Model IDs handled by Google Vertex AI (TextEmbeddingModel).
 # Both use ADC — no API key required.
 _VERTEX_MODEL_IDS: frozenset[str] = frozenset({
@@ -106,7 +136,10 @@ class GoogleVertexEmbeddingService(IEmbeddingService):
         # Vertex AI SDK does not accept the "models/" prefix that the Generative AI SDK uses.
         vertex_model_name = model_id.removeprefix("models/")
         vertexai.init(location=region)
-        self._model = TextEmbeddingModel.from_pretrained(vertex_model_name)
+        try:
+            self._model = TextEmbeddingModel.from_pretrained(vertex_model_name)
+        except Exception as exc:
+            raise _as_embedding_backend_error(exc, model_id) from exc
         _logger.info("Initialised GoogleVertexEmbeddingService: model=%s region=%s dims=%d", model_id, region, self.dimensions)
 
     async def embed(self, text: str) -> list[float]:
@@ -123,11 +156,14 @@ class GoogleVertexEmbeddingService(IEmbeddingService):
         else:
             batch_size = _VERTEX_BATCH_SIZE_DEFAULT
         all_embeddings: list[list[float]] = []
-        for start in range(0, len(texts), batch_size):
-            chunk = texts[start: start + batch_size]
-            inputs = [TextEmbeddingInput(text, self._TASK) for text in chunk]
-            results = await asyncio.wait_for(self._model.get_embeddings_async(inputs), timeout=120)
-            all_embeddings.extend(result.values for result in results)
+        try:
+            for start in range(0, len(texts), batch_size):
+                chunk = texts[start: start + batch_size]
+                inputs = [TextEmbeddingInput(text, self._TASK) for text in chunk]
+                results = await asyncio.wait_for(self._model.get_embeddings_async(inputs), timeout=120)
+                all_embeddings.extend(result.values for result in results)
+        except Exception as exc:
+            raise _as_embedding_backend_error(exc, self.model_id) from exc
         return all_embeddings
 
 
@@ -159,7 +195,12 @@ def _create_embedding_service(model_id: str) -> IEmbeddingService:
         if not region:
             raise ValueError(f"VERTEX_API_REGION env var is required for Vertex AI model '{model_id}'")
         return GoogleVertexEmbeddingService(model_id, region)
-    return SentenceTransformerEmbeddingService(model_id)
+    try:
+        return SentenceTransformerEmbeddingService(model_id)
+    except Exception as exc:
+        raise EmbeddingBackendUnavailableError(
+            f"SentenceTransformer model '{model_id}' could not be loaded: {exc}"
+        ) from exc
 
 
 def _clear_registry() -> None:

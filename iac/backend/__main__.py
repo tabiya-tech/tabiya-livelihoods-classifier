@@ -17,6 +17,8 @@ Required Pulumi config:
   tabiya-classifier-backend:classifyImage         — Classify Docker image URI (injected by CI)
   tabiya-classifier-backend:nelV2Image            — NEL v2 Docker image URI (injected by CI)
   tabiya-classifier-backend:classifyV2Image       — Classify v2 Docker image URI (injected by CI)
+  tabiya-classifier-backend:tabiyaCoreImage       — Tabiya-Core plugin bundle image URI (injected by CI)
+  tabiya-classifier-backend:tabiyaIoImage         — Tabiya-IO plugin bundle image URI (injected by CI)
   tabiya-classifier-backend:taxonomyMongoDbName   — MongoDB database name for taxonomy/embeddings Atlas cluster
   tabiya-classifier-backend:taxonomyApiBaseUrl    — Base URL for the taxonomy REST API
   tabiya-classifier-backend:defaultNELModelId     — Default NEL model ID (e.g. all-MiniLM-L6-v2)
@@ -51,12 +53,37 @@ nel_image = config.require("nelImage")
 classify_image = config.require("classifyImage")
 nel_v2_image = config.require("nelV2Image")
 classify_v2_image = config.require("classifyV2Image")
+tabiya_core_image = config.require("tabiyaCoreImage")
+tabiya_io_image = config.require("tabiyaIoImage")
 taxonomy_mongodb_db_name = config.require("taxonomyMongoDbName")
 taxonomy_api_base_url = config.require("taxonomyApiBaseUrl")
 default_nel_model_id = config.get("defaultNELModelId") or "all-MiniLM-L6-v2"
 default_taxonomy_model_id = config.get("defaultTaxonomyModelId") or ""
 vertex_api_region = config.get("vertexApiRegion") or region
-app_origin = f"https://app.{env_subdomain}"
+# Warm-instance floor for the Cloud Run services. Per-environment: dev sets 0
+# (scale to zero), prod can pin 1. Defaults to 0 when unset.
+min_instances = config.get_int("minInstances") or 0
+# Optional env-wide instance ceiling. 0 (unset) keeps each service's tuned
+# per-service default; a positive value overrides all with one cap.
+max_instances = config.get_int("maxInstances") or 0
+
+# CORS allow-list passed to every service (comma-split by each service's
+# config). Always the deployed app origin; on non-prod stacks we also allow
+# common localhost dev-server origins so a developer can point their local
+# frontend at this backend without running the full stack in Docker.
+_deployed_app_origin = f"https://app.{env_subdomain}"
+_localhost_dev_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+app_origin = (
+    _deployed_app_origin
+    if env == "prod"
+    else ",".join([_deployed_app_origin, *_localhost_dev_origins])
+)
 
 
 def _require_env(name: str) -> str:
@@ -101,7 +128,7 @@ gcp.projects.Service(
 )
 
 # ── Cloud Run Services ─────────────────────────────────────────────────────
-ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
+ner, nel, classify, nel_v2, classify_v2, tabiya_core, tabiya_io = create_cloud_run_services(
     project=project,
     region=region,
     service_accounts=service_accounts,
@@ -110,6 +137,8 @@ ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     classify_image=classify_image,
     nel_v2_image=nel_v2_image,
     classify_v2_image=classify_v2_image,
+    tabiya_core_image=tabiya_core_image,
+    tabiya_io_image=tabiya_io_image,
     hf_token_secret=secrets["hf_token"],
     mongodb_uri_secret=secrets["mongodb_uri"],
     taxonomy_mongodb_uri_secret=secrets["taxonomy_mongodb_uri"],
@@ -124,12 +153,16 @@ ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     gateway_base_url=f"https://{env_subdomain}",
     vertex_api_region=vertex_api_region,
     env=env,
+    min_instances=min_instances,
+    max_instances=max_instances,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)
 pulumi.export("classifyUrl", classify.uri)
 pulumi.export("nelV2Url", nel_v2.uri)
 pulumi.export("classifyV2Url", classify_v2.uri)
+pulumi.export("tabiyaCoreUrl", tabiya_core.uri)
+pulumi.export("tabiyaIoUrl", tabiya_io.uri)
 
 # ── API Gateway (config + gateway, uses Cloud Run URLs) ────────────────────
 _api_config, gateway, gateway_sa = create_api_gateway(
@@ -153,6 +186,14 @@ gcp.projects.IAMMember(
     project=project,
     role="roles/serviceusage.apiKeysAdmin",
     member=service_accounts["classify_sa"].email.apply(lambda e: f"serviceAccount:{e}"),
+)
+
+# classify_v2 owns the /v2/user/api-keys routes and needs the same role.
+gcp.projects.IAMMember(
+    "classify-v2-sa-apikeys-admin",
+    project=project,
+    role="roles/serviceusage.apiKeysAdmin",
+    member=service_accounts["classify_v2_sa"].email.apply(lambda e: f"serviceAccount:{e}"),
 )
 
 # Allow the gateway service account to invoke all three services.

@@ -6,7 +6,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from nel.app.embeddings_cache.repository.repository import IEmbeddingsCacheRepository
-from nel.app.embeddings_cache.service.generation_service import EmbeddingGenerationService
+from nel.app.embeddings_cache.service.generation_service import (
+    EmbeddingGenerationService,
+    _build_document,
+)
 from nel.app.embeddings_cache.types import CacheStatus, EmbeddingCacheStatus, EmbeddingDocument
 from nel.app.embedding.service.service import IEmbeddingService
 from nel.app.retry import RetryPolicy
@@ -43,6 +46,18 @@ class FakeCacheRepository(IEmbeddingsCacheRepository):
         self.inserted[entity_type] = []
         self.deleted[key] = count
         return count
+
+    async def get_existing_uuids(self, taxonomy_model_id, nel_model_id, entity_type):
+        # Return the uuids already inserted for this entity type. Test docs are
+        # EmbeddingDocument objects (or dicts) exposing entity_uuid.
+        result = set()
+        for doc in self.inserted.get(entity_type, []):
+            uuid = getattr(doc, "entity_uuid", None)
+            if uuid is None and isinstance(doc, dict):
+                uuid = doc.get("entity_uuid")
+            if uuid:
+                result.add(uuid)
+        return result
 
     async def insert_embeddings_batch(self, entity_type, documents) -> int:
         self.inserted.setdefault(entity_type, []).extend(documents)
@@ -166,6 +181,66 @@ class TestEmbeddingGenerationService:
 
         # THEN occupation is regenerated with new count
         assert repo.statuses[("tax-1", "nel-1", "occupation")].total_count == 2
+
+    async def test_resume_skips_already_embedded_items_without_deleting(self):
+        # GIVEN a prior run embedded o1 but died before o2 (status left
+        # "generating"). Source now has both o1 and o2.
+        svc, repo = self._make_svc(occupations=[_occ("o1"), _occ("o2")])
+        repo.statuses[("tax-1", "nel-1", "occupation")] = EmbeddingCacheStatus(
+            taxonomy_model_id="tax-1", nel_model_id="nel-1",
+            entity_type="occupation", status=CacheStatus.generating,
+        )
+        # Pre-seed o1 as already embedded (a real doc carrying entity_uuid).
+        existing = _build_document(_occ("o1"), [0.1], "Occupation o1", "occupation", "tax-1", "nel-1")
+        repo.inserted["occupation"] = [existing]
+
+        # WHEN we simply re-run (no force)
+        await svc.generate_for_combination("tax-1", "nel-1", force=False)
+
+        # THEN nothing was deleted (item-level resume, not clear+regen)...
+        assert ("tax-1", "nel-1", "occupation") not in repo.deleted
+        # ...o1 was NOT re-embedded (no duplicate) and o2 was added...
+        uuids = {d.entity_uuid for d in repo.inserted["occupation"]}
+        assert uuids == {"o1", "o2"}
+        assert len(repo.inserted["occupation"]) == 2  # no duplicate o1
+        # ...and total_count reflects the full set (1 carried over + 1 new).
+        assert repo.statuses[("tax-1", "nel-1", "occupation")].status == CacheStatus.ready
+        assert repo.statuses[("tax-1", "nel-1", "occupation")].total_count == 2
+
+    async def test_resume_after_failed_status_only_fills_missing_items(self):
+        # GIVEN a "failed" prior run that had already embedded o1.
+        svc, repo = self._make_svc(occupations=[_occ("o1"), _occ("o2")])
+        repo.statuses[("tax-1", "nel-1", "occupation")] = EmbeddingCacheStatus(
+            taxonomy_model_id="tax-1", nel_model_id="nel-1",
+            entity_type="occupation", status=CacheStatus.failed,
+        )
+        existing = _build_document(_occ("o1"), [0.1], "Occupation o1", "occupation", "tax-1", "nel-1")
+        repo.inserted["occupation"] = [existing]
+
+        # WHEN we re-run (no force)
+        await svc.generate_for_combination("tax-1", "nel-1", force=False)
+
+        # THEN it only added the missing o2, kept o1, deleted nothing
+        assert ("tax-1", "nel-1", "occupation") not in repo.deleted
+        assert {d.entity_uuid for d in repo.inserted["occupation"]} == {"o1", "o2"}
+
+    async def test_force_deletes_then_regenerates(self):
+        # GIVEN occupation already "ready" — force should wipe + rebuild.
+        svc, repo = self._make_svc(occupations=[_occ("o1")])
+        repo.statuses[("tax-1", "nel-1", "occupation")] = EmbeddingCacheStatus(
+            taxonomy_model_id="tax-1", nel_model_id="nel-1",
+            entity_type="occupation", status=CacheStatus.ready, total_count=99,
+        )
+        repo.inserted["occupation"] = [
+            _build_document(_occ("old"), [0.1], "old", "occupation", "tax-1", "nel-1")
+        ]
+
+        # WHEN we force
+        await svc.generate_for_combination("tax-1", "nel-1", force=True)
+
+        # THEN the old data was deleted and only the current source remains
+        assert repo.deleted[("tax-1", "nel-1", "occupation")] >= 1
+        assert {d.entity_uuid for d in repo.inserted["occupation"]} == {"o1"}
 
     async def test_batching_inserts_multiple_batches(self):
         # GIVEN 5 occupations and page_size=2

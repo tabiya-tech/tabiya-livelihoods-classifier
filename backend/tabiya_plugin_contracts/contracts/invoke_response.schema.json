@@ -1,0 +1,26 @@
+{
+  "properties": {
+    "metadata": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Free-form per-stage metadata (model_name, processing_time_ms, \u2026).",
+      "title": "Metadata"
+    },
+    "output": {
+      "additionalProperties": true,
+      "description": "Slot payload matching manifest.output_slot.type.",
+      "title": "Output",
+      "type": "object"
+    }
+  },
+  "title": "InvokeResponse",
+  "type": "object"
+}

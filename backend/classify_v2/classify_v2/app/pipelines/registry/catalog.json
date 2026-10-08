@@ -1,0 +1,52 @@
+[
+  {
+    "plugin_id": "tabiya.ner.v1",
+    "url_env": "TABIYA_CORE_BUNDLE_URL",
+    "path": "/plugin/tabiya.ner.v1"
+  },
+  {
+    "plugin_id": "tabiya.nel.v1",
+    "url_env": "TABIYA_CORE_BUNDLE_URL",
+    "path": "/plugin/tabiya.nel.v1"
+  },
+  {
+    "plugin_id": "tabiya.source.text.v1",
+    "url_env": "TABIYA_IO_BUNDLE_URL",
+    "path": "/plugin/tabiya.source.text.v1"
+  },
+  {
+    "plugin_id": "tabiya.source.json.v1",
+    "url_env": "TABIYA_IO_BUNDLE_URL",
+    "path": "/plugin/tabiya.source.json.v1"
+  },
+  {
+    "plugin_id": "tabiya.source.json_entities.v1",
+    "url_env": "TABIYA_IO_BUNDLE_URL",
+    "path": "/plugin/tabiya.source.json_entities.v1"
+  },
+  {
+    "plugin_id": "tabiya.sink.results.v1",
+    "url_env": "TABIYA_IO_BUNDLE_URL",
+    "path": "/plugin/tabiya.sink.results.v1"
+  },
+  {
+    "plugin_id": "tabiya.source.scraper.v1",
+    "url_env": "TABIYA_IO_BUNDLE_URL",
+    "path": "/plugin/tabiya.source.scraper.v1"
+  },
+  {
+    "plugin_id": "tabiya.transform.stopwords.v1",
+    "url_env": "TABIYA_IO_BUNDLE_URL",
+    "path": "/plugin/tabiya.transform.stopwords.v1"
+  },
+  {
+    "plugin_id": "tabiya.sink.database.v1",
+    "url_env": "TABIYA_IO_BUNDLE_URL",
+    "path": "/plugin/tabiya.sink.database.v1"
+  },
+  {
+    "plugin_id": "tabiya.branching.language_router.v1",
+    "url_env": "TABIYA_CORE_BUNDLE_URL",
+    "path": "/plugin/tabiya.branching.language_router.v1"
+  }
+]
