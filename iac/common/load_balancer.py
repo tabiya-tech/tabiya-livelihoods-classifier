@@ -3,9 +3,8 @@
 Hosts and their backends:
   dev.classifier.tabiya.tech        /api/* → API Gateway (Serverless NEG)
   app.dev.classifier.tabiya.tech    /*     → app GCS bucket
-  docs.dev.classifier.tabiya.tech   /*     → docs GCS bucket
 
-SSL: GCP-managed certificate covering all three domains.
+SSL: GCP-managed certificate covering both domains.
 HTTP → HTTPS redirect on port 80.
 """
 
@@ -20,10 +19,8 @@ def create_load_balancer(
     region: str,
     api_domain: str,
     app_domain: str,
-    docs_domain: str,
     api_gateway_id: pulumi.Output,
     app_bucket_name: pulumi.Output,
-    docs_bucket_name: pulumi.Output,
 ):
     # ── Static IP ──────────────────────────────────────────────────────────
     ip = gcp.compute.GlobalAddress(
@@ -33,25 +30,12 @@ def create_load_balancer(
         address_type="EXTERNAL",
     )
 
-    # ── Backend buckets (CDN-enabled) ──────────────────────────────────────
+    # ── Backend bucket (CDN-enabled) ──────────────────────────────────────
     app_backend = gcp.compute.BackendBucket(
         "app-backend-bucket",
         project=project,
         name="classifier-app-backend",
         bucket_name=app_bucket_name,
-        enable_cdn=True,
-        cdn_policy=gcp.compute.BackendBucketCdnPolicyArgs(
-            cache_mode="USE_ORIGIN_HEADERS",
-            default_ttl=3600,
-            max_ttl=86400,
-        ),
-    )
-
-    docs_backend = gcp.compute.BackendBucket(
-        "docs-backend-bucket",
-        project=project,
-        name="classifier-docs-backend",
-        bucket_name=docs_bucket_name,
         enable_cdn=True,
         cdn_policy=gcp.compute.BackendBucketCdnPolicyArgs(
             cache_mode="USE_ORIGIN_HEADERS",
@@ -87,7 +71,7 @@ def create_load_balancer(
     )
 
     # ── URL map (HTTPS) ────────────────────────────────────────────────────
-    # Three host rules — each domain routes to its own backend.
+    # Two host rules — each domain routes to its own backend.
     # The API domain strips the /api prefix before forwarding to the gateway.
     url_map = gcp.compute.URLMap(
         "classifier-url-map",
@@ -103,10 +87,6 @@ def create_load_balancer(
                 hosts=[app_domain],
                 path_matcher="app-paths",
             ),
-            gcp.compute.URLMapHostRuleArgs(
-                hosts=[docs_domain],
-                path_matcher="docs-paths",
-            ),
         ],
         path_matchers=[
             gcp.compute.URLMapPathMatcherArgs(
@@ -117,18 +97,14 @@ def create_load_balancer(
                 name="app-paths",
                 default_service=app_backend.self_link,
             ),
-            gcp.compute.URLMapPathMatcherArgs(
-                name="docs-paths",
-                default_service=docs_backend.self_link,
-            ),
         ],
     )
 
-    # ── SSL certificate (covers all three domains) ─────────────────────────
+    # ── SSL certificate (covers both domains) ─────────────────────────
     # Name includes a hash of the domains so that any change in domains causes
     # Pulumi to create the new cert before deleting the old one (create-before-
     # delete), avoiding the GCP error where a cert in use cannot be deleted.
-    domains = [f"{api_domain}.", f"{app_domain}.", f"{docs_domain}."]
+    domains = [f"{api_domain}.", f"{app_domain}."]
     cert_hash = hashlib.sha1(",".join(sorted(domains)).encode()).hexdigest()[:8]
     cert_name = f"classifier-ssl-{cert_hash}"
 

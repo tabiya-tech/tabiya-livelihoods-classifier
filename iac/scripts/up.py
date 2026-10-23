@@ -16,7 +16,7 @@ Usage:
     python iac/scripts/up.py --stack dev
 
     # Deploy all modules, passing Firebase outputs to the frontend build
-    APP_DIST_DIR=app/dist DOCS_DIST_DIR=docs/dist \\
+    APP_DIST_DIR=app/dist \\
         python iac/scripts/up.py --stack dev
 
 Must be run from the repo root.

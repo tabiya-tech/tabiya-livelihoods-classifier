@@ -21,7 +21,6 @@ def create_dns_records(
     for name in [
         f"{subdomain}.tabiya.tech",
         f"app.{subdomain}.tabiya.tech",
-        f"docs.{subdomain}.tabiya.tech",
     ]:
         label = name.replace(".", "-")
         aws.route53.Record(

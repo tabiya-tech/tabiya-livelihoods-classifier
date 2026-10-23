@@ -12,7 +12,3 @@ config:
   # App subdomain — added to Firebase authorized domains list
   # e.g. "app.dev.classifier.tabiya.tech"
   tabiya-classifier-auth:appDomain: <app-domain>
-
-  # Docs subdomain — added to Firebase authorized domains list
-  # e.g. "docs.dev.classifier.tabiya.tech"
-  tabiya-classifier-auth:docsDomain: <docs-domain>
