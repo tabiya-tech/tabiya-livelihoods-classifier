@@ -29,7 +29,7 @@ iac/
 │   ├── secrets.py          — Secret Manager resources
 │   ├── cloud_run.py        — NER, NEL, Classify Cloud Run services
 │   ├── api_gateway.py      — GCP API Gateway with API key auth
-│   ├── storage.py          — GCS buckets + CDN for app and docs
+│   ├── storage.py          — GCS bucket + CDN for the app
 │   ├── requirements.txt    — Pulumi Python dependencies
 │   └── Pulumi.yaml         — project metadata only (no stack config)
 ├── scripts/
@@ -138,6 +138,5 @@ After first deployment, point DNS records to the load balancer IPs output by `pu
 
 ```
 app.classifier.tabiya.tech  → A     <appForwardingRuleIP>
-docs.classifier.tabiya.tech → A     <docsForwardingRuleIP>
 api.classifier.tabiya.tech  → CNAME <apiGatewayUrl>
 ```

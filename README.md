@@ -14,11 +14,9 @@ Environments follow the pattern `<env>.classifier.tabiya.tech`. The `dev` enviro
 |----------|-----|
 | API | `https://dev.classifier.tabiya.tech` |
 | App (dashboard) | `https://app.dev.classifier.tabiya.tech` |
-| Docs | `https://docs.dev.classifier.tabiya.tech` |
 | API health check | `https://dev.classifier.tabiya.tech/v1/health` |
-| Classify Swagger UI | `https://dev.classifier.tabiya.tech/docs` |
-| NER Swagger UI | `https://dev.classifier.tabiya.tech/docs/ner` |
-| NEL Swagger UI | `https://dev.classifier.tabiya.tech/docs/nel` |
+| Swagger UI (all services) | `https://dev.classifier.tabiya.tech/docs` |
+| OpenAPI spec | `https://dev.classifier.tabiya.tech/openapi.json` |
 
 ## Table of Contents
 

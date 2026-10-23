@@ -2,7 +2,7 @@
 
 ## Overview
 
-Three Cloud Run microservices behind a GCP API Gateway, fronted by a global HTTPS load balancer. Two static frontends served from GCS. DNS managed in AWS Route 53.
+Three Cloud Run microservices behind a GCP API Gateway, fronted by a global HTTPS load balancer. A static frontend served from GCS. DNS managed in AWS Route 53.
 
 ## Request Flow
 
@@ -13,7 +13,6 @@ flowchart TD
     LB["GCP Global Load Balancer\n(HTTPS + SSL cert)"]
     GW["API Gateway\n(auth + routing)"]
     App["App Bucket\napp.dev.classifier.tabiya.tech"]
-    Docs["Docs Bucket\ndocs.dev.classifier.tabiya.tech"]
     Classify["Classify Service\nCloud Run"]
     NER["NER Service\nCloud Run"]
     NEL["NEL Service\nCloud Run"]
@@ -22,7 +21,6 @@ flowchart TD
     User --> DNS --> LB
     LB -->|"/v1/*"| GW
     LB -->|"app.*"| App
-    LB -->|"docs.*"| Docs
     GW -->|"API key — /v1/classify, /v1/batch/**"| Classify
     GW -->|"API key — /v1/ner"| NER
     GW -->|"API key — /v1/nel"| NEL
@@ -52,10 +50,10 @@ Users manage API keys through the dashboard (app frontend).
 
 ## Infrastructure
 
-- **Load balancer** — single static IP, three host-based backends, GCP-managed SSL, HTTP→HTTPS redirect
+- **Load balancer** — single static IP, two host-based backends, GCP-managed SSL, HTTP→HTTPS redirect
 - **API Gateway** — OpenAPI 2.0 spec, dedicated service account to invoke Classify
 - **Secrets** — HF token and MongoDB URI stored in GCP Secret Manager, injected as env vars
-- **DNS** — All A records (`dev.*`, `app.dev.*`, `docs.dev.*`) in AWS Route 53 pointing to the LB IP
+- **DNS** — All A records (`dev.*`, `app.dev.*`) in AWS Route 53 pointing to the LB IP
 
 ## CI/CD
 

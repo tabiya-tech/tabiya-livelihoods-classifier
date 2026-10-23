@@ -6,7 +6,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel, Field
@@ -23,7 +23,7 @@ from classify.config import (
     NER_API_URL,
 )
 from classify.get_classify_service import get_classify_service
-from classify.openapi_merge import PeerSpec, fetch_all_peer_schemas, merge_schemas
+from classify.openapi_merge import PeerSchemaCache, PeerSpec, merge_schemas
 from classify.models import (
     BatchJob, BatchRequest, BatchStatus, BatchSubmitResponse, BatchStatusResponse,
     BatchResultsResponse, ClassifyOptions, ClassifyRequest, ClassifyResponse, JobStatus,
@@ -68,15 +68,8 @@ async def lifespan(app: FastAPI):
         await ensure_indexes()
     except Exception:
         log.exception("Failed to ensure MongoDB indexes — continuing without them")
-    peers = _build_peer_specs()
-    if peers:
-        peer_schemas = await fetch_all_peer_schemas(peers)
-        log.info("Fetched OpenAPI from %d/%d peers for unified docs", len(peer_schemas), len(peers))
-        app.state.openapi_peers = peers
-        app.state.openapi_peer_schemas = peer_schemas
-    else:
-        app.state.openapi_peers = []
-        app.state.openapi_peer_schemas = {}
+    app.state.openapi_peer_cache = PeerSchemaCache(_build_peer_specs())
+    await app.state.openapi_peer_cache.fetch_missing()
     yield
 
 
@@ -99,14 +92,30 @@ def _unified_openapi() -> dict:
         description="Unified API documentation for all Tabiya Classifier services (v1 + v2).",
         routes=app.routes,
     )
-    peers = getattr(app.state, "openapi_peers", [])
-    peer_schemas = getattr(app.state, "openapi_peer_schemas", {})
+    peer_cache = getattr(app.state, "openapi_peer_cache", None)
+    peers = peer_cache.peers if peer_cache else []
+    peer_schemas = peer_cache.schemas if peer_cache else {}
     servers = [{"url": GATEWAY_BASE_URL}] if GATEWAY_BASE_URL else None
     app.openapi_schema = merge_schemas(base, peers, peer_schemas, servers)
     return app.openapi_schema
 
 
 app.openapi = _unified_openapi
+
+
+@app.middleware("http")
+async def fetch_missing_peer_schemas(request: Request, call_next):
+    """Retry peers missing from the unified docs before /openapi.json is served.
+
+    FastAPI builds the schema synchronously, so the async peer fetch happens
+    here. When a new peer schema arrives the cached merged schema is dropped
+    and rebuilt on this request.
+    """
+    peer_cache = getattr(app.state, "openapi_peer_cache", None)
+    if peer_cache and request.url.path == app.openapi_url:
+        if await peer_cache.fetch_missing():
+            app.openapi_schema = None
+    return await call_next(request)
 
 
 # ── Auxiliary request models ───────────────────────────────────────────────

@@ -185,7 +185,9 @@ def create_cloud_run_services(
                         ),
                         initial_delay_seconds=30,
                         period_seconds=10,
-                        failure_threshold=12,  # 2 min total: model loads from image cache
+                        # 5.5 min total: every enabled language's linker loads before the
+                        # server listens (en + es took ~2.5 min on 2026-10-08).
+                        failure_threshold=30,
                     ),
                 )
             ],

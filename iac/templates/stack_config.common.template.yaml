@@ -19,7 +19,3 @@ config:
   # App subdomain — SSL cert, A record, and LB host rule for the dashboard
   # e.g. "app.dev.classifier.tabiya.tech"
   tabiya-classifier-common:appDomain: <app-domain>
-
-  # Docs subdomain — SSL cert, A record, and LB host rule for the API docs
-  # e.g. "docs.dev.classifier.tabiya.tech"
-  tabiya-classifier-common:docsDomain: <docs-domain>

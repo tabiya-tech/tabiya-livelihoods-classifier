@@ -129,7 +129,7 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-  # ── Phase 2: build app and docs in parallel, both need Firebase config ──────
+  # ── Phase 2: build the app, which needs Firebase config ─────────────────────
   build-frontend:
     name: Build ${{ matrix.app }}
     runs-on: ubuntu-latest
@@ -137,7 +137,7 @@ jobs:
     environment: ${{ inputs.stack }}
     strategy:
       matrix:
-        app: [app, docs]
+        app: [app]
     steps:
       - uses: actions/checkout@v4
 
@@ -160,7 +160,6 @@ jobs:
           VITE_FIREBASE_AUTH_DOMAIN: ${{ needs.deploy-backend.outputs.firebase_auth_domain }}
           VITE_FIREBASE_PROJECT_ID: ${{ needs.deploy-backend.outputs.firebase_project_id }}
           VITE_API_BASE_URL: ${{ secrets.APP_API_BASE_URL }}
-          VITE_DOCS_URL:     ${{ secrets.APP_DOCS_URL }}
 
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
@@ -238,18 +237,11 @@ jobs:
           name: dist-app
           path: app/dist
 
-      - name: Download docs dist
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-docs
-          path: docs/dist
-
       - name: Deploy frontend
         run: python iac/scripts/up.py --stack "${{ inputs.stack }}" --module frontend
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           APP_DIST_DIR: ${{ github.workspace }}/app/dist
-          DOCS_DIST_DIR: ${{ github.workspace }}/docs/dist
 
       - name: Deploy common
         run: python iac/scripts/up.py --stack "${{ inputs.stack }}" --module common
