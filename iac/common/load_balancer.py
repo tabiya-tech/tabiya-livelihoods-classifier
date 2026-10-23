@@ -104,6 +104,9 @@ def create_load_balancer(
     # Name includes a hash of the domains so that any change in domains causes
     # Pulumi to create the new cert before deleting the old one (create-before-
     # delete), avoiding the GCP error where a cert in use cannot be deleted.
+    # delete_before_replace=False must be explicit: the provider asks for
+    # delete-before-replace on any resource with an explicit name, which tries
+    # to delete the cert while the HTTPS proxy still uses it.
     domains = [f"{api_domain}.", f"{app_domain}."]
     cert_hash = hashlib.sha1(",".join(sorted(domains)).encode()).hexdigest()[:8]
     cert_name = f"classifier-ssl-{cert_hash}"
@@ -115,6 +118,7 @@ def create_load_balancer(
         managed=gcp.compute.ManagedSslCertificateManagedArgs(
             domains=domains,
         ),
+        opts=pulumi.ResourceOptions(delete_before_replace=False),
     )
 
     # ── HTTPS proxy + forwarding rule ──────────────────────────────────────
