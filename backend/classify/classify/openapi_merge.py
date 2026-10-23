@@ -3,14 +3,19 @@
 Classify v1 serves the unified /docs at the gateway. At startup we fetch each
 peer's /openapi.json over the internal Cloud Run URL (with a GCP identity
 token when running on GCP), then merge them into a single OpenAPI 3 document
-that FastAPI exposes via app.openapi_schema.
+that FastAPI exposes via app.openapi_schema. Peers that were unreachable at
+startup are fetched again on later /openapi.json requests (see
+PeerSchemaCache), so a cold or redeploying peer doesn't stay missing from the
+docs for the lifetime of the instance.
 """
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
-from typing import Any
+import time
+from typing import Any, Callable
 
 import httpx
 
@@ -61,9 +66,59 @@ async def fetch_peer_schema(peer: PeerSpec) -> dict | None:
 
 async def fetch_all_peer_schemas(peers: list[PeerSpec]) -> dict[str, dict]:
     """Fetch every peer's schema in parallel; missing peers are simply omitted."""
-    import asyncio
     results = await asyncio.gather(*(fetch_peer_schema(peer) for peer in peers))
     return {peer.name: schema for peer, schema in zip(peers, results) if schema is not None}
+
+
+class PeerSchemaCache:
+    """Holds the peer schemas fetched so far and retries the missing ones.
+
+    Retries are throttled to one attempt per `retry_interval_seconds` so a
+    peer that stays down doesn't add the fetch timeout to every docs load.
+    Concurrent callers share a single attempt.
+    """
+
+    def __init__(
+        self,
+        peers: list[PeerSpec],
+        retry_interval_seconds: float = 30.0,
+        clock: Callable[[], float] = time.monotonic,
+    ):
+        self.peers = peers
+        self.schemas: dict[str, dict] = {}
+        self._retry_interval_seconds = retry_interval_seconds
+        self._clock = clock
+        self._last_attempt_at: float | None = None
+        self._lock = asyncio.Lock()
+
+    def missing_peers(self) -> list[PeerSpec]:
+        return [peer for peer in self.peers if peer.name not in self.schemas]
+
+    async def fetch_missing(self) -> bool:
+        """Fetch peers without a schema yet. Returns True if any new schema arrived."""
+        if not self.missing_peers() or not self._retry_due():
+            return False
+        async with self._lock:
+            # Another caller may have just attempted while we waited for the lock.
+            missing_peers = self.missing_peers()
+            if not missing_peers or not self._retry_due():
+                return False
+            self._last_attempt_at = self._clock()
+            fetched_schemas = await fetch_all_peer_schemas(missing_peers)
+            self.schemas.update(fetched_schemas)
+            still_missing = [peer.name for peer in self.missing_peers()]
+            log.info(
+                "Fetched OpenAPI from %d/%d peers for unified docs%s",
+                len(self.schemas),
+                len(self.peers),
+                f" (missing: {', '.join(still_missing)})" if still_missing else "",
+            )
+            return bool(fetched_schemas)
+
+    def _retry_due(self) -> bool:
+        if self._last_attempt_at is None:
+            return True
+        return self._clock() - self._last_attempt_at >= self._retry_interval_seconds
 
 
 def _rewrite_refs(node: Any, ref_map: dict[str, str]) -> Any:
