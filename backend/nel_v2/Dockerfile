@@ -20,11 +20,16 @@ WORKDIR /app/nel_v2
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --without dev --extras inference
 
-# Bake the default SentenceTransformer model into the image so cold starts
-# don't hit HuggingFace Hub.
+# Bake all supported SentenceTransformer models into the image so cold starts
+# don't hit HuggingFace Hub. Vertex AI models (text-embedding-005,
+# gemini-embedding-001) are remote-only and don't need caching here.
 RUN --mount=type=secret,id=HF_TOKEN \
     HF_TOKEN=$(cat /run/secrets/HF_TOKEN) \
-    huggingface-cli download sentence-transformers/all-MiniLM-L6-v2
+    huggingface-cli download sentence-transformers/all-MiniLM-L6-v2 && \
+    HF_TOKEN=$(cat /run/secrets/HF_TOKEN) \
+    huggingface-cli download sentence-transformers/paraphrase-multilingual-mpnet-base-v2 && \
+    HF_TOKEN=$(cat /run/secrets/HF_TOKEN) \
+    huggingface-cli download tabiya/all-MiniLM-L6-v2-occupation-fine-tuned
 
 ENV HF_HUB_OFFLINE="1"
 

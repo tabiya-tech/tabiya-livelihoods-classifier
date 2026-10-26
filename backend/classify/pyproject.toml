@@ -15,6 +15,10 @@ google-cloud-api-keys = "^0.5"
 dnspython = "^2.6.0"
 python-dotenv = "^1.0.1"
 tabiya-shared = { path = "../shared", develop = true }
+# CPU-only torch from the PyTorch CPU wheel index (see [[tool.poetry.source]]
+# below) so the multi-GB NVIDIA CUDA wheels are never pulled. These services run
+# on CPU-only Cloud Run; the CUDA builds only bloat images and break CI downloads.
+torch = { version = "2.7.1", source = "pytorch-cpu" }
 pyjwt = "^2.8.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -26,6 +30,11 @@ pymongo-inmemory = ">=0.4.2"
 [tool.pytest.ini_options]
 testpaths = ["classify"]
 asyncio_mode = "auto"
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

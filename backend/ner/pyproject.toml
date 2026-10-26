@@ -9,7 +9,10 @@ packages = [{ include = "ner" }]
 python = "^3.10"
 fastapi = "^0.111.0"
 uvicorn = { version = "^0.30.0", extras = ["standard"] }
-torch = "^2.1.2"
+# CPU-only torch from the PyTorch CPU wheel index (see [[tool.poetry.source]]
+# below) so the multi-GB NVIDIA CUDA wheels are never pulled. These services run
+# on CPU-only Cloud Run; the CUDA builds only bloat images and break CI downloads.
+torch = { version = "2.7.1", source = "pytorch-cpu" }
 transformers = "^4.32.1"
 nltk = "^3.8.1"
 python-dotenv = "^1.0.1"
@@ -23,6 +26,11 @@ httpx = "^0.27.0"
 [tool.pytest.ini_options]
 testpaths = ["ner"]
 asyncio_mode = "auto"
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

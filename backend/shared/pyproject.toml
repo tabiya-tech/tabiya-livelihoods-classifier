@@ -7,12 +7,20 @@ packages = [{ include = "shared" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-torch = "^2.1.2"
+# CPU-only torch from the PyTorch CPU wheel index (see [[tool.poetry.source]]
+# below) so the multi-GB NVIDIA CUDA wheels are never pulled. These services run
+# on CPU-only Cloud Run; the CUDA builds only bloat images and break CI downloads.
+torch = { version = "^2.1.2", source = "pytorch-cpu" }
 transformers = "^4.32.1"
 python-dotenv = "^1.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

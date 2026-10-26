@@ -154,3 +154,40 @@ class TestClassifyService:
 
         # THEN NEL is called without an Authorization header (no token available)
         assert "authorization" not in nel_mock.calls[0].request.headers
+
+    @respx.mock
+    async def test_caller_identity_headers_forwarded_to_nel(self):
+        # GIVEN NER and NEL both respond successfully
+        respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
+        nel_mock = respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json=_NEL_RESPONSE))
+        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+        # AND the caller's identity headers from the gateway
+        givenUserInfoHeader = "eyJ1c2VyX2lkIjogInVzZXItMSJ9"
+        givenApiKeyHeader = "given-api-key"
+        givenCallerIdentityHeaders = {
+            "x-apigateway-api-userinfo": givenUserInfoHeader,
+            "x-api-key": givenApiKeyHeader,
+        }
+
+        # WHEN classify is called with those headers
+        await svc.classify("Head Chef", caller_identity_headers=givenCallerIdentityHeaders)
+
+        # THEN NEL receives both identity headers so it can resolve the user's config
+        nel_request_headers = nel_mock.calls[0].request.headers
+        assert nel_request_headers["x-apigateway-api-userinfo"] == givenUserInfoHeader
+        assert nel_request_headers["x-api-key"] == givenApiKeyHeader
+
+    @respx.mock
+    async def test_caller_identity_headers_not_sent_to_ner(self):
+        # GIVEN NER and NEL both respond successfully
+        ner_mock = respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
+        respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json=_NEL_RESPONSE))
+        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+        # AND the caller's identity headers from the gateway
+        givenCallerIdentityHeaders = {"x-api-key": "given-api-key"}
+
+        # WHEN classify is called with those headers
+        await svc.classify("Head Chef", caller_identity_headers=givenCallerIdentityHeaders)
+
+        # THEN the API key is not leaked to the NER service
+        assert "x-api-key" not in ner_mock.calls[0].request.headers

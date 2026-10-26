@@ -47,6 +47,7 @@ class IClassifyService(ABC):
         self,
         input_text: str,
         options: Optional[ClassifyOptions] = None,
+        caller_identity_headers: Optional[dict[str, str]] = None,
     ) -> ClassifyResponse: ...
 
 
@@ -63,7 +64,15 @@ class ClassifyService(IClassifyService):
         self,
         input_text: str,
         options: Optional[ClassifyOptions] = None,
+        caller_identity_headers: Optional[dict[str, str]] = None,
     ) -> ClassifyResponse:
+        """Run NER then NEL on the input text.
+
+        caller_identity_headers are the end-user's gateway identity headers
+        (x-apigateway-api-userinfo / x-api-key). They are forwarded to nel_v2,
+        which resolves them to the user and applies that user's configured
+        NEL model and taxonomy model. Without them nel_v2 uses its default config.
+        """
         opts = options or ClassifyOptions()
         start = time.monotonic()
 
@@ -80,7 +89,7 @@ class ClassifyService(IClassifyService):
 
         nel_response: dict = {"linked_entities": [], "metadata": {}}
         if nel_input:
-            nel_response = await self._call_nel(nel_input, opts)
+            nel_response = await self._call_nel(nel_input, opts, caller_identity_headers or {})
 
         linked_map: dict[tuple, list[TaxonomyMatch]] = {}
         for linked in nel_response.get("linked_entities", []):
@@ -131,8 +140,13 @@ class ClassifyService(IClassifyService):
         except httpx.RequestError as exc:
             raise NERServiceError(f"NER service unreachable: {exc}") from exc
 
-    async def _call_nel(self, entities: list[dict], opts: ClassifyOptions) -> dict:
-        headers: dict = {}
+    async def _call_nel(
+        self,
+        entities: list[dict],
+        opts: ClassifyOptions,
+        caller_identity_headers: dict[str, str],
+    ) -> dict:
+        headers: dict = dict(caller_identity_headers)
         token = _gcp_identity_token(NEL_V2_API_URL)
         if token:
             headers["Authorization"] = f"Bearer {token}"

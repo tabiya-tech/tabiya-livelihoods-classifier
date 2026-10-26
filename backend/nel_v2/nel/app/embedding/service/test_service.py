@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from nel.app.embedding.service.service import (
+    EmbeddingBackendUnavailableError,
     GoogleVertexEmbeddingService,
     SentenceTransformerEmbeddingService,
     _clear_registry,
@@ -158,6 +159,76 @@ class TestGoogleVertexEmbeddingService:
         # THEN model_id and dimensions are set from the known mapping
         assert svc.model_id == "text-embedding-005"
         assert svc.dimensions == 768
+
+    def test_from_pretrained_google_error_maps_to_backend_unavailable(self):
+        # GIVEN Vertex rejects model load (e.g. aiplatform API disabled → 403)
+        from google.api_core.exceptions import Forbidden
+
+        givenGoogleError = Forbidden("Agent Platform API has not been used")
+        mock_vertexai = MagicMock()
+        mock_TextEmbeddingModel = MagicMock()
+        mock_TextEmbeddingModel.from_pretrained.side_effect = givenGoogleError
+
+        # WHEN the service is constructed
+        # THEN the raw Google error is translated to a backend-unavailable error
+        with (
+            patch("nel.app.embedding.service.service.vertexai", mock_vertexai, create=True),
+            patch.dict("sys.modules", {
+                "vertexai": mock_vertexai,
+                "vertexai.language_models": MagicMock(
+                    TextEmbeddingModel=mock_TextEmbeddingModel,
+                    TextEmbeddingInput=MagicMock(),
+                ),
+            }),
+            pytest.raises(EmbeddingBackendUnavailableError),
+        ):
+            GoogleVertexEmbeddingService("text-embedding-005", "us-central1")
+
+    async def test_embed_batch_google_error_maps_to_backend_unavailable(self):
+        # GIVEN a Vertex service whose embed call fails with a Google API error
+        from google.api_core.exceptions import ServiceUnavailable
+
+        givenGoogleError = ServiceUnavailable("backend temporarily down")
+        mock_model_instance = MagicMock()
+        mock_model_instance.get_embeddings_async = AsyncMock(
+            side_effect=givenGoogleError
+        )
+        svc = self._make_svc(mock_model_instance)
+
+        # WHEN embed_batch runs
+        # THEN the Google error surfaces as a backend-unavailable error
+        with (
+            patch.dict("sys.modules", {
+                "vertexai": MagicMock(),
+                "vertexai.language_models": MagicMock(
+                    TextEmbeddingInput=MagicMock(side_effect=lambda text, task: MagicMock()),
+                ),
+            }),
+            pytest.raises(EmbeddingBackendUnavailableError),
+        ):
+            await svc.embed_batch(["Head Chef"])
+
+    def test_non_google_error_passes_through_unchanged(self):
+        # GIVEN model load fails with a non-Google error (a real bug)
+        givenUnexpectedError = RuntimeError("something genuinely broken")
+        mock_vertexai = MagicMock()
+        mock_TextEmbeddingModel = MagicMock()
+        mock_TextEmbeddingModel.from_pretrained.side_effect = givenUnexpectedError
+
+        # WHEN the service is constructed
+        # THEN the original error is not masked as backend-unavailable
+        with (
+            patch("nel.app.embedding.service.service.vertexai", mock_vertexai, create=True),
+            patch.dict("sys.modules", {
+                "vertexai": mock_vertexai,
+                "vertexai.language_models": MagicMock(
+                    TextEmbeddingModel=mock_TextEmbeddingModel,
+                    TextEmbeddingInput=MagicMock(),
+                ),
+            }),
+            pytest.raises(RuntimeError),
+        ):
+            GoogleVertexEmbeddingService("text-embedding-005", "us-central1")
 
 
 # ── Singleton registry ────────────────────────────────────────────────────
