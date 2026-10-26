@@ -23,8 +23,12 @@ class FakeClassifyService(IClassifyService):
         self._raises = raises
         self.last_call: dict | None = None
 
-    async def classify(self, input_text, options=None):
-        self.last_call = dict(input_text=input_text, options=options)
+    async def classify(self, input_text, options=None, caller_identity_headers=None):
+        self.last_call = dict(
+            input_text=input_text,
+            options=options,
+            caller_identity_headers=caller_identity_headers,
+        )
         if self._raises:
             raise self._raises
         return self._response
@@ -140,3 +144,35 @@ class TestClassifyV2:
         # THEN 502 is returned
         assert resp.status_code == 502
 
+
+    async def test_caller_identity_headers_forwarded_to_service(self):
+        # GIVEN a service that records its call
+        svc = FakeClassifyService(response=_make_response())
+        # AND the gateway forwarded the caller's user info and API key
+        givenUserInfoHeader = "eyJ1c2VyX2lkIjogInVzZXItMSJ9"
+        givenApiKeyHeader = "given-api-key"
+
+        # WHEN POST /v2/classify is called with those headers
+        async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
+            await client.post(
+                "/v2/classify",
+                json={"text": "Head Chef needed"},
+                headers={"x-apigateway-api-userinfo": givenUserInfoHeader, "x-api-key": givenApiKeyHeader},
+            )
+
+        # THEN both identity headers are passed to the service
+        assert svc.last_call["caller_identity_headers"] == {
+            "x-apigateway-api-userinfo": givenUserInfoHeader,
+            "x-api-key": givenApiKeyHeader,
+        }
+
+    async def test_no_caller_identity_headers_when_none_sent(self):
+        # GIVEN a service that records its call
+        svc = FakeClassifyService(response=_make_response())
+
+        # WHEN POST /v2/classify is called without identity headers
+        async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
+            await client.post("/v2/classify", json={"text": "Head Chef needed"})
+
+        # THEN the service receives no identity headers
+        assert svc.last_call["caller_identity_headers"] == {}
