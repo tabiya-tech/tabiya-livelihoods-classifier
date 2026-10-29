@@ -35,22 +35,33 @@ def remove_special_tokens_and_tags(
 
 
 def extract_entities(tokens: list, tags: list) -> List[dict]:
-    """Convert parallel token/tag lists to entity dicts with 'type' and 'tokens' keys."""
+    """Convert parallel token/tag lists to entity dicts with 'type' and 'tokens' keys.
+
+    A ``B-`` tag always starts a new entity, even when the previous token belongs to an
+    entity of the same type, so two adjacent spans stay two spans. An ``I-`` tag continues
+    the current entity when the type matches, and starts a new one otherwise.
+    """
     result = []
     current_entity = None
     for token, tag in zip(tokens, tags):
-        tag_type, tag_label = tag.split("-") if "-" in tag else ("O", tag)
-        if tag_type != "O":
-            if current_entity and current_entity["type"] == tag_label:
-                current_entity["tokens"].append(token)
-            else:
-                if current_entity:
-                    result.append(current_entity)
-                current_entity = {"type": tag_label, "tokens": [token]}
-        else:
+        if tag == "O" or "-" not in tag:
             if current_entity:
                 result.append(current_entity)
                 current_entity = None
+            continue
+
+        tag_prefix, tag_label = tag.split("-", 1)
+        continues_current_entity = (
+            tag_prefix == "I"
+            and current_entity is not None
+            and current_entity["type"] == tag_label
+        )
+        if continues_current_entity:
+            current_entity["tokens"].append(token)
+        else:
+            if current_entity:
+                result.append(current_entity)
+            current_entity = {"type": tag_label, "tokens": [token]}
     if current_entity:
         result.append(current_entity)
     return [item for item in result if len(item["tokens"]) != 0]
