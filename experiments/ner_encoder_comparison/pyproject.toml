@@ -1,0 +1,36 @@
+[project]
+name = "tabiya-ner-experiments"
+version = "0.1.0"
+description = "Compare encoder models for Spanish job-ad NER (Occupation, Skill, Qualification)"
+requires-python = ">=3.10"
+# torch is listed for completeness. On Windows with an NVIDIA card, install the CUDA build
+# FIRST (see README), otherwise pip picks the CPU-only build.
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.48,<5",  # 4.48 is the first release with ModernBERT (mmBERT, MrBERT-es)
+    "accelerate>=1.0",
+    "sentencepiece>=0.2",     # needed by the BSC-LT tokenizers
+    "protobuf>=4",
+    "hf_xet>=1.0",            # faster, resumable model downloads
+    "seqeval==1.2.2",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6",
+    "numpy>=1.26",
+    "matplotlib>=3.8",
+    "tqdm>=4.66",
+    "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
