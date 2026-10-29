@@ -1,9 +1,15 @@
 """Read the Peru job-ads corpus (Cardenas et al., CC BY 4.0) and convert its tags to ours.
 
 Source: https://github.com/ronaldahmed/labor-market-demand-analysis (``annotated data.zip``).
-800 ads in two folders: ``random`` (a random sample) and ``careers tagged`` (ads asking
-for a degree). Each ad file has one word per line (word, part of speech, tag) and a blank
-line between sentences.
+800 ads in two folders: ``random`` (a random sample) and ``careers tagged`` (most likely
+ads asking for a degree, going by the author's description and their many CARR tags). Each
+ad is one file, ``<folder>/<number>.tsv`` with numbers 1 to 400 per folder, and we use
+``<folder>/<number>`` as the ad's ID. A file has one word per line (word, part of speech,
+tag) and a blank line between sentences.
+
+Two pairs of ads are word-for-word identical (careers tagged 361/364, random 180/363). We
+keep the first copy in file order and drop the other, so the same ad can never land in
+both train and dev/test.
 """
 
 import io
@@ -44,8 +50,17 @@ class PeruAd:
 
 
 @dataclass
+class DroppedDuplicate:
+    """An ad dropped because its words match an earlier ad exactly."""
+
+    dropped_ad_id: str
+    kept_ad_id: str
+
+
+@dataclass
 class ConversionReport:
     moved_to_qualification: list[MovedPhrase] = field(default_factory=list)
+    dropped_duplicates: list[DroppedDuplicate] = field(default_factory=list)
 
 
 def download_corpus(corpus_url: str, raw_dir: Path) -> Path:
@@ -145,4 +160,18 @@ def read_corpus(
             sentences = _read_ad(ad_id, ad_text, task_description_spans, move_qualification_levels, report)
             if sentences:
                 ads.append(PeruAd(ad_id=ad_id, folder=file_path.parent.name, sentences=sentences))
-    return ads, report
+    return _drop_duplicate_ads(ads, report), report
+
+
+def _drop_duplicate_ads(ads: list[PeruAd], report: ConversionReport) -> list[PeruAd]:
+    """Keep only the first of any ads whose words are identical (tags are not compared)."""
+    first_ad_id_by_words: dict[tuple[tuple[str, ...], ...], str] = {}
+    unique_ads: list[PeruAd] = []
+    for ad in ads:
+        ad_words = tuple(tuple(sentence.tokens) for sentence in ad.sentences)
+        if ad_words in first_ad_id_by_words:
+            report.dropped_duplicates.append(DroppedDuplicate(ad.ad_id, first_ad_id_by_words[ad_words]))
+            continue
+        first_ad_id_by_words[ad_words] = ad.ad_id
+        unique_ads.append(ad)
+    return unique_ads

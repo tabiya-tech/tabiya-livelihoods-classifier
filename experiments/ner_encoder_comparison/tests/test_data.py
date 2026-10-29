@@ -54,3 +54,24 @@ class TestSplit:
     def test_the_same_seed_gives_the_same_split(self):
         ad_ids_by_folder = {"random": [f"random/{n}" for n in range(40)]}
         assert make_split(ad_ids_by_folder, 0.7, 0.1, 13) == make_split(ad_ids_by_folder, 0.7, 0.1, 13)
+
+
+class TestDuplicateAds:
+    def test_an_exact_copy_of_an_ad_is_dropped(self, tmp_path):
+        # GIVEN a corpus where random/2 has the same words as random/1 (but different tags)
+        import zipfile
+
+        from ner_experiments.corpus.peru_corpus import read_corpus
+
+        zip_path = tmp_path / "corpus.zip"
+        with zipfile.ZipFile(zip_path, "w") as corpus_zip:
+            corpus_zip.writestr("random/1.tsv", _peru_lines([("Chef", "B-JOB"), ("Cocina", "B-REQ")]))
+            corpus_zip.writestr("random/2.tsv", _peru_lines([("Chef", "B-JOB"), ("Cocina", "O")]))
+            corpus_zip.writestr("random/3.tsv", _peru_lines([("Contador", "B-JOB")]))
+
+        # WHEN reading it
+        ads, report = read_corpus(zip_path, "ignore", True)
+
+        # THEN the later copy is dropped and reported
+        assert [ad.ad_id for ad in ads] == ["random/1", "random/3"]
+        assert [(d.dropped_ad_id, d.kept_ad_id) for d in report.dropped_duplicates] == [("random/2", "random/1")]

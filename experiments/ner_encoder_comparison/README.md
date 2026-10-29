@@ -59,13 +59,14 @@ Run the tests (about a second): `pytest`
 python -m ner_experiments.cli.prepare_data --config configs/prepare.yaml
 ```
 
-This downloads the Peru corpus to `data/raw/`. It converts the Peru tags to our three types
-and writes `data/processed/{train,dev,test}.jsonl`, using the frozen split in `splits/`.
-You should see exactly these counts. If they differ, stop: something changed in the data.
+This downloads the Peru corpus to `data/raw/`. It drops two ads that are word-for-word copies
+of others (it prints which), converts the Peru tags to our three types, and writes
+`data/processed/{train,dev,test}.jsonl` using the frozen split in `splits/`. You should see
+exactly these counts. If they differ, stop: something changed in the data.
 
 | split | ads | sentences | Occupation | Skill | Qualification |
 |---|---|---|---|---|---|
-| train | 560 | 9,024 | 911 | 2,929 | 1,865 |
+| train | 558 | 8,971 | 910 | 2,909 | 1,854 |
 | dev | 80 | 1,359 | 112 | 443 | 320 |
 | test | 160 | 2,654 | 247 | 817 | 563 |
 

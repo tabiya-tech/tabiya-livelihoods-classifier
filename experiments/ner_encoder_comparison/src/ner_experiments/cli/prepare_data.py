@@ -31,7 +31,9 @@ def main() -> None:
     stages.start("Getting the Peru corpus")
     zip_path = download_corpus(settings.corpus_url, settings.paths.raw_dir)
     ads, conversion_report = read_corpus(zip_path, settings.task_description_spans, settings.move_qualification_levels)
-    print(f"Read {len(ads)} ads, {sum(len(ad.sentences) for ad in ads)} sentences")
+    for duplicate in conversion_report.dropped_duplicates:
+        print(f"Dropped {duplicate.dropped_ad_id}: word-for-word the same ad as {duplicate.kept_ad_id}")
+    print(f"Kept {len(ads)} ads, {sum(len(ad.sentences) for ad in ads)} sentences")
     if settings.move_qualification_levels:
         review_path = settings.paths.processed_dir / "moved_to_qualification.csv"
         review_path.parent.mkdir(parents=True, exist_ok=True)
@@ -59,9 +61,15 @@ def main() -> None:
 
     known_ad_ids = {ad.ad_id for ad in ads}
     for split_name in SPLIT_NAMES:
-        missing = [ad_id for ad_id in split_ad_ids[split_name] if ad_id not in known_ad_ids]
-        if missing:
-            raise ValueError(f"{split_file(settings.paths.splits_dir, split_name)} names unknown ads: {missing[:5]}")
+        unknown = [ad_id for ad_id in split_ad_ids[split_name] if ad_id not in known_ad_ids]
+        if unknown:
+            raise ValueError(
+                f"{split_file(settings.paths.splits_dir, split_name)} names ads that are not in the corpus "
+                f"(or were dropped as duplicates): {unknown[:5]}"
+            )
+    unassigned = sorted(known_ad_ids - {ad_id for ad_ids in split_ad_ids.values() for ad_id in ad_ids})
+    if unassigned:
+        raise ValueError(f"{len(unassigned)} ads are in no split file, e.g. {unassigned[:5]}")
 
     stages.start("Writing processed files")
     ads_by_id = {ad.ad_id: ad for ad in ads}
