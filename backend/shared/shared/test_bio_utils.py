@@ -1,6 +1,6 @@
 """Tests for BIO post-processing used by the NER service."""
 
-from shared.bio_utils import extract_entities
+from shared.bio_utils import extract_entities, spread_first_piece_tags
 
 
 class TestExtractEntities:
@@ -52,3 +52,34 @@ class TestExtractEntities:
             {"type": "Skill", "tokens": ["Excel"]},
             {"type": "Skill", "tokens": ["Word"]},
         ]
+
+
+class TestSpreadFirstPieceTags:
+    def test_continuation_pieces_continue_the_first_pieces_entity(self):
+        # GIVEN "Mantenimiento" split into three pieces, only the first trained as B-Skill
+        word_ids = [None, 0, 0, 0, None]
+        tags = ["O", "B-Skill", "O", "B-Occupation", "O"]
+
+        # WHEN spreading first-piece tags
+        # THEN the other pieces continue the skill and special tokens are untouched
+        assert spread_first_piece_tags(tags, word_ids) == [
+            "O", "B-Skill", "I-Skill", "I-Skill", "O"
+        ]
+
+    def test_words_outside_entities_stay_outside(self):
+        # GIVEN a word whose first piece is O but a later piece was tagged
+        word_ids = [0, 0, 1]
+        tags = ["O", "I-Skill", "B-Skill"]
+
+        # WHEN spreading first-piece tags
+        # THEN the stray continuation tag is dropped
+        assert spread_first_piece_tags(tags, word_ids) == ["O", "O", "B-Skill"]
+
+    def test_single_piece_words_are_unchanged(self):
+        # GIVEN every word is one piece
+        word_ids = [None, 0, 1, None]
+        tags = ["O", "B-Skill", "B-Skill", "O"]
+
+        # WHEN spreading first-piece tags
+        # THEN nothing changes
+        assert spread_first_piece_tags(tags, word_ids) == tags
