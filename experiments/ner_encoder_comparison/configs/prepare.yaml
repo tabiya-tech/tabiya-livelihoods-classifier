@@ -1,0 +1,16 @@
+# Settings for: python -m ner_experiments.cli.prepare_data --config configs/prepare.yaml
+# Every value can also be set with an environment variable NER_PREP_<NAME>, which wins.
+
+# What to do with Peru's FUN tags (task descriptions, e.g. "atender a clientes"):
+#   ignore -> tagged O (outside); skill -> tagged Skill
+task_description_spans: ignore
+
+# Move REQ phrases that are really levels of education ("Técnico", "postgrado") from Skill
+# to Qualification. The moved phrases are listed in data/processed/moved_to_qualification.csv.
+move_qualification_levels: true
+
+# Only used with --new-split; the committed split in splits/ is used otherwise.
+train_share: 0.7
+dev_share: 0.1
+test_share: 0.2
+split_seed: 13

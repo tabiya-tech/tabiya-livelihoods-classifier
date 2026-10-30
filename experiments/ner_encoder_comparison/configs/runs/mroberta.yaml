@@ -1,0 +1,46 @@
+# One training run of BSC-LT/mRoBERTa.
+# Multilingual RoBERTa from the Barcelona Supercomputing Center, trained with more Spanish.
+#
+# Run it with:
+#   python -m ner_experiments.cli.run_experiment --config configs/runs/mroberta.yaml
+#
+# Change the values below by hand for each run in the plan (see README), or override any
+# of them for a single run with an environment variable, which wins over this file:
+#   PowerShell:  $env:NER_EXP_SEED = "2"     (remove with: Remove-Item Env:NER_EXP_SEED)
+
+model_name: BSC-LT/mRoBERTa
+
+# Learning speed (learning rate). Step 1 of the plan tries 2e-5, 3e-5 and 5e-5.
+learning_rate: 3e-5
+
+# Random seed. Step 2 repeats the best learning rate with seeds 1 to 5.
+seed: 1
+
+# Share of training ads to use, for the learning curve (step 3): 0.25, 0.5, 1.0.
+train_fraction: 1.0
+
+# Leave false while tuning. Set true only for the final repeat runs (step 2), so the
+# locked test set is scored once per final run and never used to pick settings.
+evaluate_on_test: false
+
+# Keep the trained model files (about 0.6 to 1.2 GB). Needed only for the speed check.
+keep_model: false
+
+# Folder name under runs/. Leave empty to build it from the settings,
+# e.g. mmbert-base-lr3e-05-seed1.
+run_name:
+
+# Training length. Training stops early once dev F1 has not improved for
+# early_stopping_patience passes over the data (epochs).
+max_epochs: 15
+early_stopping_patience: 3
+
+# Sentences per update. If you run out of GPU memory, use batch_size 8 with
+# gradient_accumulation_steps 2 (same effective batch of 16).
+batch_size: 16
+gradient_accumulation_steps: 1
+
+# cuda stops with an install hint if PyTorch can't see the GPU, instead of quietly
+# training on the CPU. Use auto to allow CPU or a Mac GPU (mps). precision auto = bf16 on the 4060.
+device: cuda
+precision: auto

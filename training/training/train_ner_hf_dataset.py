@@ -32,13 +32,21 @@ from transformers import (
 
 import evaluate as hf_evaluate
 
+# Must match the integer tag ids stored in tabiya/job_ner_dataset (its ner_tags column is a
+# plain int, not a ClassLabel). The order was recovered by aligning 1,000 training rows with
+# the string tags of the public Green release (jjzha/green); every id maps to one tag.
 LABEL_LIST = [
     "O",
-    "B-Skill", "I-Skill",
-    "B-Occupation", "I-Occupation",
-    "B-Qualification", "I-Qualification",
-    "B-Experience", "I-Experience",
-    "B-Domain", "I-Domain",
+    "B-Skill",
+    "B-Qualification",
+    "I-Domain",
+    "I-Experience",
+    "I-Qualification",
+    "B-Occupation",
+    "B-Domain",
+    "I-Occupation",
+    "I-Skill",
+    "B-Experience",
 ]
 LABEL2ID = {l: i for i, l in enumerate(LABEL_LIST)}
 ID2LABEL = {i: l for i, l in enumerate(LABEL_LIST)}

@@ -10,7 +10,12 @@ from nltk.tokenize import sent_tokenize
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
 from ner.models import EntityType
-from shared.bio_utils import extract_entities, fix_bio_tags, remove_special_tokens_and_tags
+from shared.bio_utils import (
+    extract_entities,
+    fix_bio_tags,
+    remove_special_tokens_and_tags,
+    spread_first_piece_tags,
+)
 from shared.transformers_crf import AutoModelCrfForNer
 
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -142,6 +147,11 @@ class NERModel:
             predictions = torch.argmax(logits, dim=2)
 
         predicted_tags = [self.model.config.id2label[t.item()] for t in predictions[0]]
+        # Only each word's first piece was trained; decode at word level from it.
+        if inputs.encodings is not None:
+            predicted_tags = spread_first_piece_tags(predicted_tags, inputs.word_ids(0))
+        else:
+            log.warning("Slow tokenizer has no word ids; decoding per piece instead")
         predicted_tags = fix_bio_tags(predicted_tags)
         input_ids, predicted_tags = remove_special_tokens_and_tags(
             inputs["input_ids"][0], predicted_tags, self.tokenizer

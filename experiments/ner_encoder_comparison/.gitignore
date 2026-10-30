@@ -1,0 +1,12 @@
+# Everything here can be rebuilt or re-downloaded, so it stays out of git.
+# splits/ IS committed: it freezes which ads are train / dev / test.
+# Leading "/" = only at the top of this folder (so configs/runs/ is still committed).
+/data/
+/runs/
+/reports/
+/.hf-cache/
+/.venv/
+/venv/
+*.egg-info/
+__pycache__/
+.pytest_cache/
