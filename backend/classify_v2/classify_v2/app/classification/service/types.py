@@ -19,6 +19,16 @@ class ClassifyOptions(BaseModel):
     )
     top_k: int = Field(5, ge=1, le=50)
     min_similarity: float = Field(0.0, ge=0.0, le=1.0)
+    language: Optional[str] = Field(
+        None,
+        description=(
+            "Language of the text ('en', 'es', or a locale like 'AR-es'). Passed to NER, which "
+            "picks that language's model, and to NEL, which picks that language's taxonomy and "
+            "embedding model when that language has a taxonomy configured. Omit to use each "
+            "service's default."
+        ),
+        examples=["es"],
+    )
 
 
 class ClassifyRequest(BaseModel):
