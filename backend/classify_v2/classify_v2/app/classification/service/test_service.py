@@ -1,5 +1,6 @@
 """Tests for classify v2 service."""
 
+import json
 import pytest
 import respx
 import httpx
@@ -191,3 +192,40 @@ class TestClassifyService:
 
         # THEN the API key is not leaked to the NER service
         assert "x-api-key" not in ner_mock.calls[0].request.headers
+
+class TestLanguage:
+    @respx.mock
+    async def test_language_is_forwarded_to_ner_and_nel(self):
+        # GIVEN NER and NEL both respond successfully
+        ner_mock = respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
+        nel_mock = respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json=_NEL_RESPONSE))
+        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+
+        # AND Spanish text with its language set
+        given_text = "Cocinero con experiencia"
+        given_language = "es"
+
+        # WHEN the text is classified
+        await svc.classify(given_text, ClassifyOptions(language=given_language))
+
+        # THEN NER is told the language
+        assert json.loads(ner_mock.calls[0].request.content)["language"] == given_language
+        # AND NEL is told the language
+        assert json.loads(nel_mock.calls[0].request.content)["language"] == given_language
+
+    @respx.mock
+    async def test_no_language_leaves_the_services_on_their_defaults(self):
+        # GIVEN NER and NEL both respond successfully
+        ner_mock = respx.post(f"{_NER_URL}/v1/ner").mock(return_value=httpx.Response(200, json=_NER_RESPONSE))
+        nel_mock = respx.post(f"{_NEL_URL}/v2/nel").mock(return_value=httpx.Response(200, json=_NEL_RESPONSE))
+        svc = ClassifyService(ner_api_url=_NER_URL, nel_v2_api_url=_NEL_URL)
+
+        # AND text with no language set
+        given_text = "Head Chef"
+
+        # WHEN the text is classified
+        await svc.classify(given_text)
+
+        # THEN no language is sent, so each service keeps its current default
+        assert "language" not in json.loads(ner_mock.calls[0].request.content)
+        assert "language" not in json.loads(nel_mock.calls[0].request.content)

@@ -126,6 +126,8 @@ class ClassifyService(IClassifyService):
         payload: dict = {"text": input_text}
         if opts.extract_entities:
             payload["entity_types"] = [e.value for e in opts.extract_entities]
+        if opts.language:
+            payload["language"] = opts.language
         headers: dict = {}
         token = _gcp_identity_token(NER_API_URL)
         if token:
@@ -146,6 +148,13 @@ class ClassifyService(IClassifyService):
         opts: ClassifyOptions,
         caller_identity_headers: dict[str, str],
     ) -> dict:
+        payload: dict = {
+            "entities": entities,
+            "top_k": opts.top_k,
+            "min_similarity": opts.min_similarity,
+        }
+        if opts.language:
+            payload["language"] = opts.language
         headers: dict = dict(caller_identity_headers)
         token = _gcp_identity_token(NEL_V2_API_URL)
         if token:
@@ -154,11 +163,7 @@ class ClassifyService(IClassifyService):
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
                     f"{self._nel_url}/v2/nel",
-                    json={
-                        "entities": entities,
-                        "top_k": opts.top_k,
-                        "min_similarity": opts.min_similarity,
-                    },
+                    json=payload,
                     headers=headers,
                 )
                 if resp.status_code == 503:
