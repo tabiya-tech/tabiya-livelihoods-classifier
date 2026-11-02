@@ -7,6 +7,15 @@ All services are internal-only except via the API Gateway.
 import pulumi_gcp as gcp
 
 
+def _env_vars_when_set(values: dict[str, str]) -> list[gcp.cloudrunv2.ServiceTemplateContainerEnvArgs]:
+    """Env vars for the values that are set; an empty value leaves the service's own default."""
+    return [
+        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(name=name, value=value)
+        for name, value in values.items()
+        if value
+    ]
+
+
 def create_cloud_run_services(
     project: str,
     region: str,
@@ -30,6 +39,10 @@ def create_cloud_run_services(
     gateway_base_url: str,
     vertex_api_region: str = "us-central1",
     env: str = "dev",
+    target_language: str = "en",
+    ner_model_es: str = "",
+    taxonomy_model_id_es: str = "",
+    nel_v2_model_id_es: str = "",
 ):
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
@@ -77,11 +90,12 @@ def create_cloud_run_services(
                         # live in shared/languages/<lang>_config.py; override a single
                         # language with NER_MODEL_<LANG>.
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="TARGET_LANGUAGE", value="en"
+                            name="TARGET_LANGUAGE", value=target_language
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="ENABLED_LANGUAGES", value="all"
                         ),
+                        *_env_vars_when_set({"NER_MODEL_ES": ner_model_es}),
                     ],
                     liveness_probe=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeArgs(
                         http_get=gcp.cloudrunv2.ServiceTemplateContainerLivenessProbeHttpGetArgs(
@@ -140,7 +154,7 @@ def create_cloud_run_services(
                         # from shared/languages/<lang>_config.py and
                         # nel/nel/files/<lang>/; override one with LINKER_MODEL_<LANG>.
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                            name="TARGET_LANGUAGE", value="en"
+                            name="TARGET_LANGUAGE", value=target_language
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="ENABLED_LANGUAGES", value="all"
@@ -223,6 +237,15 @@ def create_cloud_run_services(
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="VERTEX_API_REGION", value=vertex_api_region
+                        ),
+                        # The (taxonomy model, embedding model) pair a request with
+                        # language=es links with. Unset keeps the defaults in
+                        # shared/languages/es_config.py.
+                        *_env_vars_when_set(
+                            {
+                                "TAXONOMY_MODEL_ID_ES": taxonomy_model_id_es,
+                                "NEL_V2_MODEL_ID_ES": nel_v2_model_id_es,
+                            }
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="TARGET_ENVIRONMENT_TYPE", value=env
@@ -397,6 +420,10 @@ def create_cloud_run_services(
                         ),
                         gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                             name="GCP_API_MANAGED_SERVICE", value=managed_service
+                        ),
+                        # Language for API keys with none of their own; forwarded to NER and NEL.
+                        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                            name="TARGET_LANGUAGE", value=target_language
                         ),
                     ],
                     startup_probe=gcp.cloudrunv2.ServiceTemplateContainerStartupProbeArgs(
