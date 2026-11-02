@@ -2,15 +2,16 @@
 
 import logging
 import os
+import re
 from collections import Counter
-from typing import List, Optional
+from typing import List, NamedTuple, Optional, TypedDict
 
 import torch
 from nltk.tokenize import sent_tokenize
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
 from ner.models import EntityType
-from shared.bio_utils import extract_entities, fix_bio_tags, remove_special_tokens_and_tags
+from shared.bio_utils import extract_entities, fix_bio_tags
 from shared.transformers_crf import AutoModelCrfForNer
 
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -22,6 +23,56 @@ log = logging.getLogger(__name__)
 # — `tabiya/roberta-base-job-ner` also emits Experience and Domain — and those spans
 # cannot be linked to the taxonomy, so they are dropped rather than returned.
 PIPELINE_ENTITY_TYPES = frozenset(t.value for t in EntityType)
+
+
+# Words as the training corpora split them: runs of letters/digits (keeping inner
+# hyphens and apostrophes) and each punctuation mark on its own.
+_WORD_PATTERN = re.compile(r"\w+(?:[-'’]\w+)*|[^\w\s]")
+
+
+class Word(NamedTuple):
+    """One word of the input and its character offsets in the text it came from."""
+
+    text: str
+    start: int
+    end: int
+
+
+class SentenceEntity(TypedDict):
+    """An entity found in one sentence, with offsets relative to that sentence."""
+
+    type: str
+    surface: str
+    start: int
+    end: int
+
+
+def split_words(text: str) -> List[Word]:
+    """Split text into words the way the NER training data was split.
+
+    The model is given these words rather than raw text: some tokenizers (e.g. the
+    SentencePiece ones of BSC-LT/mRoBERTa) do not mark word boundaries on raw text, so
+    the model's per-word tags could not be read back. Character offsets keep every
+    entity tied to the exact text it came from.
+    """
+    return [Word(match.group(), match.start(), match.end()) for match in _WORD_PATTERN.finditer(text)]
+
+
+def first_piece_word_tags(
+    piece_tags: List[str], word_ids: List[Optional[int]], word_count: int
+) -> List[str]:
+    """One tag per word, read from the word's first piece (the only piece trained).
+
+    Words cut off by truncation have no pieces and are tagged ``O``.
+    """
+    word_tags = ["O"] * word_count
+    tagged_words: set[int] = set()
+    for piece_tag, word_index in zip(piece_tags, word_ids):
+        if word_index is None or word_index in tagged_words:
+            continue
+        word_tags[word_index] = piece_tag
+        tagged_words.add(word_index)
+    return word_tags
 
 
 def resolve_entity_type(raw_label: str, label_map: Optional[dict] = None) -> Optional[str]:
@@ -81,6 +132,8 @@ class NERModel:
 
         for sentence in sentences:
             sent_start = text.find(sentence, char_offset)
+            if sent_start == -1:  # the splitter altered the sentence; offsets stay approximate
+                sent_start = char_offset
             raw_entities = self._ner_pipeline(sentence)
 
             for entity in raw_entities:
@@ -88,17 +141,13 @@ class NERModel:
                 if entity_type is None:
                     dropped[entity["type"].lower()] += 1
                     continue
-                surface = entity["tokens"]
-                entity_start = text.find(surface, sent_start)
-                entity_end = entity_start + len(surface) if entity_start != -1 else sent_start
-
                 all_entities.append(
                     {
                         "entity_type": entity_type,
-                        "surface_form": surface,
+                        "surface_form": entity["surface"],
                         "span": {
-                            "start": max(entity_start, 0),
-                            "end": max(entity_end, 0),
+                            "start": sent_start + entity["start"],
+                            "end": sent_start + entity["end"],
                         },
                     }
                 )
@@ -128,9 +177,17 @@ class NERModel:
             )
             return sent_tokenize(text)
 
-    def _ner_pipeline(self, text: str) -> List[dict]:
-        """Run NER on a single sentence."""
-        inputs = self.tokenizer(text, return_tensors="pt", truncation=True).to(self.device)
+    def _ner_pipeline(self, text: str) -> List[SentenceEntity]:
+        """Run NER on a single sentence; entity offsets are relative to ``text``."""
+        words = split_words(text)
+        if not words:
+            return []
+        inputs = self.tokenizer(
+            [word.text for word in words],
+            is_split_into_words=True,
+            return_tensors="pt",
+            truncation=True,
+        ).to(self.device)
 
         if self.crf:
             with torch.no_grad():
@@ -141,17 +198,11 @@ class NERModel:
                 logits = self.model(**inputs).logits
             predictions = torch.argmax(logits, dim=2)
 
-        predicted_tags = [self.model.config.id2label[t.item()] for t in predictions[0]]
-        predicted_tags = fix_bio_tags(predicted_tags)
-        input_ids, predicted_tags = remove_special_tokens_and_tags(
-            inputs["input_ids"][0], predicted_tags, self.tokenizer
-        )
-        result = extract_entities(input_ids, predicted_tags)
+        piece_tags = [self.model.config.id2label[prediction.item()] for prediction in predictions[0]]
+        word_tags = fix_bio_tags(first_piece_word_tags(piece_tags, inputs.word_ids(0), len(words)))
 
-        for entry in result:
-            sentence = self.tokenizer.decode(entry["tokens"])
-            if sentence.startswith(" "):
-                sentence = sentence[1:]
-            entry["tokens"] = sentence
-
-        return result
+        entities: List[SentenceEntity] = []
+        for entity in extract_entities(words, word_tags):
+            start, end = entity["tokens"][0].start, entity["tokens"][-1].end
+            entities.append({"type": entity["type"], "surface": text[start:end], "start": start, "end": end})
+        return entities
