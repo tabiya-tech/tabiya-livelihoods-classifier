@@ -5,7 +5,7 @@ Data pack: ``nel/nel/files/es/``, generated from the AR-es taxonomy export with
 English pack's — ``UUIDHISTORY[-1]`` is stable across taxonomy locales — so entities
 linked in Spanish resolve to the same taxonomy entries downstream.
 
-Override via env: ``NER_MODEL_ES``, ``LINKER_MODEL_ES``, ``TAXONOMY_MODEL_ID_ES``.
+Override via env: ``NER_MODEL_ES``, ``LINKER_MODEL_ES``, ``TAXONOMY_MODEL_ID_ES``, ``NEL_V2_MODEL_ID_ES``.
 """
 
 from shared.languages._env import lang_env_str
@@ -55,5 +55,9 @@ LANGUAGE_CONFIG = {
     # The AR-es model id in the taxonomy platform. Its embeddings must exist in the
     # taxonomy Atlas cluster or v2 linking returns nothing (runbook phase 6).
     "taxonomy_model_id": lang_env_str("TAXONOMY_MODEL_ID", "es", ""),
+    # Embedding model paired with `taxonomy_model_id`: it must be multilingual, and its
+    # embeddings must exist for that taxonomy model (scripts/generate_embeddings.py).
+    # Only used when `taxonomy_model_id` is set, so the pair always matches.
+    "nel_v2_model_id": lang_env_str("NEL_V2_MODEL_ID", "es", "models/gemini-embedding-001"),
     "taxonomy_locale": "AR-es",
 }

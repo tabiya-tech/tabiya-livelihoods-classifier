@@ -25,6 +25,9 @@ LANGUAGE_CONFIG = {
     # Taxonomy model in the taxonomy platform. Empty = fall back to the caller's
     # user config / DEFAULT_TAXONOMY_MODEL_ID, i.e. today's behaviour.
     "taxonomy_model_id": lang_env_str("TAXONOMY_MODEL_ID", "en", ""),
+    # Embedding model paired with `taxonomy_model_id`. Empty = fall back to the caller's
+    # user config / DEFAULT_NEL_MODEL_ID, i.e. today's behaviour.
+    "nel_v2_model_id": lang_env_str("NEL_V2_MODEL_ID", "en", ""),
     # LOCALE column of the taxonomy export's model_info.csv; reported in responses.
     "taxonomy_locale": "en",
 }

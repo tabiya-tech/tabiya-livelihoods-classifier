@@ -52,6 +52,7 @@ class TestRegistry:
         # THEN it still points at the models the services hardcoded before
         assert cfg["ner_model"] == "tabiya/roberta-base-job-ner"
         assert cfg["nel_similarity_model"] == "all-MiniLM-L6-v2"
+        assert cfg["nel_v2_model_id"] == ""
 
 
 class TestNormaliseLanguage:
