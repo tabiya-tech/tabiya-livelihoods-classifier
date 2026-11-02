@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       stack:
-        description: "Stack to deploy (dev / staging / prod)"
+        description: "Stack to deploy (dev / staging / prod / brujula)"
         required: true
         default: dev
         type: choice
-        options: [dev, staging, prod]
+        options: [dev, staging, prod, brujula]
   workflow_call:
     inputs:
       stack:

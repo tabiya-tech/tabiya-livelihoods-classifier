@@ -11,7 +11,7 @@ config:
   tabiya-classifier-backend:region: <region>
 
   # Stack name — used for environment identification
-  tabiya-classifier-backend:env: <dev|staging|prod>
+  tabiya-classifier-backend:env: <dev|staging|prod|brujula>
 
   # Firebase project ID for dashboard Bearer token verification at the API Gateway
   tabiya-classifier-backend:firebaseProjectId: <firebase-project-id>
@@ -34,6 +34,18 @@ config:
 
   # GCP region for Vertex AI embedding calls (default: same as region)
   tabiya-classifier-backend:vertexApiRegion: <region>
+
+  # ── Optional language settings (leave out to keep each service's default) ──
+  # Language for requests that carry none. A Spanish-only stack sets "es", and also
+  # points defaultTaxonomyModelId / defaultNELModelId at the AR-es pair below, so
+  # NEL v2 links in Spanish for callers that send no language.
+  tabiya-classifier-backend:targetLanguage: /(en|es)?/
+  # Spanish NER checkpoint (NER_MODEL_ES), e.g. a Hugging Face repo id readable with HF_TOKEN
+  tabiya-classifier-backend:nerModelEs: /.*/
+  # AR-es taxonomy model id (TAXONOMY_MODEL_ID_ES) and the embedding model its
+  # embeddings were generated with (NEL_V2_MODEL_ID_ES); used for language=es requests
+  tabiya-classifier-backend:taxonomyModelIdEs: /.*/
+  tabiya-classifier-backend:nelV2ModelIdEs: /.*/
 
   # Docker image URIs — injected by CI; set as placeholders here
   tabiya-classifier-backend:nerImage: <image-uri>

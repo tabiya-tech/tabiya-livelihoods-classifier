@@ -23,6 +23,12 @@ Required Pulumi config:
   tabiya-classifier-backend:defaultTaxonomyModelId — Default taxonomy model ID
   tabiya-classifier-backend:vertexApiRegion       — GCP region for Vertex AI embeddings (default: same as region)
 
+Optional Pulumi config (empty or absent leaves each service's own default):
+  tabiya-classifier-backend:targetLanguage        — Language for requests that carry none: en (default) or es
+  tabiya-classifier-backend:nerModelEs            — Spanish NER checkpoint (NER_MODEL_ES), e.g. a Hugging Face repo id
+  tabiya-classifier-backend:taxonomyModelIdEs     — AR-es taxonomy model id for NEL v2 (TAXONOMY_MODEL_ID_ES)
+  tabiya-classifier-backend:nelV2ModelIdEs        — Embedding model paired with it (NEL_V2_MODEL_ID_ES)
+
 Required environment variables (from .env.{stack}, sourced from Secret Manager):
   MONGODB_URI          — MongoDB Atlas connection URI (app DB)
   MONGODB_DB_NAME      — MongoDB database name
@@ -56,6 +62,10 @@ taxonomy_api_base_url = config.require("taxonomyApiBaseUrl")
 default_nel_model_id = config.get("defaultNELModelId") or "all-MiniLM-L6-v2"
 default_taxonomy_model_id = config.get("defaultTaxonomyModelId") or ""
 vertex_api_region = config.get("vertexApiRegion") or region
+target_language = config.get("targetLanguage") or "en"
+ner_model_es = config.get("nerModelEs") or ""
+taxonomy_model_id_es = config.get("taxonomyModelIdEs") or ""
+nel_v2_model_id_es = config.get("nelV2ModelIdEs") or ""
 app_origin = f"https://app.{env_subdomain}"
 
 
@@ -124,6 +134,10 @@ ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     gateway_base_url=f"https://{env_subdomain}",
     vertex_api_region=vertex_api_region,
     env=env,
+    target_language=target_language,
+    ner_model_es=ner_model_es,
+    taxonomy_model_id_es=taxonomy_model_id_es,
+    nel_v2_model_id_es=nel_v2_model_id_es,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)
