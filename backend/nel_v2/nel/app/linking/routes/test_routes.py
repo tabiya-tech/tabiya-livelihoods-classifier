@@ -189,3 +189,60 @@ class TestLinkEntities:
 
         # THEN Pydantic rejects it with 422 before the handler runs
         assert resp.status_code == 422
+
+
+class TestLanguage:
+    async def test_language_uses_its_taxonomy_and_embedding_model(self):
+        # GIVEN Spanish is configured with its own taxonomy and embedding model
+        given_language = "es"
+        given_language_config = {"taxonomy_model_id": "tax-es", "nel_v2_model_id": "nel-es"}
+        svc = FakeNELService(response=_make_response())
+
+        # WHEN a Spanish request is linked
+        with patch("nel.app.linking.routes.routes.get_language_config", return_value=given_language_config):
+            async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
+                actual_response = await client.post(
+                    "/v2/nel",
+                    json={"entities": [{"text": "cocinero", "entity_type": "occupation"}], "language": given_language},
+                )
+
+        # THEN the request succeeds
+        assert actual_response.status_code == 200
+        # AND both models come from the language, so queries match the stored embeddings
+        assert svc.last_call["taxonomy_model_id"] == given_language_config["taxonomy_model_id"]
+        assert svc.last_call["nel_model_id"] == given_language_config["nel_v2_model_id"]
+
+    async def test_language_without_a_taxonomy_keeps_the_user_pair(self):
+        # GIVEN Spanish has an embedding model but no taxonomy model configured
+        given_language_config = {"taxonomy_model_id": "", "nel_v2_model_id": "nel-es"}
+        given_user_config = UserConfig(user_id="user-1", taxonomy_model_id="tax-user", nel_model_id="nel-user")
+        svc = FakeNELService(response=_make_response())
+
+        # WHEN a Spanish request is linked
+        with patch("nel.app.linking.routes.routes.get_language_config", return_value=given_language_config):
+            async with AsyncClient(
+                transport=ASGITransport(app=_make_app(svc, given_user_config)), base_url="http://test"
+            ) as client:
+                await client.post(
+                    "/v2/nel",
+                    json={"entities": [{"text": "cocinero", "entity_type": "occupation"}], "language": "es"},
+                )
+
+        # THEN the user's taxonomy and embedding model are used together, never mixed with the language's model
+        assert svc.last_call["taxonomy_model_id"] == given_user_config.taxonomy_model_id
+        assert svc.last_call["nel_model_id"] == given_user_config.nel_model_id
+
+    async def test_no_language_uses_the_user_pair(self):
+        # GIVEN a user with their own taxonomy and embedding model
+        given_user_config = UserConfig(user_id="user-1", taxonomy_model_id="tax-user", nel_model_id="nel-user")
+        svc = FakeNELService(response=_make_response())
+
+        # WHEN a request without a language is linked
+        async with AsyncClient(
+            transport=ASGITransport(app=_make_app(svc, given_user_config)), base_url="http://test"
+        ) as client:
+            await client.post("/v2/nel", json={"entities": [{"text": "Head Chef", "entity_type": "occupation"}]})
+
+        # THEN the user's pair is used, as before
+        assert svc.last_call["taxonomy_model_id"] == given_user_config.taxonomy_model_id
+        assert svc.last_call["nel_model_id"] == given_user_config.nel_model_id

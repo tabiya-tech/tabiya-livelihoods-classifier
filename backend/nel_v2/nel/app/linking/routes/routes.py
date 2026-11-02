@@ -10,7 +10,7 @@ from nel.app.embedding.service.service import (
 )
 from nel.app.embeddings_cache.repository.repository import EmbeddingsCacheRepository
 from nel.app.linking.repository.repository import EntityLinkingRepository
-from nel.app.linking.routes._types import NELRequest
+from nel.app.linking.routes._types import LinkingModels, NELRequest
 from nel.app.linking.service.errors import EmbeddingsCacheNotReadyError
 from nel.app.linking.service.service import INELService, NELService
 from nel.app.linking.service.types import NELOptions, NELResponse
@@ -31,15 +31,51 @@ async def _get_user_config(uid: str = Depends(get_firebase_uid)) -> UserConfig:
     return await UserConfigService(UserConfigRepository(app_db)).get(uid)
 
 
-async def _get_service(user_config: UserConfig = Depends(_get_user_config)) -> INELService:
-    from nel.config import DEFAULT_NEL_MODEL_ID
-    nel_model_id = user_config.nel_model_id or DEFAULT_NEL_MODEL_ID
+async def _resolve_models(
+    request: NELRequest, user_config: UserConfig = Depends(_get_user_config)
+) -> LinkingModels:
+    from nel.config import DEFAULT_NEL_MODEL_ID, DEFAULT_TAXONOMY_MODEL_ID
 
+    # A language on the request is an explicit instruction, so its configured taxonomy
+    # model wins over the caller's stored config. Without it, nothing changes.
+    # The language's embedding model comes with it: embeddings are stored per
+    # (taxonomy model, embedding model) pair, so the two are only used together.
+    language_taxonomy_model_id = ""
+    language_nel_model_id = ""
+    if request.language:
+        language = normalise_language(request.language)
+        language_config = get_language_config(language)
+        language_taxonomy_model_id = language_config.get("taxonomy_model_id") or ""
+        if language_taxonomy_model_id:
+            language_nel_model_id = language_config.get("nel_v2_model_id") or ""
+        else:
+            _logger.warning(
+                "language=%s requested but TAXONOMY_MODEL_ID_%s is not set; "
+                "falling back to the caller's taxonomy model",
+                language,
+                language.upper(),
+            )
+
+    taxonomy_model_id = (
+        language_taxonomy_model_id or user_config.taxonomy_model_id or DEFAULT_TAXONOMY_MODEL_ID
+    )
+    if not taxonomy_model_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No taxonomy model configured — set one via PUT /v2/nel/user/config or set DEFAULT_TAXONOMY_MODEL_ID",
+        )
+    return LinkingModels(
+        taxonomy_model_id=taxonomy_model_id,
+        nel_model_id=language_nel_model_id or user_config.nel_model_id or DEFAULT_NEL_MODEL_ID,
+    )
+
+
+async def _get_service(models: LinkingModels = Depends(_resolve_models)) -> INELService:
     app_db = await ClassifierDBProvider.get_application_db()
     taxonomy_db = await ClassifierDBProvider.get_taxonomy_db()
     cache_repo = EmbeddingsCacheRepository(app_db=app_db, taxonomy_db=taxonomy_db)
     try:
-        embedding_svc = await get_embedding_service(nel_model_id)
+        embedding_svc = await get_embedding_service(models.nel_model_id)
     except EmbeddingBackendUnavailableError as exc:
         # e.g. Vertex AI not enabled / no access on the project. This is an
         # operational/config problem, not a client error — surface it as 503
@@ -57,42 +93,14 @@ async def _get_service(user_config: UserConfig = Depends(_get_user_config)) -> I
 @router.post("", response_model=NELResponse)
 async def link_entities(
     request: NELRequest,
-    user_config: UserConfig = Depends(_get_user_config),
+    models: LinkingModels = Depends(_resolve_models),
     svc: INELService = Depends(_get_service),
 ):
-    from nel.config import DEFAULT_NEL_MODEL_ID, DEFAULT_TAXONOMY_MODEL_ID
-
-    # A language on the request is an explicit instruction, so its configured taxonomy
-    # model wins over the caller's stored config. Without it, nothing changes.
-    language_taxonomy_model_id = ""
-    language = None
-    if request.language:
-        language = normalise_language(request.language)
-        language_taxonomy_model_id = get_language_config(language).get("taxonomy_model_id") or ""
-        if not language_taxonomy_model_id:
-            _logger.warning(
-                "language=%s requested but TAXONOMY_MODEL_ID_%s is not set; "
-                "falling back to the caller's taxonomy model",
-                language,
-                language.upper(),
-            )
-
-    taxonomy_model_id = (
-        language_taxonomy_model_id or user_config.taxonomy_model_id or DEFAULT_TAXONOMY_MODEL_ID
-    )
-    nel_model_id = user_config.nel_model_id or DEFAULT_NEL_MODEL_ID
-
-    if not taxonomy_model_id:
-        raise HTTPException(
-            status_code=400,
-            detail="No taxonomy model configured — set one via PUT /v2/nel/user/config or set DEFAULT_TAXONOMY_MODEL_ID",
-        )
-
     try:
         return await svc.link(
             entities=[(e.text, e.entity_type) for e in request.entities],
-            taxonomy_model_id=taxonomy_model_id,
-            nel_model_id=nel_model_id,
+            taxonomy_model_id=models.taxonomy_model_id,
+            nel_model_id=models.nel_model_id,
             options=NELOptions(top_k=request.top_k, min_similarity=request.min_similarity),
         )
     except EmbeddingsCacheNotReadyError as exc:

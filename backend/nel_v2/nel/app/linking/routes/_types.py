@@ -22,3 +22,14 @@ class NELRequest(BaseModel):
         ),
         examples=["es"],
     )
+
+
+class LinkingModels(BaseModel):
+    """The taxonomy model and embedding model one request links with.
+
+    Embeddings are stored per (taxonomy model, embedding model) pair, so the two are
+    resolved together and never mixed across sources.
+    """
+
+    taxonomy_model_id: str
+    nel_model_id: str
