@@ -7,7 +7,7 @@ on:
 # Only one deploy at a time; cancel in-progress CI runs on the same branch
 # but never cancel a deploy that is already running.
 concurrency:
-  group: ${{ github.workflow }}-${{ (contains(github.event.head_commit.message, '[deploy dev]') || github.ref_name == 'dev') && 'deploying' || github.ref_name }}
+  group: ${{ github.workflow }}-${{ (contains(github.event.head_commit.message, '[deploy dev]') || contains(github.event.head_commit.message, '[deploy brujula]') || github.ref_name == 'dev') && 'deploying' || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -16,9 +16,10 @@ jobs:
     uses: ./.github/workflows/backend-ci.yml
     secrets: inherit
     with:
-      # Build and push images when deploying to dev (via flag on any branch, or merge to dev)
-      upload-artifacts: ${{ contains(github.event.head_commit.message, '[deploy dev]') || github.ref_name == 'dev' }}
-      stack: dev
+      # Build and push images when deploying: to dev (via flag on any branch, or merge to
+      # dev) or to brujula, the Spanish stack (via flag only). Images go to that stack's registry.
+      upload-artifacts: ${{ contains(github.event.head_commit.message, '[deploy dev]') || contains(github.event.head_commit.message, '[deploy brujula]') || github.ref_name == 'dev' }}
+      stack: ${{ contains(github.event.head_commit.message, '[deploy brujula]') && 'brujula' || 'dev' }}
 
   frontend-ci:
     name: Frontend CI
@@ -33,6 +34,15 @@ jobs:
     secrets: inherit
     with:
       stack: dev
+
+  deploy-brujula:
+    name: Deploy brujula
+    needs: [backend-ci, frontend-ci]
+    if: contains(github.event.head_commit.message, '[deploy brujula]')
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      stack: brujula
 
   # deploy-prod:
   #   name: Deploy prod
