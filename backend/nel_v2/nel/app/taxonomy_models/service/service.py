@@ -41,11 +41,13 @@ class TaxonomyModelService(ITaxonomyModelService):
 
         models = []
         for item in resp.json():
+            locale = item.get("locale")
             models.append(TaxonomyModelInfo(
                 id=item["id"],
                 name=item.get("name", ""),
                 version=item.get("version", ""),
                 description=item.get("description", ""),
                 released=item.get("released", False),
+                locale=locale.get("shortCode", "") if isinstance(locale, dict) else "",
             ))
         return models

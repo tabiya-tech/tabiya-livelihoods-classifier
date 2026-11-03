@@ -9,6 +9,13 @@ import {
   TaxonomyModel,
 } from "../lib/api";
 
+// Several taxonomy models share a name (e.g. the English and Argentine Spanish
+// "Tabiya (ESCO 1.1.1)"), so the label also shows the version and locale.
+function taxonomyModelLabel(taxonomyModel: TaxonomyModel): string {
+  const nameAndVersion = [taxonomyModel.name, taxonomyModel.version].filter(Boolean).join(" ");
+  return taxonomyModel.locale ? `${nameAndVersion} (${taxonomyModel.locale})` : nameAndVersion;
+}
+
 export default function Configuration() {
   const [nelModels, setNELModels] = useState<NELModel[]>([]);
   const [taxonomyModels, setTaxonomyModels] = useState<TaxonomyModel[]>([]);
@@ -100,7 +107,7 @@ export default function Configuration() {
               >
                 <option value="">— select —</option>
                 {taxonomyModels.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name} {t.version}</option>
+                  <option key={t.id} value={t.id}>{taxonomyModelLabel(t)}</option>
                 ))}
               </select>
             </div>

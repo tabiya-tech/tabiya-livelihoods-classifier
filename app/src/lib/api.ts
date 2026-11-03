@@ -95,6 +95,8 @@ export interface TaxonomyModel {
   version: string;
   description: string;
   released: boolean;
+  // Locale short code (e.g. "EU-en", "AR-es"); empty when the taxonomy does not report one.
+  locale: string;
 }
 
 export function listTaxonomyModels(): Promise<TaxonomyModel[]> {
