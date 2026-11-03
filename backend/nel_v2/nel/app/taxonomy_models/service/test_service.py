@@ -42,6 +42,42 @@ class TestTaxonomyModelServiceGetAll:
         assert result[1].id == "m2"
 
     @respx.mock
+    async def test_returns_the_locale_short_code_of_each_model(self):
+        # GIVEN two models that share a name and differ only by locale
+        given_english_locale = {"name": "Europe (English)", "shortCode": "EU-en"}
+        given_spanish_locale = {"name": "Argentina (Spanish)", "shortCode": "AR-es"}
+        respx.get("https://taxonomy.example.com/api/app/models").mock(
+            return_value=httpx.Response(200, json=[
+                _model_payload(id="m-en", name="Tabiya (ESCO 1.1.1)", locale=given_english_locale),
+                _model_payload(id="m-es", name="Tabiya (ESCO 1.1.1)", locale=given_spanish_locale),
+            ])
+        )
+        svc = TaxonomyModelService(base_url="https://taxonomy.example.com")
+
+        # WHEN get_all is called
+        actual_models = await svc.get_all()
+
+        # THEN each model carries its locale short code, so the two can be told apart
+        assert [model.locale for model in actual_models] == [
+            given_english_locale["shortCode"],
+            given_spanish_locale["shortCode"],
+        ]
+
+    @respx.mock
+    async def test_locale_is_empty_when_the_api_reports_none(self):
+        # GIVEN a model without a locale
+        respx.get("https://taxonomy.example.com/api/app/models").mock(
+            return_value=httpx.Response(200, json=[_model_payload(id="m1")])
+        )
+        svc = TaxonomyModelService(base_url="https://taxonomy.example.com")
+
+        # WHEN get_all is called
+        actual_models = await svc.get_all()
+
+        # THEN its locale is empty rather than an error
+        assert actual_models[0].locale == ""
+
+    @respx.mock
     async def test_returns_empty_list_when_api_returns_no_models(self):
         # GIVEN the taxonomy API returns an empty list
         respx.get("https://taxonomy.example.com/api/app/models").mock(

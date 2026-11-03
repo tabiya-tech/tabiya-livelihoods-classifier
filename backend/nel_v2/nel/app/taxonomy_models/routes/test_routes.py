@@ -75,6 +75,20 @@ class TestListTaxonomyModels:
         assert model["version"] == "v1.0.0"
         assert model["released"] is True
 
+    async def test_response_includes_the_locale(self):
+        # GIVEN the taxonomy API returns a Spanish model
+        given_locale = "AR-es"
+        svc = FakeTaxonomyModelService(models=[
+            TaxonomyModelInfo(id="m-es", name="Tabiya (ESCO 1.1.1)", version="", description="", released=True, locale=given_locale)
+        ])
+
+        # WHEN GET /v2/nel/taxonomy-models is called
+        async with AsyncClient(transport=ASGITransport(app=_make_app(svc)), base_url="http://test") as client:
+            resp = await client.get("/v2/nel/taxonomy-models")
+
+        # THEN the locale is in the response, so the app can show it
+        assert resp.json()[0]["locale"] == given_locale
+
     async def test_returns_502_when_taxonomy_api_fails(self):
         # GIVEN the taxonomy API is unavailable
         svc = FakeTaxonomyModelService(raises=TaxonomyAPIError("Taxonomy API unreachable"))
