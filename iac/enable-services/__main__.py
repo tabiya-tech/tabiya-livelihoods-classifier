@@ -36,6 +36,8 @@ REQUIRED_SERVICES = [
     "servicecontrol.googleapis.com",     # required by API Gateway
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",     # required for Workload Identity Federation (CI login)
+    "aiplatform.googleapis.com",         # Vertex AI embeddings used by NEL v2 (e.g. gemini-embedding-001)
+    "apikeys.googleapis.com",            # classify creates per-user API keys through the API Keys API
 
     # ── Common (load balancer) ─────────────────────────────────────────────
     "compute.googleapis.com",
