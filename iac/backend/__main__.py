@@ -99,17 +99,6 @@ secrets = create_secrets(project=project, mongodb_uri=mongodb_uri, hf_token=hf_t
 # needs to restrict generated GCP API keys to this gateway.
 api = create_api(project=project)
 
-# Enable the managed service in the project — required for API keys to work.
-# The managed service name is dynamic (GCP-generated hash), so it can't be
-# enabled in the enable-services stack. Must be done here after the Api exists.
-gcp.projects.Service(
-    "enable-api-managed-service",
-    project=project,
-    service=api.managed_service,
-    disable_dependent_services=False,
-    disable_on_destroy=False,
-)
-
 # ── Cloud Run Services ─────────────────────────────────────────────────────
 ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     project=project,
@@ -160,6 +149,20 @@ _api_config, gateway, gateway_sa = create_api_gateway(
 )
 pulumi.export("apiGatewayUrl", gateway.default_hostname)
 pulumi.export("apiGatewayId", gateway.gateway_id)
+
+# Enable the managed service in the project — required for API keys to work.
+# The managed service name is dynamic (GCP-generated hash), so it can't be
+# enabled in the enable-services stack. It can only be enabled once it has a
+# service config, which the ApiConfig creates, so on a fresh project it must
+# wait for it.
+gcp.projects.Service(
+    "enable-api-managed-service",
+    project=project,
+    service=api.managed_service,
+    disable_dependent_services=False,
+    disable_on_destroy=False,
+    opts=pulumi.ResourceOptions(depends_on=[_api_config]),
+)
 
 # Grant classify SA permission to create/delete GCP API keys.
 gcp.projects.IAMMember(
