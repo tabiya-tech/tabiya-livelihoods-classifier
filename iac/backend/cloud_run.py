@@ -43,6 +43,10 @@ def create_cloud_run_services(
     ner_model_es: str = "",
     taxonomy_model_id_es: str = "",
     nel_v2_model_id_es: str = "",
+    ner_min_instances: int = 0,
+    nel_v2_min_instances: int = 0,
+    classify_min_instances: int = 1,
+    classify_v2_min_instances: int = 1,
 ):
     ner_sa = service_accounts["ner_sa"]
     nel_sa = service_accounts["nel_sa"]
@@ -60,7 +64,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=ner_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
+                min_instance_count=ner_min_instances,
                 max_instance_count=3,
             ),
             containers=[
@@ -190,7 +194,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=nel_v2_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=0,
+                min_instance_count=nel_v2_min_instances,
                 max_instance_count=5,
             ),
             containers=[
@@ -284,7 +288,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_v2_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
+                min_instance_count=classify_v2_min_instances,
                 max_instance_count=10,
             ),
             containers=[
@@ -367,7 +371,7 @@ def create_cloud_run_services(
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             service_account=classify_sa.email,
             scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                min_instance_count=1,
+                min_instance_count=classify_min_instances,
                 max_instance_count=10,
             ),
             containers=[

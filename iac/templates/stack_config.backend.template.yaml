@@ -47,6 +47,13 @@ config:
   tabiya-classifier-backend:taxonomyModelIdEs: /.*/
   tabiya-classifier-backend:nelV2ModelIdEs: /.*/
 
+  # ── Optional minimum warm instances per Cloud Run service (avoid cold starts) ──
+  # Leave out to keep the defaults: NER 0, NEL v2 0, classify 1, classify v2 1
+  tabiya-classifier-backend:nerMinInstances: /(\d+)?/
+  tabiya-classifier-backend:nelV2MinInstances: /(\d+)?/
+  tabiya-classifier-backend:classifyMinInstances: /(\d+)?/
+  tabiya-classifier-backend:classifyV2MinInstances: /(\d+)?/
+
   # Docker image URIs — injected by CI; set as placeholders here
   tabiya-classifier-backend:nerImage: <image-uri>
   tabiya-classifier-backend:nelImage: <image-uri>

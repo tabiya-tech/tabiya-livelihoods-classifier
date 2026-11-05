@@ -66,6 +66,11 @@ target_language = config.get("targetLanguage") or "en"
 ner_model_es = config.get("nerModelEs") or ""
 taxonomy_model_id_es = config.get("taxonomyModelIdEs") or ""
 nel_v2_model_id_es = config.get("nelV2ModelIdEs") or ""
+# Minimum warm instances per service; unset keeps the defaults below
+ner_min_instances = config.get_int("nerMinInstances", default=0)
+nel_v2_min_instances = config.get_int("nelV2MinInstances", default=0)
+classify_min_instances = config.get_int("classifyMinInstances", default=1)
+classify_v2_min_instances = config.get_int("classifyV2MinInstances", default=1)
 app_origin = f"https://app.{env_subdomain}"
 
 
@@ -127,6 +132,10 @@ ner, nel, classify, nel_v2, classify_v2 = create_cloud_run_services(
     ner_model_es=ner_model_es,
     taxonomy_model_id_es=taxonomy_model_id_es,
     nel_v2_model_id_es=nel_v2_model_id_es,
+    ner_min_instances=ner_min_instances,
+    nel_v2_min_instances=nel_v2_min_instances,
+    classify_min_instances=classify_min_instances,
+    classify_v2_min_instances=classify_v2_min_instances,
 )
 pulumi.export("nerUrl", ner.uri)
 pulumi.export("nelUrl", nel.uri)
