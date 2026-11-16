@@ -6,6 +6,13 @@ The Tabiya Livelihoods Classifier provides an easy-to-use implementation of the 
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for a full overview of the system design, services, and infrastructure.
 
+## Related Repositories
+
+The classifier runs on its own and is also a component of [Compass Connect](https://github.com/tabiya-tech/compass-connect), Tabiya's
+open-source career guidance platform. Compass Connect can link the skills from a conversation through the
+classifier's API (`BACKEND_SKILL_LINKER=classifier` in the Compass Connect configuration). The Compass Connect README
+lists the other components of the platform.
+
 ## Deployed Environments
 
 Environments follow the pattern `<env>.classifier.tabiya.tech`. The `dev` environment is used as an example below.
