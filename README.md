@@ -8,10 +8,10 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for a full overview of the system desig
 
 ## Related Repositories
 
-The classifier runs on its own and is also a component of [Compass Connect](https://github.com/tabiya-tech/compass-connect), Tabiya's
-open-source career guidance platform. Compass Connect can link the skills from a conversation through the
-classifier's API (`BACKEND_SKILL_LINKER=classifier` in the Compass Connect configuration). The Compass Connect README
-lists the other components of the platform.
+The classifier is a standalone tool. [Compass Connect](https://github.com/tabiya-tech/compass-connect), Tabiya's open-source career guidance
+platform, is one of the applications that can use it: Compass Connect can link the skills from a conversation through
+the classifier's API (`BACKEND_SKILL_LINKER=classifier` in the Compass Connect configuration). The Compass Connect
+README lists the other Tabiya tools it uses.
 
 ## Deployed Environments
 
