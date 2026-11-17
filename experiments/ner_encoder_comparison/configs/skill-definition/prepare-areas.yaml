@@ -1,0 +1,10 @@
+# Data for the "areas" skill definition: AREA (fields of experience) counts as Skill. Short phrases like today's skills, e.g. "gestión comercial".
+#   python -m ner_experiments.cli.prepare_data --config configs/skill-definition/prepare-areas.yaml
+# Same ads and the same frozen split as the baseline; only which Peru tags count as Skill changes.
+# Written to its own folder so the baseline data in data/processed/ is left alone.
+
+task_description_spans: ignore
+experience_area_spans: skill
+move_qualification_levels: true
+paths:
+  processed_dir: data/processed-areas

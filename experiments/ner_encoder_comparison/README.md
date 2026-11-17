@@ -185,6 +185,31 @@ python -m ner_experiments.cli.benchmark_latency --model-dir runs/<run name>/mode
   earlier runs stop being comparable.
 - Change one thing at a time between runs, and let the run name record it.
 
+## What counts as a skill (configs/skill-definition/)
+
+The Peru corpus tags requirements (REQ), duties (FUN) and fields of experience (AREA)
+separately. By default only REQ is a skill. The English model also tags duties and
+experience areas as skills, so on the same ads it finds about 3× as many. These runs
+retrain mRoBERTa with the wider definitions, everything else as in `mroberta-v1`:
+
+| Variant | Skill phrases in train | What it adds |
+|---|---|---|
+| default (`configs/prepare.yaml`) | 2,909 | — |
+| `areas` | 3,863 | AREA, short phrases like "gestión comercial" |
+| `duties-areas` | 6,112 | FUN too: whole duty clauses, median 9 words |
+
+```powershell
+python -m ner_experiments.cli.prepare_data --config configs/skill-definition/prepare-areas.yaml
+python -m ner_experiments.cli.run_experiment --config configs/skill-definition/run-areas.yaml
+python -m ner_experiments.cli.prepare_data --config configs/skill-definition/prepare-duties-areas.yaml
+python -m ner_experiments.cli.run_experiment --config configs/skill-definition/run-duties-areas.yaml
+```
+
+Each variant has its own data folder (`data/processed-<variant>`) and run folder
+(`runs/mroberta-<variant>`), so nothing overwrites the baseline. Skill scores are not
+comparable across variants (the test labels change with the definition); Occupation and
+Qualification scores are, and should not drop.
+
 ## Running more than one at a time
 
 There is one GPU, so the fastest plan is usually one training run at a time. Runs never

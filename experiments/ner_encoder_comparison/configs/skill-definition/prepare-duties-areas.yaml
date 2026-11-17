@@ -1,0 +1,11 @@
+# Data for the "duties-areas" skill definition: FUN (duties) and AREA (fields of experience) count as Skill, like the English model.
+# FUN phrases are whole clauses (median 9 words), e.g. "Revisar y aprobar los gastos de exportación".
+#   python -m ner_experiments.cli.prepare_data --config configs/skill-definition/prepare-duties-areas.yaml
+# Same ads and the same frozen split as the baseline; only which Peru tags count as Skill changes.
+# Written to its own folder so the baseline data in data/processed/ is left alone.
+
+task_description_spans: skill
+experience_area_spans: skill
+move_qualification_levels: true
+paths:
+  processed_dir: data/processed-duties-areas

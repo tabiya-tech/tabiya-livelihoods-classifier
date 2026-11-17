@@ -1,0 +1,20 @@
+# mRoBERTa trained on the "areas" skill definition (prepare-areas.yaml first).
+#   python -m ner_experiments.cli.run_experiment --config configs/skill-definition/run-areas.yaml
+# Everything else matches mroberta-v1, the model deployed on brujula, so the skill
+# definition is the only thing that changes.
+
+run_name: mroberta-areas
+model_name: BSC-LT/mRoBERTa
+learning_rate: 3e-5
+seed: 1
+train_fraction: 1.0
+evaluate_on_test: true
+keep_model: true
+max_epochs: 15
+early_stopping_patience: 3
+batch_size: 16
+gradient_accumulation_steps: 1
+device: cuda
+precision: auto
+paths:
+  processed_dir: data/processed-areas
