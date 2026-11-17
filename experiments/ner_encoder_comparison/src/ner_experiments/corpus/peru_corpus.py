@@ -76,14 +76,32 @@ def download_corpus(corpus_url: str, raw_dir: Path) -> Path:
     return zip_path
 
 
-def _convert_peru_tag(peru_tag: str, task_description_spans: Literal["ignore", "skill"]) -> str:
+SpanTreatment = Literal["ignore", "skill"]
+
+
+def peru_tag_mapping(
+    task_description_spans: SpanTreatment = "ignore", experience_area_spans: SpanTreatment = "ignore"
+) -> dict[str, str]:
+    """Peru tag type -> our entity type. Types left out become 'O'.
+
+    FUN (duties, median 9 words, e.g. "Revisar y aprobar los gastos de exportación") and
+    AREA (fields of experience, e.g. "gestión comercial") are not skills in the Peru
+    scheme; each can be counted as Skill to match tools that do (the English model does both).
+    """
+    mapping = dict(_PERU_TAG_TO_OURS)
+    if task_description_spans == "skill":
+        mapping["FUN"] = EntityType.SKILL.value
+    if experience_area_spans == "skill":
+        mapping["AREA"] = EntityType.SKILL.value
+    return mapping
+
+
+def _convert_peru_tag(peru_tag: str, mapping: dict[str, str]) -> str:
     """'B-REQ' -> 'B-Skill', 'I-JOB' -> 'I-Occupation', anything unmapped -> 'O'."""
     if len(peru_tag) < 3 or peru_tag[1] != "-" or peru_tag[0] not in "BI":
         return "O"
     prefix, peru_type = peru_tag[0], peru_tag[2:]
-    if peru_type == "FUN" and task_description_spans == "skill":
-        return f"{prefix}-{EntityType.SKILL.value}"
-    our_type = _PERU_TAG_TO_OURS.get(peru_type)
+    our_type = mapping.get(peru_type)
     return f"{prefix}-{our_type}" if our_type else "O"
 
 
@@ -109,7 +127,7 @@ def _move_qualification_levels(
 def _read_ad(
     ad_id: str,
     ad_text: str,
-    task_description_spans: Literal["ignore", "skill"],
+    mapping: dict[str, str],
     move_qualification_levels: bool,
     report: ConversionReport,
 ) -> list[TaggedSentence]:
@@ -120,7 +138,7 @@ def _read_ad(
     def close_sentence() -> None:
         if not words:
             return
-        our_tags = repair_bio([_convert_peru_tag(peru_tag, task_description_spans) for peru_tag in peru_tags])
+        our_tags = repair_bio([_convert_peru_tag(peru_tag, mapping) for peru_tag in peru_tags])
         sentence = TaggedSentence(ad_id=ad_id, sentence_index=len(sentences), tokens=list(words), tags=our_tags)
         if move_qualification_levels:
             sentence = _move_qualification_levels(sentence, list(peru_tags), report)
@@ -141,7 +159,7 @@ def _read_ad(
 
 def read_corpus(
     zip_path: Path,
-    task_description_spans: Literal["ignore", "skill"],
+    mapping: dict[str, str],
     move_qualification_levels: bool,
 ) -> tuple[list[PeruAd], ConversionReport]:
     """Every ad in the corpus, converted to our tags, in a stable order."""
@@ -157,7 +175,7 @@ def read_corpus(
             file_path = PurePosixPath(file_name)
             ad_id = f"{file_path.parent.name}/{file_path.stem}"
             ad_text = corpus_zip.read(file_name).decode("utf-8", errors="replace")
-            sentences = _read_ad(ad_id, ad_text, task_description_spans, move_qualification_levels, report)
+            sentences = _read_ad(ad_id, ad_text, mapping, move_qualification_levels, report)
             if sentences:
                 ads.append(PeruAd(ad_id=ad_id, folder=file_path.parent.name, sentences=sentences))
     return _drop_duplicate_ads(ads, report), report

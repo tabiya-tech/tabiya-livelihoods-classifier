@@ -1,4 +1,4 @@
-from ner_experiments.corpus.peru_corpus import ConversionReport, _read_ad
+from ner_experiments.corpus.peru_corpus import ConversionReport, _read_ad, peru_tag_mapping
 from ner_experiments.corpus.qualification_levels import is_qualification_phrase
 from ner_experiments.corpus.splits import make_split
 
@@ -25,21 +25,35 @@ class TestPeruConversion:
         ])
 
         # WHEN converting it
-        sentences = _read_ad("random/1", ad_text, "ignore", True, ConversionReport())
+        sentences = _read_ad("random/1", ad_text, peru_tag_mapping(), True, ConversionReport())
 
         # THEN JOB, REQ and CARR map to our types and everything else is dropped
         assert sentences[0].tags == ["B-Occupation", "B-Skill", "B-Qualification", "O"]
 
+    def test_duties_and_experience_areas_can_count_as_skills(self):
+        # GIVEN an ad with a duty (FUN) and a field of experience (AREA)
+        ad_text = _peru_lines([("Cargar", "B-FUN"), ("mercadería", "I-FUN"), ("ventas", "B-AREA")])
+
+        # WHEN converting it with each setting in turn
+        def tags(**settings):
+            return _read_ad("random/1", ad_text, peru_tag_mapping(**settings), True, ConversionReport())[0].tags
+
+        # THEN each is a skill only when asked for, and neither by default
+        assert tags() == ["O", "O", "O"]
+        assert tags(task_description_spans="skill") == ["B-Skill", "I-Skill", "O"]
+        assert tags(experience_area_spans="skill") == ["O", "O", "B-Skill"]
+        assert tags(task_description_spans="skill", experience_area_spans="skill") == ["B-Skill", "I-Skill", "B-Skill"]
+
     def test_qualification_levels_move_from_skill_to_qualification(self):
         report = ConversionReport()
         ad_text = _peru_lines([("Técnico", "B-REQ"), ("en", "O"), ("Contabilidad", "B-CARR")])
-        sentences = _read_ad("random/1", ad_text, "ignore", True, report)
+        sentences = _read_ad("random/1", ad_text, peru_tag_mapping(), True, report)
         assert sentences[0].tags == ["B-Qualification", "O", "B-Qualification"]
         assert [moved.phrase for moved in report.moved_to_qualification] == ["Técnico"]
 
     def test_blank_lines_separate_sentences(self):
         ad_text = _peru_lines([("Chef", "B-JOB")]) + "\n\n" + _peru_lines([("Cocina", "B-REQ")])
-        sentences = _read_ad("random/1", ad_text, "ignore", False, ConversionReport())
+        sentences = _read_ad("random/1", ad_text, peru_tag_mapping(), False, ConversionReport())
         assert [sentence.sentence_index for sentence in sentences] == [0, 1]
 
 
@@ -70,7 +84,7 @@ class TestDuplicateAds:
             corpus_zip.writestr("random/3.tsv", _peru_lines([("Contador", "B-JOB")]))
 
         # WHEN reading it
-        ads, report = read_corpus(zip_path, "ignore", True)
+        ads, report = read_corpus(zip_path, peru_tag_mapping(), True)
 
         # THEN the later copy is dropped and reported
         assert [ad.ad_id for ad in ads] == ["random/1", "random/3"]

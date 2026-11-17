@@ -12,7 +12,7 @@ from pathlib import Path
 
 from ner_experiments.config import PrepareConfig, load_settings
 from ner_experiments.corpus.loading import count_phrases, processed_file, write_sentences
-from ner_experiments.corpus.peru_corpus import download_corpus, read_corpus
+from ner_experiments.corpus.peru_corpus import download_corpus, peru_tag_mapping, read_corpus
 from ner_experiments.corpus.splits import SPLIT_NAMES, make_split, read_split, split_file, splits_exist, write_split
 from ner_experiments.progress import StageReporter
 
@@ -30,7 +30,9 @@ def main() -> None:
 
     stages.start("Getting the Peru corpus")
     zip_path = download_corpus(settings.corpus_url, settings.paths.raw_dir)
-    ads, conversion_report = read_corpus(zip_path, settings.task_description_spans, settings.move_qualification_levels)
+    mapping = peru_tag_mapping(settings.task_description_spans, settings.experience_area_spans)
+    print(f"Peru tags kept: {', '.join(f'{peru} -> {ours}' for peru, ours in sorted(mapping.items()))}")
+    ads, conversion_report = read_corpus(zip_path, mapping, settings.move_qualification_levels)
     for duplicate in conversion_report.dropped_duplicates:
         print(f"Dropped {duplicate.dropped_ad_id}: word-for-word the same ad as {duplicate.kept_ad_id}")
     print(f"Kept {len(ads)} ads, {sum(len(ad.sentences) for ad in ads)} sentences")

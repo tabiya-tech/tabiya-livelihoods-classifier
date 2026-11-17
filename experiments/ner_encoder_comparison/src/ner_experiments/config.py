@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Literal, TypeVar
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 PERU_CORPUS_URL = (
@@ -51,6 +51,12 @@ class DataPaths(BaseModel):
     runs_dir: Path = EXPERIMENT_DIR / "runs"
     reports_dir: Path = EXPERIMENT_DIR / "reports"
 
+    @field_validator("*")
+    @classmethod
+    def _relative_to_experiment_folder(cls, path: Path) -> Path:
+        """A relative path in a config file means inside this experiment folder."""
+        return path if path.is_absolute() else EXPERIMENT_DIR / path
+
 
 class PrepareConfig(_EnvironmentOverYamlSettings):
     """Settings for turning the Peru corpus into train/dev/test files."""
@@ -62,6 +68,10 @@ class PrepareConfig(_EnvironmentOverYamlSettings):
     task_description_spans: Literal["ignore", "skill"] = Field(
         default="ignore",
         description="What to do with Peru's FUN tags (task descriptions): drop them, or tag them as Skill",
+    )
+    experience_area_spans: Literal["ignore", "skill"] = Field(
+        default="ignore",
+        description="What to do with Peru's AREA tags (fields of experience): drop them, or tag them as Skill",
     )
     move_qualification_levels: bool = Field(
         default=True,

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from ner_experiments.config import ExperimentConfig, PrepareConfig, load_settings
+from ner_experiments.config import EXPERIMENT_DIR, ExperimentConfig, PrepareConfig, load_settings
 
 
 def test_environment_variables_override_the_yaml_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -35,3 +35,11 @@ def test_run_names_are_built_from_the_settings():
 def test_split_shares_must_add_up_to_one():
     with pytest.raises(ValidationError):
         PrepareConfig(train_share=0.8, dev_share=0.1, test_share=0.2)
+
+
+def test_relative_data_paths_are_inside_the_experiment_folder():
+    # GIVEN a run that keeps its data in a folder of its own, written as a relative path
+    settings = ExperimentConfig(paths={"processed_dir": "data/processed-areas"})
+
+    # THEN it resolves inside the experiment folder, whichever folder the command runs from
+    assert settings.paths.processed_dir == EXPERIMENT_DIR / "data" / "processed-areas"
