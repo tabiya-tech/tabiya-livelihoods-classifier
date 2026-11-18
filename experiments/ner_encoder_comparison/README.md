@@ -210,6 +210,25 @@ Each variant has its own data folder (`data/processed-<variant>`) and run folder
 comparable across variants (the test labels change with the definition); Occupation and
 Qualification scores are, and should not drop.
 
+## One model for Spanish and English (configs/mixed/)
+
+Trains mRoBERTa on the Peru corpus and on Green, the English corpus behind Tabiya's English model
+(`tabiya/job_ner_dataset`, CC BY 4.0), so one model can tag both languages. Green's Experience and
+Domain tags become "outside"; Skill, Occupation and Qualification are kept. Green's release has no
+dev split, so 10% of its train is held out (seed 13).
+
+```powershell
+pip install -e ".[dev]"   # once: adds pyarrow, which reads Green's files
+python -m ner_experiments.cli.prepare_data --config configs/skill-definition/prepare-duties-areas.yaml
+python -m ner_experiments.cli.prepare_green
+python -m ner_experiments.cli.run_experiment --config configs/mixed/run-duties-areas-green.yaml
+```
+
+`mix_with` lists the extra corpora. Their train sentences join training and their dev sentences join
+early stopping. The headline dev/test scores stay Peru's, so they compare with `mroberta-duties-areas`;
+Green's dev and test are scored on their own (the `mixed` list in `result.json`,
+`predictions_green_*.jsonl`, `charts/green_*`). About twice the data, so roughly 45–60 minutes.
+
 ## Running more than one at a time
 
 There is one GPU, so the fastest plan is usually one training run at a time. Runs never

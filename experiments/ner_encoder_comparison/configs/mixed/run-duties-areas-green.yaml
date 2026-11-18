@@ -1,0 +1,29 @@
+# One model for Spanish and English: mRoBERTa trained on the Peru corpus (duties and areas count
+# as skills) together with Green, the English corpus behind Tabiya's English model.
+#
+#   python -m ner_experiments.cli.prepare_data --config configs/skill-definition/prepare-duties-areas.yaml
+#   python -m ner_experiments.cli.prepare_green
+#   python -m ner_experiments.cli.run_experiment --config configs/mixed/run-duties-areas-green.yaml
+#
+# The headline dev/test scores stay Peru's, so they compare with mroberta-duties-areas.
+# Green's dev and test are scored on their own (result.json "mixed", predictions_green_*.jsonl).
+# Early stopping watches Peru dev and Green dev together. About twice the data, so expect
+# roughly 45-60 minutes on the RTX 4060.
+
+run_name: mroberta-duties-areas-green
+model_name: BSC-LT/mRoBERTa
+learning_rate: 3e-5
+seed: 1
+train_fraction: 1.0
+evaluate_on_test: true
+keep_model: true
+max_epochs: 15
+early_stopping_patience: 3
+batch_size: 16
+gradient_accumulation_steps: 1
+device: cuda
+precision: auto
+paths:
+  processed_dir: data/processed-duties-areas
+mix_with:
+  - data/processed-green

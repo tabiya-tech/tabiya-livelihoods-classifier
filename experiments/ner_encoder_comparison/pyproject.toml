@@ -20,6 +20,7 @@ dependencies = [
     "matplotlib>=3.8",
     "tqdm>=4.66",
     "psutil>=5.9",
+    "pyarrow>=14",            # reads the Green corpus (parquet) for mixed training
 ]
 
 [project.optional-dependencies]
