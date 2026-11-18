@@ -14,7 +14,7 @@ from pathlib import Path
 
 from transformers import set_seed
 
-from ner_experiments.config import ExperimentConfig, load_settings
+from ner_experiments.config import ExperimentConfig, corpus_name, load_settings
 from ner_experiments.corpus.loading import keep_share_of_ads, read_sentences
 from ner_experiments.evaluation.scoring import print_split_scores, score_split
 from ner_experiments.modeling.dataset import EncodedSentenceDataset
@@ -69,13 +69,26 @@ def main() -> None:
     dev_sentences = read_sentences(settings.paths.processed_dir, "dev")
     test_sentences = read_sentences(settings.paths.processed_dir, "test") if settings.evaluate_on_test else []
     print(f"{len(train_sentences)} training, {len(dev_sentences)} dev, {len(test_sentences)} test sentences")
+    # Mixed-in corpora: all their train sentences join training, their dev sentences join early stopping.
+    mixed = {
+        corpus_name(folder): {
+            "train": read_sentences(folder, "train"),
+            "dev": read_sentences(folder, "dev"),
+            "test": read_sentences(folder, "test") if settings.evaluate_on_test else [],
+        }
+        for folder in settings.mix_with
+    }
+    for name, splits in mixed.items():
+        print(f"  + {name}: {len(splits['train'])} training, {len(splits['dev'])} dev, {len(splits['test'])} test sentences")
+    all_train_sentences = train_sentences + [s for splits in mixed.values() for s in splits["train"]]
+    early_stopping_dev_sentences = dev_sentences + [s for splits in mixed.values() for s in splits["dev"]]
 
     stages.start("Loading the tokenizer and splitting words into pieces")
     tokenizer = load_tokenizer(settings.model_name)
     train_dataset = EncodedSentenceDataset(
-        train_sentences, tokenizer, settings.max_pieces_per_sentence, "Encoding training sentences"
+        all_train_sentences, tokenizer, settings.max_pieces_per_sentence, "Encoding training sentences"
     )
-    dev_dataset = EncodedSentenceDataset(dev_sentences, tokenizer, settings.max_pieces_per_sentence, "Encoding dev sentences")
+    dev_dataset = EncodedSentenceDataset(early_stopping_dev_sentences, tokenizer, settings.max_pieces_per_sentence, "Encoding dev sentences")
     print(
         f"{len(train_dataset)} training chunks ({train_dataset.chunked_sentence_count} long sentences split), "
         f"{len(dev_dataset)} dev chunks"
@@ -96,6 +109,16 @@ def main() -> None:
             outcome.model, tokenizer, test_sentences, settings.max_pieces_per_sentence, device, description="Predicting test"
         )
         write_predictions(run_dir, "test", test_predictions)
+    mixed_predictions = {}
+    for name, splits in mixed.items():
+        for split in ("dev", "test"):
+            if splits[split]:
+                predictions = predict_sentences(
+                    outcome.model, tokenizer, splits[split], settings.max_pieces_per_sentence, device,
+                    description=f"Predicting {name} {split}",
+                )
+                write_predictions(run_dir, split, predictions, corpus=name)
+                mixed_predictions[(name, split)] = predictions
 
     stages.start("Scoring")
     dev_scores = score_split(dev_predictions, "dev")
@@ -103,6 +126,9 @@ def main() -> None:
     test_scores = score_split(test_predictions, "test") if settings.evaluate_on_test else None
     if test_scores is not None:
         print_split_scores(test_scores)
+    mixed_scores = [score_split(predictions, split, corpus=name) for (name, split), predictions in mixed_predictions.items()]
+    for scores in mixed_scores:
+        print_split_scores(scores)
 
     stages.start("Saving results and charts")
     result = RunResult(
@@ -116,10 +142,11 @@ def main() -> None:
         train_minutes=outcome.train_minutes,
         epochs_trained=outcome.epochs_trained,
         best_checkpoint_step=outcome.best_checkpoint_step,
-        training_sentences=len(train_sentences),
+        training_sentences=len(all_train_sentences),
         history=outcome.history,
         dev=dev_scores,
         test=test_scores,
+        mixed=mixed_scores,
         config=settings.model_dump(mode="json"),
     )
     write_result(run_dir, result)
@@ -129,6 +156,10 @@ def main() -> None:
     plot_scores_per_type(dev_scores, f"{result.run_name}: dev", charts_dir / "dev_scores_per_type.png")
     if test_scores is not None:
         plot_scores_per_type(test_scores, f"{result.run_name}: test", charts_dir / "test_scores_per_type.png")
+    for scores in mixed_scores:
+        plot_scores_per_type(
+            scores, f"{result.run_name}: {scores.corpus} {scores.split}", charts_dir / f"{scores.corpus}_{scores.split}_scores_per_type.png"
+        )
     print(f"Saved result.json, predictions and charts to {run_dir}")
     stages.finish()
 

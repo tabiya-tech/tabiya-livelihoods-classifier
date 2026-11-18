@@ -33,18 +33,22 @@ def read_result(run_dir: Path) -> RunResult:
     return RunResult.model_validate_json((run_dir / RESULT_FILE).read_text(encoding="utf-8"))
 
 
-def predictions_file(run_dir: Path, split: SplitName) -> Path:
-    return run_dir / f"predictions_{split}.jsonl"
+def predictions_file(run_dir: Path, split: SplitName, corpus: str = "peru") -> Path:
+    """predictions_dev.jsonl for the run's own corpus, predictions_<corpus>_dev.jsonl for a mixed-in one."""
+    prefix = "" if corpus == "peru" else f"{corpus}_"
+    return run_dir / f"predictions_{prefix}{split}.jsonl"
 
 
-def write_predictions(run_dir: Path, split: SplitName, predictions: list[PredictedSentence]) -> None:
-    with open(predictions_file(run_dir, split), "w", encoding="utf-8") as output_file:
+def write_predictions(
+    run_dir: Path, split: SplitName, predictions: list[PredictedSentence], corpus: str = "peru"
+) -> None:
+    with open(predictions_file(run_dir, split, corpus), "w", encoding="utf-8") as output_file:
         for sentence in predictions:
             output_file.write(sentence.model_dump_json() + "\n")
 
 
-def read_predictions(run_dir: Path, split: SplitName) -> list[PredictedSentence]:
-    path = predictions_file(run_dir, split)
+def read_predictions(run_dir: Path, split: SplitName, corpus: str = "peru") -> list[PredictedSentence]:
+    path = predictions_file(run_dir, split, corpus)
     if not path.exists():
         raise FileNotFoundError(f"{path} is missing (was evaluate_on_test on for this run?)")
     with open(path, encoding="utf-8") as input_file:

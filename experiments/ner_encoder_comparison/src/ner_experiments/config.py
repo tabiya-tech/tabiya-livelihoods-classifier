@@ -121,6 +121,18 @@ class ExperimentConfig(_EnvironmentOverYamlSettings):
     overwrite: bool = Field(default=False, description="Replace an existing run folder with the same name")
 
     paths: DataPaths = DataPaths()
+    mix_with: list[Path] = Field(
+        default_factory=list,
+        description=(
+            "Other prepared corpora to train on as well, e.g. data/processed-green. Their train sentences join "
+            "training and their dev sentences join early stopping; their dev and test are also scored on their own"
+        ),
+    )
+
+    @field_validator("mix_with")
+    @classmethod
+    def _mixed_corpora_inside_experiment_folder(cls, folders: list[Path]) -> list[Path]:
+        return [folder if folder.is_absolute() else EXPERIMENT_DIR / folder for folder in folders]
 
     def resolved_run_name(self) -> str:
         if self.run_name:
@@ -147,3 +159,8 @@ def load_settings(settings_class: type[SettingsType], yaml_path: Path | None) ->
         if not isinstance(yaml_values, dict):
             raise ValueError(f"{yaml_path} must contain a mapping of setting names to values")
     return settings_class(**yaml_values)
+
+
+def corpus_name(processed_dir: Path) -> str:
+    """'data/processed-green' -> 'green': how a mixed-in corpus is named in scores and file names."""
+    return processed_dir.name.removeprefix("processed-") or processed_dir.name

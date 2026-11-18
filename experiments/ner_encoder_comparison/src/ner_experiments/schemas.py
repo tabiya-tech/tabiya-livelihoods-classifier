@@ -66,6 +66,7 @@ class SplitScores(BaseModel):
     """All scores for one split (dev or test)."""
 
     split: SplitName
+    corpus: str = Field(default="peru", description="Which corpus these sentences come from")
     sentences: int
     macro_strict_f1: float = Field(description="The headline number: exact-match F1 averaged over the three types")
     micro_strict_f1: float
@@ -101,6 +102,9 @@ class RunResult(BaseModel):
     history: list[EpochRecord]
     dev: SplitScores
     test: SplitScores | None = Field(default=None, description="Only filled when evaluate_on_test is on")
+    mixed: list[SplitScores] = Field(
+        default_factory=list, description="Dev (and test) scores of each corpus in mix_with, scored on its own"
+    )
     config: dict
 
 

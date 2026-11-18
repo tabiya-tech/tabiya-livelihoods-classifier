@@ -61,7 +61,7 @@ def _span_length_stats(gold_tag_sequences: list[list[str]], predicted_tag_sequen
     )
 
 
-def score_split(predicted_sentences: list[PredictedSentence], split: SplitName) -> SplitScores:
+def score_split(predicted_sentences: list[PredictedSentence], split: SplitName, corpus: str = "peru") -> SplitScores:
     gold_tag_sequences = [sentence.tags for sentence in predicted_sentences]
     predicted_tag_sequences = [sentence.predicted_tags for sentence in predicted_sentences]
 
@@ -81,6 +81,7 @@ def score_split(predicted_sentences: list[PredictedSentence], split: SplitName) 
 
     return SplitScores(
         split=split,
+        corpus=corpus,
         sentences=len(predicted_sentences),
         macro_strict_f1=macro_strict_f1,
         micro_strict_f1=micro_strict_f1,
@@ -92,7 +93,8 @@ def score_split(predicted_sentences: list[PredictedSentence], split: SplitName) 
 
 
 def print_split_scores(scores: SplitScores) -> None:
-    print(f"\n{scores.split} set, {scores.sentences} sentences")
+    corpus = "" if scores.corpus == "peru" else f"{scores.corpus} "
+    print(f"\n{corpus}{scores.split} set, {scores.sentences} sentences")
     print(f"{'type':<15}{'precision':>10}{'recall':>10}{'F1':>10}{'partial F1':>12}{'real':>8}")
     for entity_type in EntityType:
         strict = scores.strict[entity_type]
