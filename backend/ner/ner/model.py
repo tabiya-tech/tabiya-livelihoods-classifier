@@ -11,7 +11,7 @@ from nltk.tokenize import sent_tokenize
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
 from ner.models import EntityType
-from shared.bio_utils import extract_entities, fix_bio_tags
+from shared.bio_utils import best_valid_bio_tags, drop_edge_punctuation, extract_entities, fix_bio_tags
 from shared.transformers_crf import AutoModelCrfForNer
 
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -73,6 +73,22 @@ def first_piece_word_tags(
         word_tags[word_index] = piece_tag
         tagged_words.add(word_index)
     return word_tags
+
+
+def first_piece_word_scores(
+    piece_scores: List[List[float]], word_ids: List[Optional[int]], word_count: int, outside_index: int
+) -> List[List[float]]:
+    """Per-word tag log-probabilities, read from each word's first piece.
+
+    Words cut off by truncation have no pieces: they are certainly outside (``O``).
+    """
+    label_count = len(piece_scores[0]) if piece_scores else outside_index + 1
+    cut_off = [0.0 if i == outside_index else float("-inf") for i in range(label_count)]
+    word_scores: List[Optional[List[float]]] = [None] * word_count
+    for scores, word_index in zip(piece_scores, word_ids):
+        if word_index is not None and word_scores[word_index] is None:
+            word_scores[word_index] = scores
+    return [scores if scores is not None else cut_off for scores in word_scores]
 
 
 def resolve_entity_type(raw_label: str, label_map: Optional[dict] = None) -> Optional[str]:
@@ -190,16 +206,20 @@ class NERModel:
         ).to(self.device)
 
         if self.crf:
+            # The CRF layer already returns a valid sequence.
             with torch.no_grad():
-                logits = self.model(**inputs)
-            predictions = logits[1][0]
+                predictions = self.model(**inputs)[1][0]
+            piece_tags = [self.model.config.id2label[prediction.item()] for prediction in predictions[0]]
+            word_tags = fix_bio_tags(first_piece_word_tags(piece_tags, inputs.word_ids(0), len(words)))
         else:
+            # Pick the most likely valid tag sequence for the whole sentence, so a hesitant
+            # word never becomes a fragment phrase on its own.
             with torch.no_grad():
-                logits = self.model(**inputs).logits
-            predictions = torch.argmax(logits, dim=2)
-
-        piece_tags = [self.model.config.id2label[prediction.item()] for prediction in predictions[0]]
-        word_tags = fix_bio_tags(first_piece_word_tags(piece_tags, inputs.word_ids(0), len(words)))
+                piece_scores = self.model(**inputs).logits[0].log_softmax(-1).tolist()
+            labels = [self.model.config.id2label[i] for i in range(len(piece_scores[0]))]
+            word_scores = first_piece_word_scores(piece_scores, inputs.word_ids(0), len(words), labels.index("O"))
+            word_tags = best_valid_bio_tags(word_scores, labels)
+        word_tags = drop_edge_punctuation([word.text for word in words], word_tags)
 
         entities: List[SentenceEntity] = []
         for entity in extract_entities(words, word_tags):

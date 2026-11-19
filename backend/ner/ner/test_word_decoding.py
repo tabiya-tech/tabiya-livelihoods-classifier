@@ -5,7 +5,7 @@ mark word boundaries on raw text: every piece reported word 0, so a whole senten
 back as a single entity. Splitting words ourselves fixes the boundaries for any tokenizer.
 """
 
-from ner.model import first_piece_word_tags, split_words
+from ner.model import first_piece_word_scores, first_piece_word_tags, split_words
 
 
 class TestSplitWords:
@@ -78,3 +78,15 @@ class TestFirstPieceWordTags:
         # THEN the words that never reached the model are tagged O
         expected_word_tags = ["B-Skill", "O", "O"]
         assert actual_word_tags == expected_word_tags
+
+
+def test_first_piece_word_scores_reads_first_pieces_and_marks_cut_words_outside():
+    # GIVEN two words, the first split into two pieces, and a third word cut off
+    piece_scores = [[0.0, 0.0], [-0.1, -2.0], [-0.5, -0.9], [-2.0, -0.2], [0.0, 0.0]]
+    word_ids = [None, 0, 0, 1, None]
+    # WHEN reading per-word scores
+    scores = first_piece_word_scores(piece_scores, word_ids, 3, outside_index=0)
+    # THEN each word takes its first piece and the cut word is surely O
+    assert scores[0] == [-0.1, -2.0]
+    assert scores[1] == [-2.0, -0.2]
+    assert scores[2] == [0.0, float("-inf")]
