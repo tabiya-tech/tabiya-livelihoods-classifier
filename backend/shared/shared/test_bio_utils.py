@@ -1,6 +1,6 @@
 """Tests for BIO post-processing used by the NER service."""
 
-from shared.bio_utils import extract_entities
+from shared.bio_utils import best_valid_bio_tags, drop_edge_punctuation, extract_entities
 
 
 class TestExtractEntities:
@@ -72,3 +72,54 @@ class TestExtractEntities:
         # THEN only the B-/I- prefix is split off, so the label stays whole
         expected_entities = [{"type": "Job-Title", "tokens": ["Head", "Chef"]}]
         assert actual_entities == expected_entities
+
+
+def test_best_valid_bio_tags_never_starts_a_phrase_with_inside():
+    # GIVEN a word whose single most likely tag is an orphan I-Skill
+    labels = ["O", "B-Skill", "I-Skill"]
+    log_probs = [[-0.2, -2.0, -3.0], [-1.0, -2.0, -0.6], [-1.0, -2.0, -0.5]]
+    # WHEN the whole sentence is decoded at once
+    tags = best_valid_bio_tags(log_probs, labels)
+    # THEN no I- appears without a B- before it
+    assert tags[0] in ("O", "B-Skill")
+    for previous, tag in zip(tags, tags[1:]):
+        if tag == "I-Skill":
+            assert previous in ("B-Skill", "I-Skill")
+
+
+def test_best_valid_bio_tags_keeps_a_confident_phrase():
+    labels = ["O", "B-Skill", "I-Skill"]
+    log_probs = [[-3.0, -0.1, -3.0], [-3.0, -3.0, -0.1], [-0.1, -3.0, -3.0]]
+    assert best_valid_bio_tags(log_probs, labels) == ["B-Skill", "I-Skill", "O"]
+
+
+def test_best_valid_bio_tags_empty_sentence():
+    assert best_valid_bio_tags([], ["O"]) == []
+
+
+def test_drop_edge_punctuation_trims_a_trailing_bracket():
+    words = ["gestión", "del", "portal", "("]
+    tags = ["B-Skill", "I-Skill", "I-Skill", "I-Skill"]
+    assert drop_edge_punctuation(words, tags) == ["B-Skill", "I-Skill", "I-Skill", "O"]
+
+
+def test_drop_edge_punctuation_moves_the_start_past_punctuation():
+    words = ["(", "Excel", "avanzado"]
+    tags = ["B-Skill", "I-Skill", "I-Skill"]
+    assert drop_edge_punctuation(words, tags) == ["O", "B-Skill", "I-Skill"]
+
+
+def test_drop_edge_punctuation_removes_punctuation_only_phrases():
+    assert drop_edge_punctuation([",", "y"], ["B-Skill", "O"]) == ["O", "O"]
+
+
+def test_drop_edge_punctuation_keeps_a_bracket_closed_inside_the_phrase():
+    words = ["clases", "en", "vivo", "(", "sincrónicas", ")", "."]
+    tags = ["B-Skill"] + ["I-Skill"] * 6
+    assert drop_edge_punctuation(words, tags) == ["B-Skill"] + ["I-Skill"] * 5 + ["O"]
+
+
+def test_drop_edge_punctuation_keeps_a_phrase_that_is_a_whole_bracket():
+    words = ["(", "Excel", ")"]
+    tags = ["B-Skill", "I-Skill", "I-Skill"]
+    assert drop_edge_punctuation(words, tags) == tags
