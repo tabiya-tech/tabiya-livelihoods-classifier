@@ -276,21 +276,21 @@ The [datasets](#Datasets) are licensed under the Creative Commons Attribution 4.
 ## Datasets
 
 ### Occupations
-- **Location**:  [backend/mel/mel/files/en/occupations_augmented.csv](backend/mel/mel/files/en/occupations_augmented.csv)
+- **Location**:  [backend/nel/nel/files/en/occupations_augmented.csv](backend/nel/nel/files/en/occupations_augmented.csv)
 - **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
 - **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences, and Occupations. This dataset includes information relevant to the occupations.
 - **License**: Creative Commons Attribution 4.0 International see [DATA_LICENSE](./DATA_LICENSE) for details.
 - **Modifications**: The columns retained are `alt_label`, `preferred_label`, `esco_code`, and `uuid`. Each alternative label has been separated into individual rows.
 
 ### Skills
-- **Location**: [backend/mel/mel/files/en/skills.csv](backend/mel/mel/files/en/skills.csv)
+- **Location**: [backend/mel/mel/files/en/skills.csv](backend/nel/nel/files/en/skills.csv)
 - **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
 - **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences and Occupations. This dataset includes information relevant to the skills.
 - **License**: Creative Commons Attribution 4.0 International see [Data License](./DATA_LICENSE) for details.
 - **Modifications**: The columns retained are `preferred_label` and `uuid`.
 
 ### Qualifications
-- **Location**: [backend/mel/mel/files/en/qualifications.csv](backend/mel/mel/files/en/qualifications.csv)
+- **Location**: [backend/mel/mel/files/en/qualifications.csv](backend/nel/nel/files/en/qualifications.csv)
 - **Source**: [Official European Union EQF comparison website](https://europass.europa.eu/en/compare-qualifications)
 - **Description**: This dataset contains EQF (European Qualifications Framework) relevant information extracted from the official EQF comparison website. It includes data strings, country information, and EQF levels. Non-English text was ignored.
 - **License**: Please refer to the original source for [license information](https://europass.europa.eu/en/node/2161).
