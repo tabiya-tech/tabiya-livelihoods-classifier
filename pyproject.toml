@@ -1,21 +1,13 @@
-# Root pyproject.toml — monorepo manifest only.
-# Each service lives in its own subdirectory with its own pyproject.toml:
-#   backend/shared/   — tabiya-shared (internal library)
-#   backend/ner/      — ner service
-#   backend/nel/      — nel service
-#   backend/classify/ — classify service
-#   evaluation/       — evaluation scripts
-#   training/         — training scripts
-#
-# To set up a specific service:
-#   cd backend/ner && poetry install
+# Root pyproject.toml — monorepo manifest only. It has no dependencies, so
+# there is nothing to install here. See README.md to set up module projects.
 
 [tool.poetry]
 name = "tabiya-livelihoods-classifier"
 version = "1.0.0"
 description = "Monorepo root — see subdirectory pyproject.toml files for services"
 authors = ["Tabiya <tabiya@tabiya.org>"]
-packages = []
+# Not an installable package: Poetry must not try to install the root project.
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"

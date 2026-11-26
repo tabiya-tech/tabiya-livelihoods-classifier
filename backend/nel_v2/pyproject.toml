@@ -21,7 +21,13 @@ tabiya-shared = { path = "../shared", develop = true }
 # CPU-only torch from the PyTorch CPU wheel index (see [[tool.poetry.source]]
 # below) so the multi-GB NVIDIA CUDA wheels are never pulled. These services run
 # on CPU-only Cloud Run; the CUDA builds only bloat images and break CI downloads.
-torch = { version = "2.11.0", source = "pytorch-cpu" }
+# On that index Poetry resolves torch to the "+cpu" build, which is only published
+# for Linux and Windows, so macOS gets torch from PyPI instead (its macOS wheels
+# have no CUDA anyway). Linux and Windows still resolve to the "+cpu" build.
+torch = [
+    { version = "2.11.0", source = "pytorch-cpu", markers = "platform_system != 'Darwin'" },
+    { version = "2.11.0", markers = "platform_system == 'Darwin'" },
+]
 
 [tool.poetry.extras]
 inference = ["sentence-transformers", "google-cloud-aiplatform"]
