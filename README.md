@@ -44,8 +44,8 @@ Environments follow the pattern `<env>.classifier.tabiya.tech`. The `dev` enviro
 ### Prerequisites
 
 - A recent version of [git](https://git-scm.com/) (e.g. ^2.37 )
-- [Python 3.10 or higher](https://www.python.org/downloads/)
-- [Poerty 1.8 or higher](https://python-poetry.org/)
+- [Python 3.10, 3.11 or 3.12](https://www.python.org/downloads/) (CI uses 3.11. 3.13 is not supported yet because `backend/nel` pins numpy 1.26.4, which has no Python 3.13 wheels)
+- [Poetry 1.8 or higher](https://python-poetry.org/)
   > Note: to install Poetry consult the [Poetry documentation](https://python-poetry.org/docs/#installing-with-the-official-installer) 
   
   > Note: Install poetry system-wide (not in a virtualenv).
@@ -70,53 +70,113 @@ git lfs pull
 
 ### Install the dependencies
 
-#### Set up virtualenv
-In the **root directory** of the backend project (so, the same directory as this README file), run the following commands:
+The repository is a monorepo of independent Poetry projects ("modules"). Each module has its own `pyproject.toml`,
+its own `poetry.lock` and its own virtual environment:
+
+| Directory | Poetry project | Notes |
+|---|---|---|
+| `backend/shared/` | `tabiya-shared` | Library used by the services, which install it in editable mode |
+| `backend/ner/` | `tabiya-ner` | |
+| `backend/nel/` | `tabiya-nel` | |
+| `backend/nel_v2/` | `tabiya-nel-v2` | Needs the `inference` extra to run models locally |
+| `backend/classify/` | `tabiya-classify` | |
+| `backend/classify_v2/` | `tabiya-classify-v2` | |
+| `training/` | `tabiya-training` | |
+| `evaluation/` | `tabiya-evaluation` | |
+
+The modules pin different versions of the same dependencies so they cannot share one virtual environment.
+
+#### Before you start
+
+Important: make sure you have deactivated any active virtual environment (`deactivate`) and any conda environment other than `base` (`conda deactivate`) before you run Poetry. Otherwise it will remove most packages from that other environment.
+
+To point your IDE towards each module's environment, you'll need to know where they are. By default Poetry keeps them in a cache (run `poetry env info -p` to see where), but often it's easier to keep a `.venv` within each module's directory. This can be configured with a global Poetry setting:
 
 ```shell
-# create a virtual environment
-python3 -m venv venv
-
-# activate the virtual environment
-source venv/bin/activate
+poetry config virtualenvs.in-project true
 ```
 
+#### Install one module
+
+Run Poetry from inside the module's directory. `poetry env use` picks the Python version for the environment.
+
+If using Poetry 2.x:
+
 ```shell
-# Use the version of the dependencies specified in the lock file
-poetry lock --no-update
-# Install missing and remove unreferenced packages
+cd backend/ner
+poetry env use python3.12
+# Install from the lock file and remove packages the lock file does not list
+poetry sync
+```
+
+If using Poetry 1.x:
+
+```shell
+cd backend/ner
+poetry env use python3.12
+# Install from the lock file and remove packages the lock file does not list
 poetry install --sync
 ```
 
-> Note:
-> Install the dependencies for the training using:
->  ```shell
-> # Use the version of the dependencies specified in the lock file
-> poetry lock --no-update
-> # Install missing and remove unreferenced packages
-> poetry install --sync --with train
->  ```
+Both commands install the module's main and `dev` dependencies. `backend/nel_v2` needs its `inference` extra to load models locally: add `--extras inference`.
 
-> Note:
-> Before running any tasks, activate the virtual
-> environment so that the installed dependencies are available:
->  ```shell
->  # activate the virtual environment
->  source venv/bin/activate
->  ```
-> To deactivate the virtual environment, run:
-> ```shell
-> # deactivate the virtual environment
-> deactivate
-> ```
-
-Activate Python and download the NLTK punctuation package to use the sentence tokenizer. You only need to download `punkt` once.
+If Poetry reports that `pyproject.toml` changed significantly since `poetry.lock` was last generated, refresh the lock file without upgrading the locked versions, then install again:
 
 ```shell
-python <<EOF
-import nltk
-nltk.download('punkt')
-EOF
+# Poetry 2.x (keeping locked versions is the default)
+poetry lock
+
+# Poetry 1.x
+poetry lock --no-update
+```
+
+#### Install every module
+
+If using Poetry 2.x:
+
+```shell
+for d in backend/shared backend/ner backend/nel backend/nel_v2 backend/classify backend/classify_v2 training evaluation; do
+  (cd "$d" && poetry env use python3.12 && poetry sync --all-extras)
+done
+```
+
+If using Poetry 1.x:
+
+```shell
+for d in backend/shared backend/ner backend/nel backend/nel_v2 backend/classify backend/classify_v2 training evaluation; do
+  (cd "$d" && poetry env use python3.12 && poetry install --sync --all-extras)
+done
+```
+
+#### Use a module's environment
+
+You have two options. The first is to run commands with `poetry run` from the module's directory:
+
+```shell
+cd backend/ner
+poetry run pytest
+```
+
+The second is to activate the environment for your shell:
+
+```shell
+# Poetry 2.x (`poetry shell` moved to the poetry-plugin-shell plugin)
+eval "$(poetry env activate)"
+
+# Poetry 1.x
+poetry shell
+```
+
+After which you can run `python` or `pytest`. If you choose to run by activating the env, remember to `deactivate` (or `exit` for `poetry shell`) before you run Poetry in a different module.
+
+#### NLTK data
+
+The NER service downloads the NLTK sentence tokenizer data (`punkt` and `punkt_tab`) when it first loads a model. To use
+the tokenizer outside the service, download the data once:
+
+```shell
+cd backend/ner
+poetry run python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 ```
 
 ### Environment Variable & Configuration
@@ -216,21 +276,21 @@ The [datasets](#Datasets) are licensed under the Creative Commons Attribution 4.
 ## Datasets
 
 ### Occupations
-- **Location**:  [inference/files/occupations_augmented.csv](inference/files/occupations_augmented.csv)
+- **Location**:  [backend/nel/nel/files/en/occupations_augmented.csv](backend/nel/nel/files/en/occupations_augmented.csv)
 - **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
 - **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences, and Occupations. This dataset includes information relevant to the occupations.
 - **License**: Creative Commons Attribution 4.0 International see [DATA_LICENSE](./DATA_LICENSE) for details.
 - **Modifications**: The columns retained are `alt_label`, `preferred_label`, `esco_code`, and `uuid`. Each alternative label has been separated into individual rows.
 
 ### Skills
-- **Location**: [inference/files/skills.csv](inference/files/skills.csv)
+- **Location**: [backend/mel/mel/files/en/skills.csv](backend/nel/nel/files/en/skills.csv)
 - **Source**: [ESCO dataset - v1.1.1](https://esco.ec.europa.eu/en/use-esco/download)
 - **Description**: ESCO (European Skills, Competences, Qualifications and Occupations) is the European multilingual classification of Skills, Competences and Occupations. This dataset includes information relevant to the skills.
 - **License**: Creative Commons Attribution 4.0 International see [Data License](./DATA_LICENSE) for details.
 - **Modifications**: The columns retained are `preferred_label` and `uuid`.
 
 ### Qualifications
-- **Location**: [inference/files/qualifications.csv](inference/files/qualifications.csv)
+- **Location**: [backend/mel/mel/files/en/qualifications.csv](backend/nel/nel/files/en/qualifications.csv)
 - **Source**: [Official European Union EQF comparison website](https://europass.europa.eu/en/compare-qualifications)
 - **Description**: This dataset contains EQF (European Qualifications Framework) relevant information extracted from the official EQF comparison website. It includes data strings, country information, and EQF levels. Non-English text was ignored.
 - **License**: Please refer to the original source for [license information](https://europass.europa.eu/en/node/2161).
